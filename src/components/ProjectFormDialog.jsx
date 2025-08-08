@@ -48,7 +48,7 @@ const ProjectFormDialog = ({
             Project Details
           </Typography>
           <Grid container spacing={2}>
-            {/* NEW: Project Category Dropdown */}
+            {/* CORRECTED: Project Category Dropdown now uses allMetadata */}
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth margin="dense" variant="outlined" sx={{ minWidth: 180 }}>
                 <InputLabel>Project Category</InputLabel>
@@ -143,7 +143,8 @@ const ProjectFormDialog = ({
                 <InputLabel>Section</InputLabel>
                 <Select name="sectionId" label="Section" value={formData.sectionId} onChange={handleChange} inputProps={{ 'aria-label': 'Select section' }} >
                   <MenuItem value=""><em>None</em></MenuItem>
-                  {allMetadata.sections?.map(sec => (<MenuItem key={sec.sectionId} value={String(sec.sectionId)}>{sec.name}</MenuItem>))}
+                  {/* CORRECTED: Use the local state from the hook for dynamic sections */}
+                  {formSections?.map(sec => (<MenuItem key={sec.sectionId} value={String(sec.sectionId)}>{sec.name}</MenuItem>))}
                 </Select>
               </FormControl>
             </Grid>
@@ -170,7 +171,8 @@ const ProjectFormDialog = ({
                 <InputLabel>Sub-Program</InputLabel>
                 <Select name="subProgramId" label="Sub-Program" value={formData.subProgramId} onChange={handleChange} inputProps={{ 'aria-label': 'Select sub-program' }} >
                   <MenuItem key='empty-subprogram' value=""><em>None</em></MenuItem>
-                  {allMetadata.subPrograms?.map(subProg => (<MenuItem key={subProg.subProgramId} value={String(subProg.subProgramId)}>{subProg.subProgramme}</MenuItem>))}
+                  {/* CORRECTED: Use the local state from the hook for dynamic sub-programs */}
+                  {formSubPrograms?.map(subProg => (<MenuItem key={subProg.subProgramId} value={String(subProg.subProgramId)}>{subProg.subProgramme}</MenuItem>))}
                 </Select>
               </FormControl>
             </Grid>
@@ -208,13 +210,14 @@ const ProjectFormDialog = ({
                   renderValue={(selected) => (
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                       {selected.map((value) => (
-                        <Chip key={value} label={allMetadata.subcounties?.find(sc => String(sc.subcountyId) === String(value))?.name || value} />
+                        <Chip key={value} label={formSubcounties?.find(sc => String(sc.subcountyId) === String(value))?.name || value} />
                       ))}
                     </Box>
                   )}
                   inputProps={{ 'aria-label': 'Select multiple sub-counties' }}
                 >
-                  {allMetadata.subcounties?.map((subc) => (<MenuItem key={subc.subcountyId} value={String(subc.subcountyId)}>{subc.name}</MenuItem>))}
+                  {/* CORRECTED: Use the local state from the hook for dynamic sub-counties */}
+                  {formSubcounties?.map((subc) => (<MenuItem key={subc.subcountyId} value={String(subc.subcountyId)}>{subc.name}</MenuItem>))}
                 </Select>
               </FormControl>
             </Grid>
@@ -226,13 +229,14 @@ const ProjectFormDialog = ({
                   renderValue={(selected) => (
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                       {selected.map((value) => (
-                        <Chip key={value} label={allMetadata.wards?.find(w => String(w.wardId) === String(value))?.name || value} />
+                        <Chip key={value} label={formWards?.find(w => String(w.wardId) === String(value))?.name || value} />
                       ))}
                     </Box>
                   )}
                   inputProps={{ 'aria-label': 'Select multiple wards' }}
                 >
-                  {allMetadata.wards?.map((ward) => (<MenuItem key={ward.wardId} value={String(ward.wardId)}>{ward.name}</MenuItem>))}
+                  {/* CORRECTED: Use the local state from the hook for dynamic wards */}
+                  {formWards?.map((ward) => (<MenuItem key={ward.wardId} value={String(ward.wardId)}>{ward.name}</MenuItem>))}
                 </Select>
               </FormControl>
             </Grid>
