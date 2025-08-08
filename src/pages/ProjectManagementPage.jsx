@@ -7,11 +7,11 @@ import {
 } from '@mui/material';
 import {
   Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Visibility as ViewDetailsIcon, FilterList as FilterListIcon, BarChart as GanttChartIcon,
-  ArrowForward as ArrowForwardIcon, ArrowBack as ArrowBackIcon, Settings as SettingsIcon,
+  ArrowForward as ArrowForwardIcon, ArrowBack as ArrowBackIcon, Settings as SettingsIcon, Category as CategoryIcon // NEW: Import CategoryIcon
 } from '@mui/icons-material';
 
 import { useAuth } from '../context/AuthContext.jsx';
-import { checkUserPrivilege, currencyFormatter, getProjectStatusBackgroundColor, getProjectStatusTextColor, getComparator, stableSort } from '../utils/tableHelpers';
+import { checkUserPrivilege, currencyFormatter, getProjectStatusBackgroundColor, getProjectStatusTextColor } from '../utils/tableHelpers';
 import projectTableColumnsConfig from '../configs/projectTableConfig';
 import apiService from '../api';
 
@@ -24,7 +24,7 @@ import useFilter from '../hooks/useFilter';
 import useTableScrollShadows from '../hooks/useTableScrollShadows';
 
 function ProjectManagementPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, hasPrivilege } = useAuth();
   const navigate = useNavigate();
   const theme = useTheme();
 
@@ -208,6 +208,16 @@ function ProjectManagementPage() {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1" sx={{ color: theme.palette.primary.main, fontWeight: 'bold' }}>Project Management</Typography>
         <Stack direction="row" spacing={1}>
+          {hasPrivilege('projectcategory.read_all') && (
+              <Button
+                  variant="outlined"
+                  startIcon={<CategoryIcon />}
+                  onClick={() => navigate('/settings/project-categories')}
+                  sx={{ borderColor: theme.palette.primary.main, color: theme.palette.primary.main, '&:hover': { backgroundColor: theme.palette.primary.light, color: 'white' }, fontWeight: 'semibold', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' }}
+              >
+                  Manage Categories
+              </Button>
+          )}
           <Button variant="outlined" startIcon={<SettingsIcon />} onClick={handleOpenColumnsMenu}>Customize Columns</Button>
           {checkUserPrivilege(user, 'project.create') && (<Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenFormDialog()}>Add New Project</Button>)}
         </Stack>

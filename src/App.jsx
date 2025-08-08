@@ -31,6 +31,8 @@ import GISMapPage from './pages/GISMapPage.jsx';
 import MapDataImportPage from './pages/MapDataImportPage.jsx';
 // NEW: Import the SettingsPage
 import SettingsPage from './pages/SettingsPage.jsx';
+// CORRECTED: Import the ProjectCategoryPage component
+import ProjectCategoryPage from './pages/ProjectCategoryPage.jsx';
 
 // Define a custom theme to match KEMRI's blue
 const kemriTheme = createTheme({
@@ -152,6 +154,11 @@ const router = createBrowserRouter([
       {
         path: 'metadata-management', // NEW: Route for the Settings Page
         element: <SettingsPage />,
+      },
+      // CORRECTED: Route for the Project Category Management page
+      {
+        path: 'settings/project-categories',
+        element: <ProjectCategoryPage />,
       }
     ],
   },

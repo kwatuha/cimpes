@@ -1,3 +1,4 @@
+// src/components/ProjectFormDialog.jsx
 import React from 'react';
 import {
   Box, Typography, Button, TextField, Dialog, DialogTitle,
@@ -13,12 +14,11 @@ const ProjectFormDialog = ({
   currentProject,
   onFormSuccess,
   setSnackbar,
-  allMetadata,
+  allMetadata, // Now includes projectCategories
   user,
 }) => {
   const theme = useTheme();
 
-  // Use the custom hook to manage all form logic
   const {
     formData,
     formErrors,
@@ -48,6 +48,26 @@ const ProjectFormDialog = ({
             Project Details
           </Typography>
           <Grid container spacing={2}>
+            {/* NEW: Project Category Dropdown */}
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth margin="dense" variant="outlined" sx={{ minWidth: 180 }}>
+                <InputLabel>Project Category</InputLabel>
+                <Select
+                  name="categoryId"
+                  label="Project Category"
+                  value={formData.categoryId || ''}
+                  onChange={handleChange}
+                  inputProps={{ 'aria-label': 'Select project category' }}
+                >
+                  <MenuItem value=""><em>None</em></MenuItem>
+                  {allMetadata.projectCategories?.map(category => (
+                    <MenuItem key={category.categoryId} value={String(category.categoryId)}>
+                      {category.categoryName}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
             <Grid item xs={12} sm={6}>
               <TextField autoFocus margin="dense" name="projectName" label="Project Name" type="text" fullWidth variant="outlined" value={formData.projectName} onChange={handleChange} error={!!formErrors.projectName} helperText={formErrors.projectName} />
             </Grid>
@@ -123,7 +143,7 @@ const ProjectFormDialog = ({
                 <InputLabel>Section</InputLabel>
                 <Select name="sectionId" label="Section" value={formData.sectionId} onChange={handleChange} inputProps={{ 'aria-label': 'Select section' }} >
                   <MenuItem value=""><em>None</em></MenuItem>
-                  {formSections.map(sec => (<MenuItem key={sec.sectionId} value={String(sec.sectionId)}>{sec.name}</MenuItem>))}
+                  {allMetadata.sections?.map(sec => (<MenuItem key={sec.sectionId} value={String(sec.sectionId)}>{sec.name}</MenuItem>))}
                 </Select>
               </FormControl>
             </Grid>
@@ -150,7 +170,7 @@ const ProjectFormDialog = ({
                 <InputLabel>Sub-Program</InputLabel>
                 <Select name="subProgramId" label="Sub-Program" value={formData.subProgramId} onChange={handleChange} inputProps={{ 'aria-label': 'Select sub-program' }} >
                   <MenuItem key='empty-subprogram' value=""><em>None</em></MenuItem>
-                  {formSubPrograms.map(subProg => (<MenuItem key={subProg.subProgramId} value={String(subProg.subProgramId)}>{subProg.subProgramme}</MenuItem>))}
+                  {allMetadata.subPrograms?.map(subProg => (<MenuItem key={subProg.subProgramId} value={String(subProg.subProgramId)}>{subProg.subProgramme}</MenuItem>))}
                 </Select>
               </FormControl>
             </Grid>
@@ -181,38 +201,38 @@ const ProjectFormDialog = ({
               </FormControl>
             </Grid>
             <Grid item xs={12} sm={6}>
-              <FormControl fullWidth margin="dense" variant="outlined" sx={{ minWidth: 180 }} disabled={!formData.countyIds || formData.countyIds.length === 0}>
+              <FormControl fullWidth margin="dense" variant="outlined" sx={{ minWidth: 180 }} disabled={formData.countyIds.length === 0 && (allMetadata.subcounties?.length || 0) === 0}>
                 <InputLabel id="subcounty-multi-select-label">Sub-Counties</InputLabel>
                 <Select labelId="subcounty-multi-select-label" multiple name="subcountyIds" value={formData.subcountyIds} onChange={handleMultiSelectChange}
                   input={<OutlinedInput id="select-multiple-chip-subcounty" label="Sub-Counties" />}
                   renderValue={(selected) => (
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                       {selected.map((value) => (
-                        <Chip key={value} label={formSubcounties.find(sc => String(sc.subcountyId) === String(value))?.name || value} />
+                        <Chip key={value} label={allMetadata.subcounties?.find(sc => String(sc.subcountyId) === String(value))?.name || value} />
                       ))}
                     </Box>
                   )}
                   inputProps={{ 'aria-label': 'Select multiple sub-counties' }}
                 >
-                  {formSubcounties.map((subc) => (<MenuItem key={subc.subcountyId} value={String(subc.subcountyId)}>{subc.name}</MenuItem>))}
+                  {allMetadata.subcounties?.map((subc) => (<MenuItem key={subc.subcountyId} value={String(subc.subcountyId)}>{subc.name}</MenuItem>))}
                 </Select>
               </FormControl>
             </Grid>
             <Grid item xs={12} sm={6}>
-              <FormControl fullWidth margin="dense" variant="outlined" sx={{ minWidth: 180 }} disabled={!formData.subcountyIds || formData.subcountyIds.length === 0}>
+              <FormControl fullWidth margin="dense" variant="outlined" sx={{ minWidth: 180 }} disabled={formData.subcountyIds.length === 0 && (allMetadata.wards?.length || 0) === 0}>
                 <InputLabel id="ward-multi-select-label">Wards</InputLabel>
                 <Select labelId="ward-multi-select-label" multiple name="wardIds" value={formData.wardIds} onChange={handleMultiSelectChange}
                   input={<OutlinedInput id="select-multiple-chip-ward" label="Wards" />}
                   renderValue={(selected) => (
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                       {selected.map((value) => (
-                        <Chip key={value} label={formWards.find(w => String(w.wardId) === String(value))?.name || value} />
+                        <Chip key={value} label={allMetadata.wards?.find(w => String(w.wardId) === String(value))?.name || value} />
                       ))}
                     </Box>
                   )}
                   inputProps={{ 'aria-label': 'Select multiple wards' }}
                 >
-                  {formWards.map((ward) => (<MenuItem key={ward.wardId} value={String(ward.wardId)}>{ward.name}</MenuItem>))}
+                  {allMetadata.wards?.map((ward) => (<MenuItem key={ward.wardId} value={String(ward.wardId)}>{ward.name}</MenuItem>))}
                 </Select>
               </FormControl>
             </Grid>
