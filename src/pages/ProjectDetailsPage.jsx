@@ -10,11 +10,13 @@ import {
   ArrowBack as ArrowBackIcon, Add as AddIcon, Edit as EditIcon,
   Delete as DeleteIcon,
   People as PeopleIcon, Link as LinkIcon, BarChart as BarChartIcon,
-  Update as UpdateIcon
+  Update as UpdateIcon,
+  Attachment as AttachmentIcon
 } from '@mui/icons-material';
 import apiService from '../api';
 import { useAuth } from '../context/AuthContext';
 import { getProjectStatusBackgroundColor, getProjectStatusTextColor } from '../utils/projectStatusColors';
+import MilestoneAttachments from '../components/MilestoneAttachments.jsx';
 
 const checkUserPrivilege = (user, privilegeName) => {
   return user && user.privileges && Array.isArray(user.privileges) && user.privileges.includes(privilegeName);
@@ -80,6 +82,9 @@ function ProjectDetailsPage() {
     sequenceOrder: ''
   });
   const [milestoneFormErrors, setMilestoneFormErrors] = useState({});
+  const [openAttachmentsModal, setOpenAttachmentsModal] = useState(false);
+  const [milestoneToViewAttachments, setMilestoneToViewAttachments] = useState(null);
+
 
   const taskStatuses = [
     'Not Started', 'In Progress', 'Completed', 'On Hold', 'Cancelled', 'At Risk', 'Stalled', 'Delayed', 'Closed', 'Planning', 'Initiated'
@@ -92,6 +97,12 @@ function ProjectDetailsPage() {
     if (!user || !Array.isArray(user.privileges)) {
       setLoading(false);
       setError("Authentication data loading or missing privileges. Cannot fetch project details.");
+      return;
+    }
+    
+    if (!projectId) {
+      setLoading(false);
+      setError("No project ID provided.");
       return;
     }
 
@@ -140,7 +151,6 @@ function ProjectDetailsPage() {
     fetchProjectDetails();
   }, [fetchProjectDetails]);
 
-  // --- Task Management Handlers ---
   const handleOpenCreateTaskDialog = () => {
     if (!checkUserPrivilege(user, 'task.create')) {
       setSnackbar({ open: true, message: 'You do not have permission to create tasks.', severity: 'error' });
@@ -345,7 +355,7 @@ function ProjectDetailsPage() {
     try {
         const response = await apiService.projects.applyMilestoneTemplate(projectId);
         setSnackbar({ open: true, message: response.message, severity: 'success' });
-        fetchProjectDetails(); // Re-fetch to see the newly added milestones
+        fetchProjectDetails();
     } catch (err) {
         setSnackbar({ open: true, message: err.response?.data?.message || 'Failed to apply milestone template.', severity: 'error' });
     } finally {
@@ -475,11 +485,12 @@ function ProjectDetailsPage() {
     navigate(`/projects/${projectId}/gantt-chart`);
   };
 
+  const canApplyTemplate = !!projectCategory && checkUserPrivilege(user, 'project.apply_template');
+
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" height="80vh">
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <CircularProgress />
-        <Typography sx={{ ml: 2 }}>Loading project details...</Typography>
       </Box>
     );
   }
@@ -488,37 +499,19 @@ function ProjectDetailsPage() {
     return (
       <Box sx={{ p: 3 }}>
         <Alert severity="error">{error}</Alert>
-        <Button
-          variant="contained"
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate('/projects')}
-          sx={{ mt: 2 }}
-        >
-          Back to Project Management
-        </Button>
       </Box>
     );
   }
-
+  
   if (!project) {
     return (
       <Box sx={{ p: 3 }}>
-        <Alert severity="info">Project not found.</Alert>
-        <Button
-          variant="contained"
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate('/projects')}
-          sx={{ mt: 2 }}
-        >
-          Back to Project Management
-        </Button>
+        <Alert severity="error">Project not found or an unexpected error occurred.</Alert>
       </Box>
     );
   }
 
-  const canApplyTemplate = !!projectCategory && checkUserPrivilege(user, 'project.apply_template');
-  const hasExistingMilestones = milestones.length > 0;
-  
+
   return (
     <Box sx={{ p: 3 }}>
       <Button
@@ -542,27 +535,27 @@ function ProjectDetailsPage() {
           <Typography variant="body1">
             <strong>Project Category:</strong> {projectCategory?.categoryName || 'N/A'}
           </Typography>
-          <Typography variant="body1"><strong>Directorate:</strong> {project.directorate || 'N/A'}</Typography>
-          <Typography variant="body1"><strong>Principal Investigator:</strong> {project.principalInvestigator || 'N/A'}</Typography>
+          <Typography variant="body1"><strong>Directorate:</strong> {project?.directorate || 'N/A'}</Typography>
+          <Typography variant="body1"><strong>Principal Investigator:</strong> {project?.principalInvestigator || 'N/A'}</Typography>
           <Typography variant="body1"><strong>Status:</strong>
             <Chip
-              label={project.status || 'N/A'}
+              label={project?.status || 'N/A'}
               sx={{
                 ml: 1,
-                backgroundColor: getProjectStatusBackgroundColor(project.status),
-                color: getProjectStatusTextColor(project.status),
+                backgroundColor: getProjectStatusBackgroundColor(project?.status),
+                color: getProjectStatusTextColor(project?.status),
                 fontWeight: 'bold',
               }}
             />
           </Typography>
-          <Typography variant="body1"><strong>Start Date:</strong> {project.startDate ? new Date(project.startDate).toLocaleDateString() : 'N/A'}</Typography>
-          <Typography variant="body1"><strong>End Date:</strong> {project.endDate ? new Date(project.endDate).toLocaleDateString() : 'N/A'}</Typography>
-          <Typography variant="body1"><strong>Cost:</strong> ${parseFloat(project.costOfProject || 0).toFixed(2)}</Typography>
-          <Typography variant="body1"><strong>Paid Out:</strong> ${parseFloat(project.paidOut || 0).toFixed(2)}</Typography>
-          <Typography variant="body1"><strong>Objective:</strong> {project.objective || 'N/A'}</Typography>
-          <Typography variant="body1"><strong>Expected Output:</strong> {project.expectedOutput || 'N/A'}</Typography>
-          <Typography variant="body1"><strong>Expected Outcome:</strong> {project.expectedOutcome || 'N/A'}</Typography>
-          <Typography variant="body1"><strong>Description:</strong> {project.projectDescription || 'N/A'}</Typography>
+          <Typography variant="body1"><strong>Start Date:</strong> {project?.startDate ? new Date(project.startDate).toLocaleDateString() : 'N/A'}</Typography>
+          <Typography variant="body1"><strong>End Date:</strong> {project?.endDate ? new Date(project.endDate).toLocaleDateString() : 'N/A'}</Typography>
+          <Typography variant="body1"><strong>Cost:</strong> ${parseFloat(project?.costOfProject || 0).toFixed(2)}</Typography>
+          <Typography variant="body1"><strong>Paid Out:</strong> ${parseFloat(project?.paidOut || 0).toFixed(2)}</Typography>
+          <Typography variant="body1"><strong>Objective:</strong> {project?.objective || 'N/A'}</Typography>
+          <Typography variant="body1"><strong>Expected Output:</strong> {project?.expectedOutput || 'N/A'}</Typography>
+          <Typography variant="body1"><strong>Expected Outcome:</strong> {project?.expectedOutcome || 'N/A'}</Typography>
+          <Typography variant="body1"><strong>Description:</strong> {project?.projectDescription || 'N/A'}</Typography>
         </Stack>
       </Paper>
 
@@ -676,7 +669,6 @@ function ProjectDetailsPage() {
               startIcon={<AddIcon />}
               onClick={handleOpenCreateMilestoneDialog}
               sx={{ backgroundColor: '#16a34a', '&:hover': { backgroundColor: '#15803d' } }}
-              disabled={!!projectCategory?.categoryName}
             >
               Add Milestone
             </Button>
@@ -696,6 +688,13 @@ function ProjectDetailsPage() {
                 divider
                 secondaryAction={
                   <Stack direction="row" spacing={1}>
+                    {/* NEW: Button to view attachments */}
+                    <IconButton edge="end" aria-label="attachments" onClick={() => {
+                        setMilestoneToViewAttachments(milestone);
+                        setOpenAttachmentsModal(true);
+                    }}>
+                        <AttachmentIcon />
+                    </IconButton>
                     {checkUserPrivilege(user, 'milestone.update') && (
                       <IconButton edge="end" aria-label="edit" onClick={() => handleOpenEditMilestoneDialog(milestone)}>
                         <EditIcon />
@@ -988,8 +987,15 @@ function ProjectDetailsPage() {
           </Button>
         </DialogActions>
       </Dialog>
+        
+      <MilestoneAttachments
+        open={openAttachmentsModal}
+        onClose={() => setOpenAttachmentsModal(false)}
+        milestoneId={milestoneToViewAttachments?.milestoneId}
+        currentMilestoneName={milestoneToViewAttachments?.milestoneName}
+        onUploadSuccess={fetchProjectDetails}
+      />
 
-      {/* Snackbar for notifications */}
       <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar}>
         <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
           {snackbar.message}

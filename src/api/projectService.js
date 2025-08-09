@@ -119,6 +119,30 @@ const projectService = {
       return response.data;
     },
   },
+  
+  // --- NEW: Milestone Attachments API Calls (kemri_milestone_attachments) ---
+  milestoneAttachments: {
+    getAttachmentsByMilestone: async (milestoneId) => {
+      const response = await axiosInstance.get(`/milestones/${milestoneId}/attachments`);
+      return response.data;
+    },
+    createAttachment: async (milestoneId, attachmentData) => {
+      const response = await axiosInstance.post(`/milestones/${milestoneId}/attachments`, attachmentData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    },
+    updateAttachment: async (milestoneId, attachmentId, attachmentData) => {
+      const response = await axiosInstance.put(`/milestones/${milestoneId}/attachments/${attachmentId}`, attachmentData);
+      return response.data;
+    },
+    deleteAttachment: async (attachmentId) => {
+      const response = await axiosInstance.delete(`/milestones/attachments/${attachmentId}`);
+      return response.data;
+    },
+  },
 
   // --- Task Assignees API Calls (kemri_task_assignees) ---
   taskAssignees: {
