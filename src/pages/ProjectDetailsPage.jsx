@@ -74,7 +74,8 @@ function ProjectDetailsPage() {
     milestoneDescription: '',
     dueDate: '',
     completed: false,
-    completedDate: ''
+    completedDate: '',
+    sequenceOrder: ''
   });
   const [milestoneFormErrors, setMilestoneFormErrors] = useState({});
 
@@ -104,16 +105,17 @@ function ProjectDetailsPage() {
       if (projectData.categoryId) {
         const categoryData = await apiService.metadata.projectCategories.getCategoryById(projectData.categoryId);
         setProjectCategory(categoryData);
+        // CORRECTED: Fetch milestones from the project's milestones table
+        const milestonesData = await apiService.milestones.getMilestonesForProject(projectId);
+        setMilestones(milestonesData);
       } else {
         setProjectCategory(null);
+        setMilestones([]);
       }
 
       const tasksData = await apiService.tasks.getTasksForProject(projectId);
       setTasks(tasksData);
       setAllTasks(tasksData);
-
-      const milestonesData = await apiService.milestones.getMilestonesForProject(projectId);
-      setMilestones(milestonesData);
 
       const rawStaffData = await apiService.users.getStaff();
       const camelCaseStaffData = rawStaffData.map(s => snakeToCamelCase(s));
@@ -290,8 +292,8 @@ function ProjectDetailsPage() {
         const newDependsOnTaskIds = new Set(taskFormData.dependencies);
 
         for (const existingDependsOnTaskId of existingDependsOnTaskIds) {
-          if (!newDependsOnTaskIds.has(existingDependsOnTaskId)) {
-            const dependencyToDelete = existingDependencies.find(d => d.dependsOnTaskId === existingDependsOnTaskId);
+          if (!newDependsOnTaskIds.has(existingDependsOnTaskIds)) {
+            const dependencyToDelete = existingDependencies.find(d => d.dependsOnTaskId === existingDependsOnTaskIds);
             if (dependencyToDelete) {
               await apiService.taskDependencies.deleteTaskDependency(dependencyToDelete.dependencyId);
             }
@@ -299,8 +301,8 @@ function ProjectDetailsPage() {
         }
 
         for (const newDependsOnTaskId of newDependsOnTaskIds) {
-          if (!existingDependsOnTaskIds.has(newDependsOnTaskId)) {
-            await apiService.taskDependencies.createTaskDependency({ taskId: taskIdToUse, dependsOnTaskId: newDependsOnTaskId });
+          if (!existingDependsOnTaskIds.has(newDependsOnTaskIds)) {
+            await apiService.taskDependencies.createTaskDependency({ taskId: taskIdToUse, dependsOnTaskId: newDependsOnTaskIds });
           }
         }
       } else if (taskFormData.dependencies.length > 0) {
@@ -340,7 +342,7 @@ function ProjectDetailsPage() {
     }
     setCurrentMilestone(null);
     setMilestoneFormData({
-      milestoneName: '', milestoneDescription: '', dueDate: '', completed: false, completedDate: ''
+      milestoneName: '', milestoneDescription: '', dueDate: '', completed: false, completedDate: '', sequenceOrder: ''
     });
     setMilestoneFormErrors({});
     setOpenMilestoneDialog(true);
@@ -357,7 +359,8 @@ function ProjectDetailsPage() {
       milestoneDescription: milestone.milestoneDescription || '',
       dueDate: milestone.dueDate ? new Date(milestone.dueDate).toISOString().split('T')[0] : '',
       completed: milestone.completed || false,
-      completedDate: milestone.completedDate ? new Date(milestone.completedDate).toISOString().split('T')[0] : ''
+      completedDate: milestone.completedDate ? new Date(milestone.completedDate).toISOString().split('T')[0] : '',
+      sequenceOrder: milestone.sequenceOrder || ''
     });
     setMilestoneFormErrors({});
     setOpenMilestoneDialog(true);
@@ -642,13 +645,19 @@ function ProjectDetailsPage() {
               startIcon={<AddIcon />}
               onClick={handleOpenCreateMilestoneDialog}
               sx={{ backgroundColor: '#16a34a', '&:hover': { backgroundColor: '#15803d' } }}
+              disabled={!!projectCategory?.categoryName}
             >
               Add Milestone
             </Button>
           )}
         </Box>
         {milestones.length === 0 ? (
-          <Alert severity="info">No milestones defined for this project.</Alert>
+            // CORRECTED: Show a different alert for templated milestones
+            projectCategory?.categoryName ? (
+                <Alert severity="info">Milestones for this project are generated from the '{projectCategory.categoryName}' template.</Alert>
+            ) : (
+                <Alert severity="info">No milestones defined for this project.</Alert>
+            )
         ) : (
           <List component={Paper} elevation={2} sx={{ borderRadius: '8px' }}>
             {milestones.map((milestone) => (
@@ -672,7 +681,17 @@ function ProjectDetailsPage() {
               >
                 <ListItemText
                   primary={
-                    <Typography variant="h6" sx={{ fontWeight: 'bold' }}>{milestone.milestoneName || 'Unnamed Milestone'}</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                      {milestone.milestoneName || 'Unnamed Milestone'}
+                      {/* NEW: Label to indicate a templated milestone */}
+                      {milestone.isFromTemplate && (
+                          <Chip
+                              label="Template"
+                              size="small"
+                              sx={{ ml: 1, backgroundColor: theme.palette.secondary.main, color: 'white', fontWeight: 'bold' }}
+                          />
+                      )}
+                    </Typography>
                   }
                   secondary={
                     <Box>

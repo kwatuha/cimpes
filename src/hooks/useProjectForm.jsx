@@ -8,6 +8,7 @@ const useProjectForm = (currentProject, allMetadata, onFormSuccess, setSnackbar)
     objective: '', expectedOutput: '', principalInvestigator: '', expectedOutcome: '',
     status: 'Not Started', statusReason: '', principalInvestigatorStaffId: '',
     departmentId: '', sectionId: '', finYearId: '', programId: '', subProgramId: '',
+    categoryId: '', // ADDED: categoryId to the form state
     countyIds: [], subcountyIds: [], wardIds: [],
   });
   const [formErrors, setFormErrors] = useState({});
@@ -29,7 +30,6 @@ const useProjectForm = (currentProject, allMetadata, onFormSuccess, setSnackbar)
       setLoading(true);
       const fetchAssociations = async () => {
         try {
-          // CORRECTED: Call the junctions service for project-location data
           const [countiesRes, subcountiesRes, wardsRes] = await Promise.all([
             apiService.junctions.getProjectCounties(currentProject.id),
             apiService.junctions.getProjectSubcounties(currentProject.id),
@@ -59,6 +59,7 @@ const useProjectForm = (currentProject, allMetadata, onFormSuccess, setSnackbar)
             finYearId: String(currentProject.finYearId || ''),
             programId: String(currentProject.programId || ''),
             subProgramId: String(currentProject.subProgramId || ''),
+            categoryId: String(currentProject.categoryId || ''), // FIXED: Populating categoryId from the project object
             countyIds,
             subcountyIds,
             wardIds,
@@ -81,6 +82,7 @@ const useProjectForm = (currentProject, allMetadata, onFormSuccess, setSnackbar)
         objective: '', expectedOutput: '', principalInvestigator: '', expectedOutcome: '',
         status: 'Not Started', statusReason: '', principalInvestigatorStaffId: '',
         departmentId: '', sectionId: '', finYearId: '', programId: '', subProgramId: '',
+        categoryId: '', // ADDED: Reset categoryId for new projects
         countyIds: [], subcountyIds: [], wardIds: [],
       });
       setInitialAssociations({ countyIds: [], subcountyIds: [], wardIds: [] });
@@ -171,7 +173,7 @@ const useProjectForm = (currentProject, allMetadata, onFormSuccess, setSnackbar)
     for (const key of ['costOfProject', 'paidOut', 'principalInvestigatorStaffId']) {
       if (dataToSubmit[key] === '' || dataToSubmit[key] === null) { dataToSubmit[key] = null; } else if (typeof dataToSubmit[key] === 'string') { const parsed = parseFloat(dataToSubmit[key]); dataToSubmit[key] = isNaN(parsed) ? null : parsed; }
     }
-    for (const key of ['departmentId', 'sectionId', 'finYearId', 'programId', 'subProgramId']) {
+    for (const key of ['departmentId', 'sectionId', 'finYearId', 'programId', 'subProgramId', 'categoryId']) { // FIXED: Add categoryId here
       if (dataToSubmit[key] === '' || dataToSubmit[key] === null) { dataToSubmit[key] = null; } else if (typeof dataToSubmit[key] === 'string') { const parsed = parseInt(dataToSubmit[key], 10); dataToSubmit[key] = isNaN(parsed) ? null : parsed; }
     }
 
@@ -194,7 +196,6 @@ const useProjectForm = (currentProject, allMetadata, onFormSuccess, setSnackbar)
       }
 
       if (projectId) {
-        // CORRECTED: Call the junctions service for project-location data
         await Promise.all([
           synchronizeAssociations(projectId, initialAssociations.countyIds.map(id => parseInt(id, 10)), countyIdsToSave, apiService.junctions.addProjectCounty, apiService.junctions.removeProjectCounty),
           synchronizeAssociations(projectId, initialAssociations.subcountyIds.map(id => parseInt(id, 10)), subcountyIdsToSave, apiService.junctions.addProjectSubcounty, apiService.junctions.removeProjectSubcounty),
