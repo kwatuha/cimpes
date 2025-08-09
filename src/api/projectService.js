@@ -120,7 +120,7 @@ const projectService = {
     },
   },
   
-  // --- NEW: Milestone Attachments API Calls (kemri_milestone_attachments) ---
+  // --- Milestone Attachments API Calls (kemri_milestone_attachments) ---
   milestoneAttachments: {
     getAttachmentsByMilestone: async (milestoneId) => {
       const response = await axiosInstance.get(`/milestones/${milestoneId}/attachments`);
@@ -144,6 +144,30 @@ const projectService = {
     },
   },
 
+  // --- NEW: Project Photos API Calls ---
+  projectPhotos: {
+    getPhotosByProject: async (projectId) => {
+      const response = await axiosInstance.get(`/projects/${projectId}/photos`);
+      return response.data;
+    },
+    uploadPhoto: async (projectId, fileData) => {
+      const response = await axiosInstance.post(`/projects/${projectId}/photos`, fileData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    },
+    setDefaultPhoto: async (photoId) => {
+      const response = await axiosInstance.put(`/project_photos/${photoId}/default`);
+      return response.data;
+    },
+    deletePhoto: async (photoId) => {
+      const response = await axiosInstance.delete(`/project_photos/${photoId}`);
+      return response.data;
+    },
+  },
+  
   // --- Task Assignees API Calls (kemri_task_assignees) ---
   taskAssignees: {
     getAllTaskAssignees: async () => {

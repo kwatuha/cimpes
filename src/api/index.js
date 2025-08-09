@@ -4,7 +4,7 @@ import axiosInstance from './axiosInstance';
 
 import authService from './authService';
 import userService from './userService';
-import projectService from './projectService'; // The module containing projects, tasks, etc.
+import projectService from './projectService';
 import organizationService from './organizationService';
 import strategyService from './strategyService';
 import participantService from './participantService';
@@ -14,13 +14,16 @@ import metaDataService from './metaDataService';
 import kdspIIService from './kdspIIService';
 
 // Export the base URL for API calls (used by axiosInstance)
-export const API_BASE_URL = 'http://192.168.100.12:3000/api';
+// Use the VITE_API_BASE_URL environment variable
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-// Export the base URL for directly accessing static files (e.g., uploaded documents)
-export const FILE_SERVER_BASE_URL = 'http://192.168.100.12:3000';
+// Export the base URL for directly accessing static files
+// Use the VITE_FILE_SERVER_BASE_URL environment variable
+export const FILE_SERVER_BASE_URL = import.meta.env.VITE_FILE_SERVER_BASE_URL;
 
 const apiService = {
-  // Use the spread syntax to merge all top-level properties from projectService
+  // Use the spread syntax to merge all top-level properties from projectService.
+  // This automatically includes the new `projectPhotos` service.
   ...projectService,
   
   // These services are flat objects and can be assigned directly

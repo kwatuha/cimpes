@@ -11,7 +11,8 @@ import {
   Delete as DeleteIcon,
   People as PeopleIcon, Link as LinkIcon, BarChart as BarChartIcon,
   Update as UpdateIcon,
-  Attachment as AttachmentIcon
+  Attachment as AttachmentIcon,
+  PhotoCamera as PhotoCameraIcon // NEW: Imported PhotoCameraIcon
 } from '@mui/icons-material';
 import apiService from '../api';
 import { useAuth } from '../context/AuthContext';
@@ -485,6 +486,11 @@ function ProjectDetailsPage() {
     navigate(`/projects/${projectId}/gantt-chart`);
   };
 
+  // NEW: Handler for navigating to the photo management page
+  const handleManagePhotos = () => {
+    navigate(`/projects/${projectId}/photos`);
+  };
+
   const canApplyTemplate = !!projectCategory && checkUserPrivilege(user, 'project.apply_template');
 
   if (loading) {
@@ -530,7 +536,20 @@ function ProjectDetailsPage() {
       </Typography>
 
       <Paper elevation={3} sx={{ p: 3, mb: 4, borderRadius: '8px', borderLeft: '5px solid #0A2342' }}>
-        <Typography variant="h6" color="primary.main" gutterBottom>Overview</Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6" color="primary.main">Overview</Typography>
+            <Stack direction="row" spacing={1}>
+                {/* NEW: Button to manage project photos */}
+                <Button
+                    variant="outlined"
+                    startIcon={<PhotoCameraIcon />}
+                    onClick={handleManagePhotos}
+                    sx={{ borderColor: '#0A2342', color: '#0A2342', '&:hover': { backgroundColor: '#e0e7ff' } }}
+                >
+                    Manage Photos
+                </Button>
+            </Stack>
+        </Box>
         <Stack spacing={1}>
           <Typography variant="body1">
             <strong>Project Category:</strong> {projectCategory?.categoryName || 'N/A'}

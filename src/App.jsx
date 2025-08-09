@@ -33,6 +33,9 @@ import MapDataImportPage from './pages/MapDataImportPage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 // CORRECTED: Import the ProjectCategoryPage component
 import ProjectCategoryPage from './pages/ProjectCategoryPage.jsx';
+// NEW: Import the ProjectPhotoManager component
+import ProjectPhotoManager from './pages/ProjectPhotoManager.jsx';
+
 
 // Define a custom theme to match KEMRI's blue
 const kemriTheme = createTheme({
@@ -118,6 +121,11 @@ const router = createBrowserRouter([
       {
         path: 'projects/:projectId/gantt-chart', // Dynamic route for Gantt Chart
         element: <ProjectGanttChartPage />,
+      },
+      // NEW: Route for Project Photo Management
+      {
+        path: 'projects/:projectId/photos',
+        element: <ProjectPhotoManager />,
       },
       {
         path: 'reports', // Dedicated route for Reports page

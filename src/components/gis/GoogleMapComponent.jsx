@@ -1,4 +1,3 @@
-// src/components/gis/GoogleMapComponent.jsx
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { GoogleMap, useJsApiLoader, StandaloneSearchBox } from '@react-google-maps/api';
 import { CircularProgress, Alert, TextField, Box } from '@mui/material';
@@ -10,9 +9,13 @@ function GoogleMapComponent({ children, center, zoom, style, onCreated, onSearch
   const mapRef = useRef(null);
   const searchBoxRef = useRef(null);
   const [mapLoaded, setMapLoaded] = useState(false);
+  
+  // LOGGING ADDED: Log the API key to the console
+  const apiKey = import.meta.env.VITE_MAPS_API_KEY;
+  console.log("Google Maps API Key:", apiKey);
 
   const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: "AIzaSyArNdYrq_WsuoGc34C7Osua7kbpt2Twf_s",
+    googleMapsApiKey: apiKey,
     libraries,
   });
 
@@ -95,7 +98,7 @@ function GoogleMapComponent({ children, center, zoom, style, onCreated, onSearch
         zoom={zoom}
         onLoad={onLoad}
         onUnmount={onUnmount}
-        onClick={onClick} // 👈 This is the key addition
+        onClick={onClick}
         options={{
           fullscreenControl: false,
           mapTypeControl: false,
