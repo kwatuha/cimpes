@@ -1,3 +1,4 @@
+// src/api/projectService.js
 import axiosInstance from './axiosInstance';
 
 /**
@@ -30,6 +31,12 @@ const projectService = {
     deleteProject: async (projectId) => {
       const response = await axiosInstance.delete(`/projects/${projectId}`);
       return response.data;
+    },
+    
+    // NEW: Function to apply a milestone template to an existing project
+    applyMilestoneTemplate: async (projectId) => {
+        const response = await axiosInstance.post(`/projects/apply-template/${projectId}`);
+        return response.data;
     },
   },
 

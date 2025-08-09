@@ -9,7 +9,8 @@ import {
 import {
   ArrowBack as ArrowBackIcon, Add as AddIcon, Edit as EditIcon,
   Delete as DeleteIcon,
-  People as PeopleIcon, Link as LinkIcon, BarChart as BarChartIcon
+  People as PeopleIcon, Link as LinkIcon, BarChart as BarChartIcon,
+  Update as UpdateIcon
 } from '@mui/icons-material';
 import apiService from '../api';
 import { useAuth } from '../context/AuthContext';
@@ -19,7 +20,6 @@ const checkUserPrivilege = (user, privilegeName) => {
   return user && user.privileges && Array.isArray(user.privileges) && user.privileges.includes(privilegeName);
 };
 
-// --- Helper to convert snake_case to camelCase for frontend use ---
 const snakeToCamelCase = (obj) => {
   if (obj === null || typeof obj !== 'object' || Array.isArray(obj)) {
     return obj;
@@ -48,6 +48,8 @@ function ProjectDetailsPage() {
   const [staff, setStaff] = useState([]);
   const [allTasks, setAllTasks] = useState([]);
   const [projectCategory, setProjectCategory] = useState(null);
+  const [applyingTemplate, setApplyingTemplate] = useState(false);
+  const [categoryMilestones, setCategoryMilestones] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -105,17 +107,19 @@ function ProjectDetailsPage() {
       if (projectData.categoryId) {
         const categoryData = await apiService.metadata.projectCategories.getCategoryById(projectData.categoryId);
         setProjectCategory(categoryData);
-        // CORRECTED: Fetch milestones from the project's milestones table
-        const milestonesData = await apiService.milestones.getMilestonesForProject(projectId);
-        setMilestones(milestonesData);
+        const templatedMilestones = await apiService.metadata.projectCategories.getMilestonesByCategory(projectData.categoryId);
+        setCategoryMilestones(templatedMilestones);
       } else {
         setProjectCategory(null);
-        setMilestones([]);
+        setCategoryMilestones([]);
       }
 
       const tasksData = await apiService.tasks.getTasksForProject(projectId);
       setTasks(tasksData);
       setAllTasks(tasksData);
+
+      const milestonesData = await apiService.milestones.getMilestonesForProject(projectId);
+      setMilestones(milestonesData);
 
       const rawStaffData = await apiService.users.getStaff();
       const camelCaseStaffData = rawStaffData.map(s => snakeToCamelCase(s));
@@ -261,7 +265,6 @@ function ProjectDetailsPage() {
         setSnackbar({ open: true, message: 'Task created successfully!', severity: 'success' });
       }
 
-      // --- Handle Assignees ---
       if (checkUserPrivilege(user, 'task.manage_assignees')) {
         const existingAssignees = await apiService.taskAssignees.getTaskAssigneesForTask(taskIdToUse);
         const existingStaffIds = new Set(existingAssignees.map(a => a.staffId));
@@ -285,7 +288,6 @@ function ProjectDetailsPage() {
         setSnackbar({ open: true, message: 'Warning: You lack privilege to manage assignees. Task created/updated without assignee changes.', severity: 'warning' });
       }
 
-      // --- Handle Dependencies ---
       if (checkUserPrivilege(user, 'task.manage_dependencies')) {
         const existingDependencies = await apiService.taskDependencies.getTaskDependenciesForTask(taskIdToUse);
         const existingDependsOnTaskIds = new Set(existingDependencies.map(d => d.dependsOnTaskId));
@@ -302,7 +304,7 @@ function ProjectDetailsPage() {
 
         for (const newDependsOnTaskId of newDependsOnTaskIds) {
           if (!existingDependsOnTaskIds.has(newDependsOnTaskIds)) {
-            await apiService.taskDependencies.createTaskDependency({ taskId: taskIdToUse, dependsOnTaskId: newDependsOnTaskIds });
+            await apiService.taskDependencies.createTaskDependency({ taskId: taskIdToUse, dependsOnTaskIds: newDependsOnTaskIds });
           }
         }
       } else if (taskFormData.dependencies.length > 0) {
@@ -334,7 +336,23 @@ function ProjectDetailsPage() {
     }
   };
 
-  // --- Milestone Management Handlers ---
+  const handleApplyMilestoneTemplate = async () => {
+    if (!checkUserPrivilege(user, 'project.apply_template')) {
+      setSnackbar({ open: true, message: 'Permission denied to apply milestone templates.', severity: 'error' });
+      return;
+    }
+    setApplyingTemplate(true);
+    try {
+        const response = await apiService.projects.applyMilestoneTemplate(projectId);
+        setSnackbar({ open: true, message: response.message, severity: 'success' });
+        fetchProjectDetails(); // Re-fetch to see the newly added milestones
+    } catch (err) {
+        setSnackbar({ open: true, message: err.response?.data?.message || 'Failed to apply milestone template.', severity: 'error' });
+    } finally {
+        setApplyingTemplate(false);
+    }
+  };
+  
   const handleOpenCreateMilestoneDialog = () => {
     if (!checkUserPrivilege(user, 'milestone.create')) {
       setSnackbar({ open: true, message: 'You do not have permission to create milestones.', severity: 'error' });
@@ -498,6 +516,9 @@ function ProjectDetailsPage() {
     );
   }
 
+  const canApplyTemplate = !!projectCategory && checkUserPrivilege(user, 'project.apply_template');
+  const hasExistingMilestones = milestones.length > 0;
+  
   return (
     <Box sx={{ p: 3 }}>
       <Button
@@ -639,7 +660,17 @@ function ProjectDetailsPage() {
       <Box sx={{ mt: 4 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Typography variant="h5" color="primary.main">Milestones</Typography>
-          {checkUserPrivilege(user, 'milestone.create') && (
+          {checkUserPrivilege(user, 'project.apply_template') && projectCategory && (
+              <Button
+                  variant="contained"
+                  startIcon={<UpdateIcon />}
+                  onClick={handleApplyMilestoneTemplate}
+                  disabled={applyingTemplate}
+              >
+                  {applyingTemplate ? <CircularProgress size={24} /> : 'Apply Latest Milestones'}
+              </Button>
+          )}
+          {checkUserPrivilege(user, 'milestone.create') && !projectCategory && (
             <Button
               variant="contained"
               startIcon={<AddIcon />}
@@ -652,9 +683,8 @@ function ProjectDetailsPage() {
           )}
         </Box>
         {milestones.length === 0 ? (
-            // CORRECTED: Show a different alert for templated milestones
             projectCategory?.categoryName ? (
-                <Alert severity="info">Milestones for this project are generated from the '{projectCategory.categoryName}' template.</Alert>
+                <Alert severity="info">Milestones for this project are generated from the '{projectCategory.categoryName}' template. Please apply the template first.</Alert>
             ) : (
                 <Alert severity="info">No milestones defined for this project.</Alert>
             )
@@ -683,14 +713,6 @@ function ProjectDetailsPage() {
                   primary={
                     <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
                       {milestone.milestoneName || 'Unnamed Milestone'}
-                      {/* NEW: Label to indicate a templated milestone */}
-                      {milestone.isFromTemplate && (
-                          <Chip
-                              label="Template"
-                              size="small"
-                              sx={{ ml: 1, backgroundColor: theme.palette.secondary.main, color: 'white', fontWeight: 'bold' }}
-                          />
-                      )}
                     </Typography>
                   }
                   secondary={
@@ -700,9 +722,9 @@ function ProjectDetailsPage() {
                         Due Date: {milestone.dueDate ? new Date(milestone.dueDate).toLocaleDateString() : 'N/A'}
                       </Typography>
                       <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
-                        Completed: {milestone.completed ? 'Yes' : 'No'}
-                        {milestone.completed && milestone.completedDate && ` on ${new Date(milestone.completedDate).toLocaleDateString()}`}
-                        {milestone.completed && (
+                        Completed: {!!milestone.completed ? 'Yes' : 'No'}
+                        {!!milestone.completed && milestone.completedDate && ` on ${new Date(milestone.completedDate).toLocaleDateString()}`}
+                        {!!milestone.completed && (
                             <Chip
                                 label="Completed"
                                 size="small"
