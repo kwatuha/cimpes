@@ -4,7 +4,7 @@ import {
   Box, Typography, CircularProgress, Alert, Button, Paper,
   List, ListItem, ListItemText, IconButton, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, MenuItem, FormControl, InputLabel,
-  Stack, Chip, Checkbox, FormControlLabel, Select, Snackbar
+  Stack, Chip, Checkbox, FormControlLabel, Select, Snackbar, LinearProgress
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon, Add as AddIcon, Edit as EditIcon,
@@ -12,7 +12,7 @@ import {
   People as PeopleIcon, Link as LinkIcon, BarChart as BarChartIcon,
   Update as UpdateIcon,
   Attachment as AttachmentIcon,
-  PhotoCamera as PhotoCameraIcon // NEW: Imported PhotoCameraIcon
+  PhotoCamera as PhotoCameraIcon
 } from '@mui/icons-material';
 import apiService from '../api';
 import { useAuth } from '../context/AuthContext';
@@ -80,7 +80,9 @@ function ProjectDetailsPage() {
     dueDate: '',
     completed: false,
     completedDate: '',
-    sequenceOrder: ''
+    sequenceOrder: '',
+    progress: 0, // NEW: Added progress
+    weight: 1,     // NEW: Added weight
   });
   const [milestoneFormErrors, setMilestoneFormErrors] = useState({});
   const [openAttachmentsModal, setOpenAttachmentsModal] = useState(false);
@@ -371,7 +373,9 @@ function ProjectDetailsPage() {
     }
     setCurrentMilestone(null);
     setMilestoneFormData({
-      milestoneName: '', milestoneDescription: '', dueDate: '', completed: false, completedDate: '', sequenceOrder: ''
+      milestoneName: '', milestoneDescription: '', dueDate: '', completed: false, completedDate: '', sequenceOrder: '',
+      progress: 0,
+      weight: 1,
     });
     setMilestoneFormErrors({});
     setOpenMilestoneDialog(true);
@@ -389,7 +393,9 @@ function ProjectDetailsPage() {
       dueDate: milestone.dueDate ? new Date(milestone.dueDate).toISOString().split('T')[0] : '',
       completed: milestone.completed || false,
       completedDate: milestone.completedDate ? new Date(milestone.completedDate).toISOString().split('T')[0] : '',
-      sequenceOrder: milestone.sequenceOrder || ''
+      sequenceOrder: milestone.sequenceOrder || '',
+      progress: milestone.progress || 0,
+      weight: milestone.weight || 1,
     });
     setMilestoneFormErrors({});
     setOpenMilestoneDialog(true);
@@ -403,9 +409,10 @@ function ProjectDetailsPage() {
 
   const handleMilestoneFormChange = (e) => {
     const { name, value, type, checked } = e.target;
+    // NEW: Handle number inputs for progress and weight
     setMilestoneFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: type === 'checkbox' ? checked : (type === 'number' ? parseFloat(value) : value)
     }));
   };
 
@@ -486,7 +493,6 @@ function ProjectDetailsPage() {
     navigate(`/projects/${projectId}/gantt-chart`);
   };
 
-  // NEW: Handler for navigating to the photo management page
   const handleManagePhotos = () => {
     navigate(`/projects/${projectId}/photos`);
   };
@@ -517,6 +523,7 @@ function ProjectDetailsPage() {
     );
   }
 
+  const overallProgress = project?.overallProgress || 0;
 
   return (
     <Box sx={{ p: 3 }}>
@@ -539,7 +546,6 @@ function ProjectDetailsPage() {
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h6" color="primary.main">Overview</Typography>
             <Stack direction="row" spacing={1}>
-                {/* NEW: Button to manage project photos */}
                 <Button
                     variant="outlined"
                     startIcon={<PhotoCameraIcon />}
@@ -551,6 +557,12 @@ function ProjectDetailsPage() {
             </Stack>
         </Box>
         <Stack spacing={1}>
+          {/* NEW: Project-wide progress bar */}
+          <Typography variant="body1">
+            <strong>Overall Progress:</strong> {overallProgress.toFixed(2)}%
+          </Typography>
+          <LinearProgress variant="determinate" value={overallProgress} sx={{ height: 10, borderRadius: 5, mb: 2 }} />
+          
           <Typography variant="body1">
             <strong>Project Category:</strong> {projectCategory?.categoryName || 'N/A'}
           </Typography>
@@ -739,7 +751,13 @@ function ProjectDetailsPage() {
                       <Typography variant="body2" color="text.secondary">
                         Due Date: {milestone.dueDate ? new Date(milestone.dueDate).toLocaleDateString() : 'N/A'}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
+                      {/* NEW: Display milestone progress */}
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                        Progress: {milestone.progress}% (Weight: {milestone.weight})
+                      </Typography>
+                      <LinearProgress variant="determinate" value={milestone.progress || 0} sx={{ height: 6, borderRadius: 3 }} />
+                      
+                      <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
                         Completed: {!!milestone.completed ? 'Yes' : 'No'}
                         {!!milestone.completed && milestone.completedDate && ` on ${new Date(milestone.completedDate).toLocaleDateString()}`}
                         {!!milestone.completed && (
@@ -968,6 +986,33 @@ function ProjectDetailsPage() {
             onChange={handleMilestoneFormChange}
             error={!!milestoneFormErrors.dueDate}
             helperText={milestoneFormErrors.dueDate}
+            sx={{ mb: 2 }}
+          />
+          {/* NEW: Input for Progress */}
+          <TextField
+            margin="dense"
+            name="progress"
+            label="Progress (%)"
+            type="number"
+            fullWidth
+            variant="outlined"
+            value={milestoneFormData.progress}
+            onChange={handleMilestoneFormChange}
+            inputProps={{ min: 0, max: 100, step: 0.01 }}
+            sx={{ mb: 2 }}
+          />
+
+          {/* NEW: Input for Weight */}
+          <TextField
+            margin="dense"
+            name="weight"
+            label="Weight"
+            type="number"
+            fullWidth
+            variant="outlined"
+            value={milestoneFormData.weight}
+            onChange={handleMilestoneFormChange}
+            inputProps={{ min: 0, step: 0.1 }}
             sx={{ mb: 2 }}
           />
           <FormControlLabel
