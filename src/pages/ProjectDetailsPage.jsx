@@ -4,7 +4,8 @@ import {
   Box, Typography, CircularProgress, Alert, Button, Paper,
   List, ListItem, ListItemText, IconButton, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, MenuItem, FormControl, InputLabel,
-  Stack, Chip, Checkbox, FormControlLabel, Select, Snackbar, LinearProgress
+  Stack, Chip, Checkbox, FormControlLabel, Select, Snackbar, LinearProgress,
+  Tooltip
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon, Add as AddIcon, Edit as EditIcon,
@@ -12,12 +13,16 @@ import {
   People as PeopleIcon, Link as LinkIcon, BarChart as BarChartIcon,
   Update as UpdateIcon,
   Attachment as AttachmentIcon,
-  PhotoCamera as PhotoCameraIcon
+  PhotoCamera as PhotoCameraIcon,
+  Visibility as VisibilityIcon
 } from '@mui/icons-material';
 import apiService from '../api';
 import { useAuth } from '../context/AuthContext';
 import { getProjectStatusBackgroundColor, getProjectStatusTextColor } from '../utils/projectStatusColors';
 import MilestoneAttachments from '../components/MilestoneAttachments.jsx';
+// NEW: Import the ProjectMonitoringComponent
+import ProjectMonitoringComponent from '../components/ProjectMonitoringComponent.jsx';
+
 
 const checkUserPrivilege = (user, privilegeName) => {
   return user && user.privileges && Array.isArray(user.privileges) && user.privileges.includes(privilegeName);
@@ -81,12 +86,14 @@ function ProjectDetailsPage() {
     completed: false,
     completedDate: '',
     sequenceOrder: '',
-    progress: 0, // NEW: Added progress
-    weight: 1,     // NEW: Added weight
+    progress: 0,
+    weight: 1,
   });
   const [milestoneFormErrors, setMilestoneFormErrors] = useState({});
   const [openAttachmentsModal, setOpenAttachmentsModal] = useState(false);
   const [milestoneToViewAttachments, setMilestoneToViewAttachments] = useState(null);
+  // NEW: State for monitoring modal
+  const [openMonitoringModal, setOpenMonitoringModal] = useState(false); 
 
 
   const taskStatuses = [
@@ -409,7 +416,6 @@ function ProjectDetailsPage() {
 
   const handleMilestoneFormChange = (e) => {
     const { name, value, type, checked } = e.target;
-    // NEW: Handle number inputs for progress and weight
     setMilestoneFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : (type === 'number' ? parseFloat(value) : value)
@@ -497,6 +503,14 @@ function ProjectDetailsPage() {
     navigate(`/projects/${projectId}/photos`);
   };
 
+  // NEW: Handlers for monitoring modal
+  const handleOpenMonitoringModal = () => {
+    setOpenMonitoringModal(true);
+  };
+  const handleCloseMonitoringModal = () => {
+    setOpenMonitoringModal(false);
+  };
+
   const canApplyTemplate = !!projectCategory && checkUserPrivilege(user, 'project.apply_template');
 
   if (loading) {
@@ -546,18 +560,29 @@ function ProjectDetailsPage() {
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h6" color="primary.main">Overview</Typography>
             <Stack direction="row" spacing={1}>
-                <Button
-                    variant="outlined"
-                    startIcon={<PhotoCameraIcon />}
-                    onClick={handleManagePhotos}
-                    sx={{ borderColor: '#0A2342', color: '#0A2342', '&:hover': { backgroundColor: '#e0e7ff' } }}
-                >
-                    Manage Photos
-                </Button>
+                <Tooltip title="View Project Monitoring">
+                    <Button
+                        variant="outlined"
+                        startIcon={<VisibilityIcon />}
+                        onClick={handleOpenMonitoringModal}
+                        sx={{ borderColor: '#0A2342', color: '#0A2342', '&:hover': { backgroundColor: '#e0e7ff' } }}
+                    >
+                        Monitoring
+                    </Button>
+                </Tooltip>
+                <Tooltip title="Manage Project Photos">
+                  <Button
+                      variant="outlined"
+                      startIcon={<PhotoCameraIcon />}
+                      onClick={handleManagePhotos}
+                      sx={{ borderColor: '#0A2342', color: '#0A2342', '&:hover': { backgroundColor: '#e0e7ff' } }}
+                  >
+                      Photos
+                  </Button>
+                </Tooltip>
             </Stack>
         </Box>
         <Stack spacing={1}>
-          {/* NEW: Project-wide progress bar */}
           <Typography variant="body1">
             <strong>Overall Progress:</strong> {overallProgress.toFixed(2)}%
           </Typography>
@@ -988,7 +1013,6 @@ function ProjectDetailsPage() {
             helperText={milestoneFormErrors.dueDate}
             sx={{ mb: 2 }}
           />
-          {/* NEW: Input for Progress */}
           <TextField
             margin="dense"
             name="progress"
@@ -1002,7 +1026,6 @@ function ProjectDetailsPage() {
             sx={{ mb: 2 }}
           />
 
-          {/* NEW: Input for Weight */}
           <TextField
             margin="dense"
             name="weight"
@@ -1058,6 +1081,13 @@ function ProjectDetailsPage() {
         milestoneId={milestoneToViewAttachments?.milestoneId}
         currentMilestoneName={milestoneToViewAttachments?.milestoneName}
         onUploadSuccess={fetchProjectDetails}
+      />
+
+      {/* NEW: Render the ProjectMonitoringComponent as a modal */}
+      <ProjectMonitoringComponent
+        open={openMonitoringModal}
+        onClose={handleCloseMonitoringModal}
+        projectId={projectId}
       />
 
       <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar}>

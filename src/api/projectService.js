@@ -168,6 +168,26 @@ const projectService = {
     },
   },
   
+  // --- NEW: Project Monitoring API Calls ---
+  projectMonitoring: {
+    getRecordsByProject: async (projectId) => {
+      const response = await axiosInstance.get(`/projects/${projectId}/monitoring`);
+      return response.data;
+    },
+    createRecord: async (projectId, recordData) => {
+      const response = await axiosInstance.post(`/projects/${projectId}/monitoring`, recordData);
+      return response.data;
+    },
+    updateRecord: async (projectId, recordId, recordData) => {
+      const response = await axiosInstance.put(`/projects/${projectId}/monitoring/${recordId}`, recordData);
+      return response.data;
+    },
+    deleteRecord: async (projectId, recordId) => {
+      const response = await axiosInstance.delete(`/projects/${projectId}/monitoring/${recordId}`);
+      return response.data;
+    },
+  },
+
   // --- Task Assignees API Calls (kemri_task_assignees) ---
   taskAssignees: {
     getAllTaskAssignees: async () => {
