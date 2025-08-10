@@ -14,14 +14,16 @@ import {
   Update as UpdateIcon,
   Attachment as AttachmentIcon,
   PhotoCamera as PhotoCameraIcon,
-  Visibility as VisibilityIcon
+  Visibility as VisibilityIcon,
+  Paid as PaidIcon // NEW: Imported PaidIcon
 } from '@mui/icons-material';
 import apiService from '../api';
 import { useAuth } from '../context/AuthContext';
 import { getProjectStatusBackgroundColor, getProjectStatusTextColor } from '../utils/projectStatusColors';
 import MilestoneAttachments from '../components/MilestoneAttachments.jsx';
-// NEW: Import the ProjectMonitoringComponent
 import ProjectMonitoringComponent from '../components/ProjectMonitoringComponent.jsx';
+// NEW: Import the ProjectManagerReviewPanel
+import ProjectManagerReviewPanel from '../components/ProjectManagerReviewPanel.jsx';
 
 
 const checkUserPrivilege = (user, privilegeName) => {
@@ -92,8 +94,9 @@ function ProjectDetailsPage() {
   const [milestoneFormErrors, setMilestoneFormErrors] = useState({});
   const [openAttachmentsModal, setOpenAttachmentsModal] = useState(false);
   const [milestoneToViewAttachments, setMilestoneToViewAttachments] = useState(null);
-  // NEW: State for monitoring modal
   const [openMonitoringModal, setOpenMonitoringModal] = useState(false); 
+  // NEW: State for the review panel modal
+  const [openReviewPanel, setOpenReviewPanel] = useState(false);
 
 
   const taskStatuses = [
@@ -503,15 +506,23 @@ function ProjectDetailsPage() {
     navigate(`/projects/${projectId}/photos`);
   };
 
-  // NEW: Handlers for monitoring modal
   const handleOpenMonitoringModal = () => {
     setOpenMonitoringModal(true);
   };
   const handleCloseMonitoringModal = () => {
     setOpenMonitoringModal(false);
   };
+  
+  // NEW: Handlers for review panel modal
+  const handleOpenReviewPanel = () => {
+    setOpenReviewPanel(true);
+  };
+  const handleCloseReviewPanel = () => {
+    setOpenReviewPanel(false);
+  };
 
   const canApplyTemplate = !!projectCategory && checkUserPrivilege(user, 'project.apply_template');
+  const canReviewSubmissions = checkUserPrivilege(user, 'project_manager.review'); // Assumed new privilege
 
   if (loading) {
     return (
@@ -560,6 +571,18 @@ function ProjectDetailsPage() {
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h6" color="primary.main">Overview</Typography>
             <Stack direction="row" spacing={1}>
+                {canReviewSubmissions && ( // NEW: Conditionally render the review button
+                    <Tooltip title="Review Contractor Submissions">
+                        <Button
+                            variant="outlined"
+                            startIcon={<PaidIcon />}
+                            onClick={handleOpenReviewPanel}
+                            sx={{ borderColor: '#0A2342', color: '#0A2342', '&:hover': { backgroundColor: '#e0e7ff' } }}
+                        >
+                            Review Submissions
+                        </Button>
+                    </Tooltip>
+                )}
                 <Tooltip title="View Project Monitoring">
                     <Button
                         variant="outlined"
@@ -1083,11 +1106,18 @@ function ProjectDetailsPage() {
         onUploadSuccess={fetchProjectDetails}
       />
 
-      {/* NEW: Render the ProjectMonitoringComponent as a modal */}
       <ProjectMonitoringComponent
         open={openMonitoringModal}
         onClose={handleCloseMonitoringModal}
         projectId={projectId}
+      />
+      
+      {/* NEW: Render the ProjectManagerReviewPanel as a modal */}
+      <ProjectManagerReviewPanel
+          open={openReviewPanel}
+          onClose={handleCloseReviewPanel}
+          projectId={projectId}
+          projectName={project?.projectName}
       />
 
       <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar}>

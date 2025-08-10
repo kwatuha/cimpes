@@ -38,6 +38,21 @@ const projectService = {
         const response = await axiosInstance.post(`/projects/apply-template/${projectId}`);
         return response.data;
     },
+    // NEW: Function to get contractors assigned to a project
+    getContractors: async (projectId) => {
+        const response = await axiosInstance.get(`/projects/${projectId}/contractors`);
+        return response.data;
+    },
+    // NEW: Function to assign a contractor to a project
+    assignContractor: async (projectId, contractorId) => {
+        const response = await axiosInstance.post(`/projects/${projectId}/assign-contractor`, { contractorId });
+        return response.data;
+    },
+    // NEW: Function to remove a contractor assignment from a project
+    removeContractor: async (projectId, contractorId) => {
+        const response = await axiosInstance.delete(`/projects/${projectId}/remove-contractor/${contractorId}`);
+        return response.data;
+    },
   },
 
   // --- Project Analytics API Calls ---
@@ -187,6 +202,81 @@ const projectService = {
       return response.data;
     },
   },
+  
+  // --- NEW: Contractor Management API Calls ---
+  contractors: {
+    getAllContractors: async () => {
+      const response = await axiosInstance.get('/contractors');
+      return response.data;
+    },
+    getContractorById: async (contractorId) => {
+      const response = await axiosInstance.get(`/contractors/${contractorId}`);
+      return response.data;
+    },
+    createContractor: async (contractorData) => {
+      const response = await axiosInstance.post('/contractors', contractorData);
+      return response.data;
+    },
+    updateContractor: async (contractorId, contractorData) => {
+      const response = await axiosInstance.put(`/contractors/${contractorId}`, contractorData);
+      return response.data;
+    },
+    deleteContractor: async (contractorId) => {
+      const response = await axiosInstance.delete(`/contractors/${contractorId}`);
+      return response.data;
+    },
+    getProjectsByContractor: async (contractorId) => {
+        const response = await axiosInstance.get(`/contractors/${contractorId}/projects`);
+        return response.data;
+    },
+    // NEW: Function to link a contractor to a user account
+    linkToUser: async (contractorId, userId) => {
+        const response = await axiosInstance.post(`/contractors/${contractorId}/link-user`, { userId });
+        return response.data;
+    },
+  },
+
+  // --- NEW: Payment Request API Calls ---
+  paymentRequests: {
+    getRequestsForProject: async (projectId) => {
+      const response = await axiosInstance.get(`/projects/${projectId}/payment-requests`);
+      return response.data;
+    },
+    createRequest: async (requestData) => {
+      const response = await axiosInstance.post('/payment-requests', requestData);
+      return response.data;
+    },
+    updateStatus: async (requestId, statusData) => {
+      const response = await axiosInstance.put(`/payment-requests/${requestId}/status`, statusData);
+      return response.data;
+    },
+    getRequestsByContractor: async (contractorId) => {
+      const response = await axiosInstance.get(`/contractors/${contractorId}/payment-requests`);
+      return response.data;
+    },
+  },
+
+  // --- NEW: Contractor Photo API Calls ---
+  contractorPhotos: {
+    getPhotosForProject: async (projectId) => {
+      const response = await axiosInstance.get(`/projects/${projectId}/contractor-photos`);
+      return response.data;
+    },
+    uploadPhoto: async (contractorId, fileData) => {
+      const response = await axiosInstance.post(`/contractors/${contractorId}/photos`, fileData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    },
+    updateStatus: async (photoId, statusData) => {
+      const response = await axiosInstance.put(`/contractor-photos/${photoId}/status`, statusData);
+      return response.data;
+    },
+    getPhotosByContractor: async (contractorId) => {
+        const response = await axiosInstance.get(`/contractors/${contractorId}/photos`);
+        return response.data;
+    },
+  },
 
   // --- Task Assignees API Calls (kemri_task_assignees) ---
   taskAssignees: {
@@ -282,6 +372,7 @@ const projectService = {
       const response = await axiosInstance.delete(`/projects/${projectId}/wards/${wardId}`);
       return response.data;
     },
+    
   },
 };
 

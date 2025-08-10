@@ -4,11 +4,31 @@ import {
   DialogContent, DialogActions, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Paper, CircularProgress, IconButton,
   Select, MenuItem, FormControl, InputLabel, Snackbar, Alert, Stack, useTheme,
-  OutlinedInput, Chip, ListSubheader // Added ListSubheader for grouping
+  OutlinedInput, Chip, ListSubheader
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, PersonAdd as PersonAddIcon, Settings as SettingsIcon, Lock as LockIcon } from '@mui/icons-material';
-import apiService from '../api/userService'; // Corrected import path to userService directly
-import { useAuth } from '../context/AuthContext.jsx'; // To get current user for role check and logout
+import apiService from '../api/userService';
+import { useAuth } from '../context/AuthContext.jsx';
+
+
+// --- Utility function for case conversion (Copied from ProjectDetailsPage for consistency) ---
+const snakeToCamelCase = (obj) => {
+  if (obj === null || typeof obj !== 'object' || Array.isArray(obj)) {
+    return obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(v => snakeToCamelCase(v));
+  }
+  const newObj = {};
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      const camelKey = key.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+      newObj[camelKey] = snakeToCamelCase(obj[key]);
+    }
+  }
+  return newObj;
+};
+
 
 function UserManagementPage() {
   const { user, logout, hasPrivilege } = useAuth();
@@ -26,34 +46,34 @@ function UserManagementPage() {
     username: '',
     email: '',
     password: '',
-    firstName: '', // Changed to camelCase
-    lastName: '',  // Changed to camelCase
-    role: '', // Will be dynamically set from fetched roles
+    firstName: '',
+    lastName: '',
+    role: '',
   });
   const [userFormErrors, setUserFormErrors] = useState({});
 
   // Delete Confirmation Dialog States
   const [openDeleteConfirmDialog, setOpenDeleteConfirmDialog] = useState(false);
   const [userToDeleteId, setUserToDeleteId] = useState(null);
-  const [userToDeleteName, setUserToDeleteName] = '';
+  const [userToDeleteName, setUserToDeleteName] = useState(''); // Corrected state initialization
 
   // Role Management States
   const [openRoleManagementDialog, setOpenRoleManagementDialog] = useState(false);
-  const [roles, setRoles] = useState([]); // List of all roles
-  const [openRoleDialog, setOpenRoleDialog] = useState(false); // For Add/Edit Role Form
+  const [roles, setRoles] = useState([]);
+  const [openRoleDialog, setOpenRoleDialog] = useState(false);
   const [currentRoleToEdit, setCurrentRoleToEdit] = useState(null);
   const [roleFormData, setRoleFormData] = useState({
     roleName: '',
     description: '',
-    privilegeIds: [] // For assigning privileges to a role
+    privilegeIds: []
   });
   const [roleFormErrors, setRoleFormErrors] = useState({});
-  const [initialRolePrivilegeIds, setInitialRolePrivilegeIds] = useState([]); // For role update comparison
+  const [initialRolePrivilegeIds, setInitialRolePrivilegeIds] = useState([]);
 
   // Privilege Management States
   const [openPrivilegeManagementDialog, setOpenPrivilegeManagementDialog] = useState(false);
-  const [privileges, setPrivileges] = useState([]); // List of all privileges
-  const [openPrivilegeDialog, setOpenPrivilegeDialog] = useState(false); // For Add/Edit Privilege Form
+  const [privileges, setPrivileges] = useState([]);
+  const [openPrivilegeDialog, setOpenPrivilegeDialog] = useState(false);
   const [currentPrivilegeToEdit, setCurrentPrivilegeToEdit] = useState(null);
   const [privilegeFormData, setPrivilegeFormData] = useState({
     privilegeName: '',
@@ -67,14 +87,14 @@ function UserManagementPage() {
 
   // --- Fetching Data ---
 
-  // Fetch Users
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       if (hasPrivilege('user.read_all')) {
         const data = await apiService.getUsers();
-        setUsers(data);
+        const camelCaseData = data.map(u => snakeToCamelCase(u)); // NEW: Convert data to camelCase
+        setUsers(camelCaseData);
       } else {
         setError("You do not have permission to view user management.");
         setUsers([]);
@@ -90,7 +110,6 @@ function UserManagementPage() {
     }
   }, [hasPrivilege, logout]);
 
-  // Fetch Roles
   const fetchRoles = useCallback(async () => {
     try {
       if (hasPrivilege('role.read_all')) {
@@ -106,28 +125,23 @@ function UserManagementPage() {
     }
   }, [hasPrivilege]);
 
-  // Fetch Privileges
   const fetchPrivileges = useCallback(async () => {
     try {
       if (hasPrivilege('privilege.read_all')) {
         const data = await apiService.getPrivileges();
 
-        // Deduplicate privileges based on privilegeId before setting state
-        // This ensures that even if the API returns duplicates, the frontend only processes unique ones.
         const uniquePrivileges = Array.from(new Map(data.map(p => [p.privilegeId, p])).values());
         
         setPrivileges(uniquePrivileges);
 
-        // Group unique privileges by their type (e.g., 'user', 'role', 'privilege')
-        const grouped = uniquePrivileges.reduce((acc, privilege) => { // Use uniquePrivileges here
-            const type = privilege.privilegeName.split('.')[0]; // e.g., 'user.read_all' -> 'user'
+        const grouped = uniquePrivileges.reduce((acc, privilege) => {
+            const type = privilege.privilegeName.split('.')[0];
             if (!acc[type]) {
                 acc[type] = [];
             }
             acc[type].push(privilege);
             return acc;
         }, {});
-        // Sort groups alphabetically by type, and privileges within each group by name
         const sortedGrouped = Object.keys(grouped).sort().reduce((acc, key) => {
             acc[key] = grouped[key].sort((a, b) => a.privilegeName.localeCompare(b.privilegeName));
             return acc;
@@ -146,7 +160,6 @@ function UserManagementPage() {
   }, [hasPrivilege]);
 
 
-  // Initial data fetch on component mount
   useEffect(() => {
     fetchUsers();
     fetchRoles();
@@ -222,7 +235,8 @@ function UserManagementPage() {
             setLoading(false);
             return;
         }
-        await apiService.updateUser(currentUserToEdit.user_id, userFormData);
+        // Corrected call to pass camelCase userId
+        await apiService.updateUser(currentUserToEdit.userId, userFormData);
         setSnackbar({ open: true, message: 'User updated successfully!', severity: 'success' });
       } else {
         if (!hasPrivilege('user.create')) {
@@ -264,6 +278,7 @@ function UserManagementPage() {
           setLoading(false);
           return;
       }
+      // Corrected call to pass camelCase userId
       await apiService.deleteUser(userToDeleteId);
       setSnackbar({ open: true, message: 'User deleted successfully!', severity: 'success' });
       fetchUsers();
@@ -289,7 +304,7 @@ function UserManagementPage() {
       setSnackbar({ open: true, message: 'Permission denied to view roles.', severity: 'error' });
       return;
     }
-    fetchRoles(); // Refresh roles list when opening
+    fetchRoles();
     setOpenRoleManagementDialog(true);
   };
 
@@ -317,16 +332,15 @@ function UserManagementPage() {
     setRoleFormData({
       roleName: role.roleName || '',
       description: role.description || '',
-      privilegeIds: [] // Will be populated after fetching role privileges
+      privilegeIds: []
     });
     setRoleFormErrors({});
 
     try {
-      // Fetch current privileges for this role
       const rolePrivileges = await apiService.getRolePrivileges(role.roleId);
-      const currentPrivilegeIds = rolePrivileges.map(rp => String(rp.privilegeId)); // Store as strings for multi-select
+      const currentPrivilegeIds = rolePrivileges.map(rp => String(rp.privilegeId));
       setRoleFormData(prev => ({ ...prev, privilegeIds: currentPrivilegeIds }));
-      setInitialRolePrivilegeIds(currentPrivilegeIds); // Store for comparison
+      setInitialRolePrivilegeIds(currentPrivilegeIds);
     } catch (err) {
       console.error('Error fetching role privileges for edit:', err);
       setSnackbar({ open: true, message: 'Failed to load role privileges.', severity: 'error' });
@@ -338,7 +352,7 @@ function UserManagementPage() {
     setOpenRoleDialog(false);
     setCurrentRoleToEdit(null);
     setRoleFormErrors({});
-    setInitialRolePrivilegeIds([]); // Clear initial state
+    setInitialRolePrivilegeIds([]);
   };
 
   const handleRoleFormChange = (e) => {
@@ -358,7 +372,6 @@ function UserManagementPage() {
     return Object.keys(errors).length === 0;
   };
 
-  // Helper to synchronize many-to-many relationships with improved error reporting
   const synchronizeAssociations = async (parentId, currentIds, newIds, addFn, removeFn, type = 'item') => {
     const idsToAdd = newIds.filter(id => !currentIds.includes(id));
     const idsToRemove = currentIds.filter(id => !newIds.includes(id));
@@ -401,7 +414,7 @@ function UserManagementPage() {
     let roleId = currentRoleToEdit ? currentRoleToEdit.roleId : null;
     const roleDataToSubmit = { ...roleFormData };
     const privilegeIdsToAssign = roleDataToSubmit.privilegeIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
-    delete roleDataToSubmit.privilegeIds; // Remove from main role data
+    delete roleDataToSubmit.privilegeIds;
 
     try {
       if (currentRoleToEdit) {
@@ -419,25 +432,24 @@ function UserManagementPage() {
           return;
         }
         const createdRole = await apiService.createRole(roleDataToSubmit);
-        roleId = createdRole.roleId; // Get the ID of the newly created role
+        roleId = createdRole.roleId;
         setSnackbar({ open: true, message: 'Role created successfully!', severity: 'success' });
       }
 
-      // Synchronize privileges for the role
       if (roleId) {
-        await synchronizeAssociations( // Using the improved synchronizeAssociations
+        await synchronizeAssociations(
           roleId,
           initialRolePrivilegeIds.map(id => parseInt(id, 10)),
           privilegeIdsToAssign,
           apiService.createRolePrivilege,
           apiService.deleteRolePrivilege,
-          'privilege' // Pass type for better error messages
+          'privilege'
         );
       }
 
       handleCloseRoleDialog();
-      fetchRoles(); // Refresh roles list
-      fetchUsers(); // Refresh users to update their role dropdown if needed
+      fetchRoles();
+      fetchUsers();
     } catch (err) {
       console.error("Submit role error:", err);
       setSnackbar({ open: true, message: err.response?.data?.message || err.message || 'Failed to save role.', severity: 'error' });
@@ -457,7 +469,7 @@ function UserManagementPage() {
         await apiService.deleteRole(roleId);
         setSnackbar({ open: true, message: 'Role deleted successfully!', severity: 'success' });
         fetchRoles();
-        fetchUsers(); // Refresh users in case their role was deleted
+        fetchUsers();
       } catch (err) {
         console.error("Delete role error:", err);
         setSnackbar({ open: true, message: err.response?.data?.message || err.message || 'Failed to delete role.', severity: 'error' });
@@ -474,7 +486,7 @@ function UserManagementPage() {
       setSnackbar({ open: true, message: 'Permission denied to view privileges.', severity: 'error' });
       return;
     }
-    fetchPrivileges(); // Refresh privileges list when opening
+    fetchPrivileges();
     setOpenPrivilegeManagementDialog(true);
   };
 
@@ -588,7 +600,6 @@ function UserManagementPage() {
   };
 
 
-  // Render loading state
   if (loading && !error) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="80vh">
@@ -598,7 +609,6 @@ function UserManagementPage() {
     );
   }
 
-  // Render error state or permission denied
   if (error && !hasPrivilege('user.read_all')) {
     return (
       <Box sx={{ p: 3 }}>
@@ -676,8 +686,8 @@ function UserManagementPage() {
             </TableHead>
             <TableBody>
               {users.map((userItem) => (
-                <TableRow key={userItem.user_id} sx={{ '&:nth-of-type(odd)': { backgroundColor: theme.palette.action.hover } }}>
-                  <TableCell>{userItem.user_id}</TableCell>
+                <TableRow key={userItem.userId} sx={{ '&:nth-of-type(odd)': { backgroundColor: theme.palette.action.hover } }}>
+                  <TableCell>{userItem.userId}</TableCell>
                   <TableCell>{userItem.username}</TableCell>
                   <TableCell>{userItem.email}</TableCell>
                   <TableCell>{userItem.firstName}</TableCell>
@@ -690,8 +700,8 @@ function UserManagementPage() {
                           <EditIcon />
                         </IconButton>
                       )}
-                      {hasPrivilege('user.delete') && userItem.user_id !== user.id && (
-                        <IconButton color="error" onClick={() => handleOpenDeleteConfirmDialog(userItem.user_id, userItem.username)}>
+                      {hasPrivilege('user.delete') && userItem.userId !== user.id && (
+                        <IconButton color="error" onClick={() => handleOpenDeleteConfirmDialog(userItem.userId, userItem.username)}>
                           <DeleteIcon />
                         </IconButton>
                       )}
@@ -829,7 +839,6 @@ function UserManagementPage() {
                 </Box>
               )}
             >
-              {/* Render grouped privileges */}
               {Object.keys(groupedPrivileges).map(groupName => [
                 <ListSubheader key={groupName} sx={{ fontWeight: 'bold', color: theme.palette.primary.main }}>
                   {groupName.charAt(0).toUpperCase() + groupName.slice(1)} Privileges

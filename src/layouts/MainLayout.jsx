@@ -18,7 +18,7 @@ import {
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import DashboardIcon from '@mui/icons-material/Dashboard';
-import TableChartIcon from '@mui/icons-material/TableChart'; // Corrected import
+import TableChartIcon from '@mui/icons-material/TableChart';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import MapIcon from '@mui/icons-material/Map';
@@ -28,6 +28,10 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import SettingsIcon from '@mui/icons-material/Settings';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import PaidIcon from '@mui/icons-material/Paid';
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
+import BusinessIcon from '@mui/icons-material/Business'; // NEW: Imported BusinessIcon for contractor link
+
 
 import { Link as RouterLink, Outlet, useNavigate, Navigate, useLocation } from 'react-router-dom';
 
@@ -54,6 +58,10 @@ function MainLayout() {
   };
 
   useEffect(() => {
+    if (user && user.role === 'contractor' && location.pathname !== ROUTES.CONTRACTOR_DASHBOARD) {
+        navigate(ROUTES.CONTRACTOR_DASHBOARD, { replace: true });
+    }
+
     const baseRoutesToCollapse = [
       ROUTES.PROJECTS.split('/:')[0],
       ROUTES.GIS_MAPPING.split('/:')[0],
@@ -67,7 +75,7 @@ function MainLayout() {
     );
 
     setIsSidebarCollapsed(shouldCollapse);
-  }, [location.pathname]);
+  }, [location.pathname, user, navigate]);
 
   if (!token) {
     return <Navigate to={ROUTES.LOGIN} replace />;
@@ -77,8 +85,8 @@ function MainLayout() {
     logout();
     navigate(ROUTES.LOGIN, { replace: true });
   };
-
-  const drawer = (
+  
+  const internalStaffDrawer = (
     <div>
       <Toolbar sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 1 }}>
         {!isSidebarCollapsed && (
@@ -119,6 +127,16 @@ function MainLayout() {
           </ListItem>
         </Tooltip>
         
+        {/* NEW: Link to Contractor Dashboard for all internal roles */}
+        <Tooltip title="Contractor Dashboard" placement="right" disableHoverListener={!isSidebarCollapsed}>
+          <ListItem disablePadding>
+            <ListItemButton component={RouterLink} to={ROUTES.CONTRACTOR_DASHBOARD}>
+              <ListItemIcon><PaidIcon color="primary" /></ListItemIcon>
+              {!isSidebarCollapsed && <ListItemText primary="Contractor Dashboard" />}
+            </ListItemButton>
+          </ListItem>
+        </Tooltip>
+
         <Tooltip title="Reports" placement="right" disableHoverListener={!isSidebarCollapsed}>
           <ListItem disablePadding>
             <ListItemButton component={RouterLink} to={ROUTES.REPORTS}>
@@ -178,9 +196,19 @@ function MainLayout() {
 
             <Tooltip title="Metadata Management" placement="right" disableHoverListener={!isSidebarCollapsed}>
               <ListItem disablePadding>
-                <ListItemButton component={RouterLink} to="/metadata-management">
+                <ListItemButton component={RouterLink} to={ROUTES.METADATA_MANAGEMENT}>
                   <ListItemIcon><SettingsIcon color="primary" /></ListItemIcon>
                   {!isSidebarCollapsed && <ListItemText primary="Metadata Management" />}
+                </ListItemButton>
+              </ListItem>
+            </Tooltip>
+            
+            {/* NEW: Link to Contractor Management */}
+            <Tooltip title="Contractor Management" placement="right" disableHoverListener={!isSidebarCollapsed}>
+              <ListItem disablePadding>
+                <ListItemButton component={RouterLink} to={ROUTES.CONTRACTOR_MANAGEMENT}>
+                  <ListItemIcon><BusinessIcon color="primary" /></ListItemIcon>
+                  {!isSidebarCollapsed && <ListItemText primary="Contractor Management" />}
                 </ListItemButton>
               </ListItem>
             </Tooltip>
@@ -189,6 +217,51 @@ function MainLayout() {
       </List>
     </div>
   );
+
+  const contractorDrawer = (
+    <div>
+      <Toolbar sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 1 }}>
+        {!isSidebarCollapsed && (
+          <Typography variant="h6" noWrap component="div" sx={{ color: 'primary.main', fontWeight: 'bold' }}>
+            Contractor Portal
+          </Typography>
+        )}
+        <IconButton onClick={handleSidebarToggle}>
+          {isSidebarCollapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
+        </IconButton>
+      </Toolbar>
+      <Divider />
+      <List>
+        <Tooltip title="My Projects" placement="right" disableHoverListener={!isSidebarCollapsed}>
+          <ListItem disablePadding>
+            <ListItemButton component={RouterLink} to={ROUTES.CONTRACTOR_DASHBOARD}>
+              <ListItemIcon><FolderOpenIcon color="primary" /></ListItemIcon>
+              {!isSidebarCollapsed && <ListItemText primary="My Projects" />}
+            </ListItemButton>
+          </ListItem>
+        </Tooltip>
+        <Tooltip title="Payment Requests" placement="right" disableHoverListener={!isSidebarCollapsed}>
+            <ListItem disablePadding>
+                <ListItemButton component={RouterLink} to={ROUTES.CONTRACTOR_DASHBOARD}>
+                    <ListItemIcon><PaidIcon color="primary" /></ListItemIcon>
+                    {!isSidebarCollapsed && <ListItemText primary="Payments" />}
+                </ListItemButton>
+            </ListItem>
+        </Tooltip>
+        <Tooltip title="Progress Photos" placement="right" disableHoverListener={!isSidebarCollapsed}>
+            <ListItem disablePadding>
+                <ListItemButton component={RouterLink} to={ROUTES.CONTRACTOR_DASHBOARD}>
+                    <ListItemIcon><PhotoCameraIcon color="primary" /></ListItemIcon>
+                    {!isSidebarCollapsed && <ListItemText primary="Photos" />}
+                </ListItemButton>
+            </ListItem>
+        </Tooltip>
+      </List>
+    </div>
+  );
+
+  const drawerToRender = (user?.role === 'contractor') ? contractorDrawer : internalStaffDrawer;
+
 
   return (
     <Box sx={{ display: 'flex' }}>
@@ -258,7 +331,7 @@ function MainLayout() {
             '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
           }}
         >
-          {drawer}
+          {drawerToRender}
         </Drawer>
         <Drawer
           variant="permanent"
@@ -273,7 +346,7 @@ function MainLayout() {
             },
           }}
         >
-          {drawer}
+          {drawerToRender}
         </Drawer>
       </Box>
       <Box

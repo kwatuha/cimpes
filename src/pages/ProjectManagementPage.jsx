@@ -7,7 +7,8 @@ import {
 } from '@mui/material';
 import {
   Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Visibility as ViewDetailsIcon, FilterList as FilterListIcon, BarChart as GanttChartIcon,
-  ArrowForward as ArrowForwardIcon, ArrowBack as ArrowBackIcon, Settings as SettingsIcon, Category as CategoryIcon // NEW: Import CategoryIcon
+  ArrowForward as ArrowForwardIcon, ArrowBack as ArrowBackIcon, Settings as SettingsIcon, Category as CategoryIcon,
+  GroupAdd as GroupAddIcon // NEW: Imported GroupAddIcon
 } from '@mui/icons-material';
 
 import { useAuth } from '../context/AuthContext.jsx';
@@ -22,6 +23,7 @@ import useProjectData from '../hooks/useProjectData';
 import useTableSort from '../hooks/useTableSort';
 import useFilter from '../hooks/useFilter';
 import useTableScrollShadows from '../hooks/useTableScrollShadows';
+import AssignContractorModal from '../components/AssignContractorModal.jsx'; // NEW: Import AssignContractorModal
 
 function ProjectManagementPage() {
   const { user, loading: authLoading, hasPrivilege } = useAuth();
@@ -62,6 +64,10 @@ function ProjectManagementPage() {
   // Dialog state for create/edit
   const [openFormDialog, setOpenFormDialog] = useState(false);
   const [currentProject, setCurrentProject] = useState(null);
+  
+  // NEW: State for Assign Contractor modal
+  const [openAssignModal, setOpenAssignModal] = useState(false);
+  const [selectedProjectForAssignment, setSelectedProjectForAssignment] = useState(null);
 
   const handleOpenFormDialog = (project = null) => {
     if (project && !checkUserPrivilege(user, 'project.update')) {
@@ -80,6 +86,19 @@ function ProjectManagementPage() {
     setOpenFormDialog(false);
     setCurrentProject(null);
   };
+
+  // NEW: Handlers for Assign Contractor modal
+  const handleOpenAssignModal = (project) => {
+      setSelectedProjectForAssignment(project);
+      setOpenAssignModal(true);
+  };
+  
+  const handleCloseAssignModal = () => {
+      setOpenAssignModal(false);
+      setSelectedProjectForAssignment(null);
+      fetchProjects(); // Refresh projects list after a change
+  };
+
 
   const handleFormSuccess = () => {
     handleCloseFormDialog();
@@ -163,6 +182,13 @@ function ProjectManagementPage() {
       case 'actions':
         return (
           <Stack direction="row" spacing={1} justifyContent="flex-end">
+            {checkUserPrivilege(user, 'projects.assign_contractor') && ( // NEW: Privilege check for assign button
+              <Tooltip title="Assign Contractors">
+                <IconButton color="primary" onClick={() => handleOpenAssignModal(project)}>
+                  <GroupAddIcon />
+                </IconButton>
+              </Tooltip>
+            )}
             {checkUserPrivilege(user, 'project.update') && (
               <Tooltip title="Edit">
                 <IconButton color="primary" onClick={() => handleOpenFormDialog(project)}>
@@ -291,6 +317,13 @@ function ProjectManagementPage() {
         setSnackbar={setSnackbar}
         allMetadata={allMetadata || {}}
         user={user}
+      />
+      
+      {/* NEW: Assign Contractor modal */}
+      <AssignContractorModal
+          open={openAssignModal}
+          onClose={handleCloseAssignModal}
+          project={selectedProjectForAssignment}
       />
 
       <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar}>

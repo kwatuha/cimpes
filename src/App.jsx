@@ -35,6 +35,10 @@ import SettingsPage from './pages/SettingsPage.jsx';
 import ProjectCategoryPage from './pages/ProjectCategoryPage.jsx';
 // NEW: Import the ProjectPhotoManager component
 import ProjectPhotoManager from './pages/ProjectPhotoManager.jsx';
+// NEW: Import the ContractorDashboard component
+import ContractorDashboard from './pages/ContractorDashboard.jsx';
+// NEW: Import the ContractorManagementPage component
+import ContractorManagementPage from './pages/ContractorManagementPage.jsx';
 
 
 // Define a custom theme to match KEMRI's blue
@@ -105,6 +109,16 @@ const router = createBrowserRouter([
       {
         index: true,
         element: <DashboardPage />,
+      },
+      // NEW: The contractor dashboard route
+      {
+        path: 'contractor-dashboard',
+        element: <ContractorDashboard />,
+      },
+      // NEW: The contractor management route
+      {
+        path: 'contractor-management',
+        element: <ContractorManagementPage />,
       },
       {
         path: 'raw-data',

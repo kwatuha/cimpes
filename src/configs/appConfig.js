@@ -32,6 +32,12 @@ export const ROUTES = {
     // Top-level routes
     LOGIN: '/login',
     DASHBOARD: '/',
+    
+    // NEW: Contractor-specific route
+    CONTRACTOR_DASHBOARD: '/contractor-dashboard',
+    
+    // NEW: Administrative route for managing contractors
+    CONTRACTOR_MANAGEMENT: '/contractor-management',
 
     // Main layout routes
     RAW_DATA: '/raw-data',
@@ -40,7 +46,7 @@ export const ROUTES = {
     GIS_MAPPING: '/maps',
     USER_MANAGEMENT: '/user-management',
     STRATEGIC_PLANNING: '/strategic-planning',
-    METADATA_MANAGEMENT: '/metadata-management', // NEW: Route for the metadata management page
+    METADATA_MANAGEMENT: '/metadata-management',
 
     // Sub-routes with dynamic parameters
     PROJECT_DETAILS: '/projects/:projectId',
