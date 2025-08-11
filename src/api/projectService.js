@@ -10,6 +10,12 @@ import axiosInstance from './axiosInstance';
 const projectService = {
   // --- Project Management API Calls (kemri_projects) ---
   projects: {
+    /**
+     * Fetches all projects with optional filtering.
+     * @param {object} filters - An object containing key-value pairs for filtering.
+     * e.g., { status: 'Ongoing', countyId: 1, projectName: 'Road' }
+     * @returns {Promise<Array>} A promise that resolves to an array of projects.
+     */
     getProjects: async (filters = {}) => {
       const queryString = new URLSearchParams(filters).toString();
       const url = queryString ? `/projects?${queryString}` : '/projects';
@@ -53,7 +59,12 @@ const projectService = {
         const response = await axiosInstance.delete(`/projects/${projectId}/remove-contractor/${contractorId}`);
         return response.data;
     },
-    // NEW: Function to get filtered map data for projects and poles
+    /**
+     * Fetches filtered map data for projects.
+     * @param {object} filters - An object containing key-value pairs for filtering map data.
+     * e.g., { countyId: 1, subcountyId: 5, projectType: 'Infrastracture' }
+     * @returns {Promise<Object>} A promise that resolves to an object with project data and a bounding box.
+     */
     getFilteredProjectMaps: async (filters = {}) => {
       const queryString = new URLSearchParams(filters).toString();
       const url = queryString ? `/projects/maps-data?${queryString}` : '/projects/maps-data';

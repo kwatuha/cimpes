@@ -72,24 +72,33 @@ function MapDataImportPage() {
   const [subcounties, setSubcounties] = useState([]);
   const [wards, setWards] = useState([]);
 
-  // useEffect to fetch the list of projects when the component mounts
+  // UPDATED: This useEffect now fetches projects based on the geographical filters.
   useEffect(() => {
     const fetchProjects = async () => {
+      // Only fetch projects if the resourceType is 'projects'
+      if (manualData.resourceType !== 'projects') {
+        setProjects([]);
+        return;
+      }
       setProjectsLoading(true);
       try {
-        // CORRECTED: Call the projects sub-service directly
-        const allProjects = await apiService.projects.getProjects();
-        // The project objects should have a 'name' property
-        setProjects(allProjects);
+        const filters = {};
+        if (filterCountyId) filters.countyId = filterCountyId;
+        if (filterSubcountyId) filters.subcountyId = filterSubcountyId;
+        if (filterWardId) filters.wardId = filterWardId;
+
+        const filteredProjects = await apiService.projects.getProjects(filters);
+        setProjects(filteredProjects);
       } catch (err) {
-        console.error("Failed to fetch projects:", err);
+        console.error("Failed to fetch projects with filters:", err);
         setError("Failed to load project list. Please try again.");
       } finally {
         setProjectsLoading(false);
       }
     };
     fetchProjects();
-  }, []);
+  }, [filterCountyId, filterSubcountyId, filterWardId, manualData.resourceType]);
+
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -135,6 +144,7 @@ function MapDataImportPage() {
       let payload;
 
       if (manualGeometryType === 'Point') {
+        // The previous check was fine, just ensuring resourceName is also considered for the project type
         if (!resourceType || (!resourceId && !resourceName) || !latitude || !longitude) {
           setError('Please fill all required fields for a single point.');
           setLoading(false);
@@ -190,8 +200,11 @@ function MapDataImportPage() {
       
       payload = { resourceType, geojson };
       if (resourceType === 'projects') {
+          // CORRECTED: Add both resourceId and resourceName to the payload for projects.
+          payload.resourceId = resourceId;
           payload.resourceName = resourceName;
       } else {
+          // This handles all other resource types that use a simple ID.
           payload.resourceId = resourceId;
       }
 
@@ -548,11 +561,12 @@ function MapDataImportPage() {
               id="project-name-autocomplete"
               options={projects}
               getOptionLabel={(option) => option.projectName || ""}
-              value={projects.find(p => p.projectName === manualData.resourceName) || null}
+              value={projects.find(p => p.id === manualData.resourceId) || null}
               onChange={(event, newValue) => {
                 setManualData(prev => ({
                   ...prev,
                   resourceName: newValue ? newValue.projectName : '',
+                  resourceId: newValue ? newValue.id : '',
                 }));
               }}
               loading={projectsLoading}

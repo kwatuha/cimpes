@@ -30,7 +30,7 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import PaidIcon from '@mui/icons-material/Paid';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
-import BusinessIcon from '@mui/icons-material/Business'; // NEW: Imported BusinessIcon for contractor link
+import BusinessIcon from '@mui/icons-material/Business';
 
 
 import { Link as RouterLink, Outlet, useNavigate, Navigate, useLocation } from 'react-router-dom';
@@ -44,7 +44,13 @@ const collapsedDrawerWidth = 60;
 
 function MainLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  
+  // Single state variable for sidebar collapse.
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem('isSidebarCollapsed');
+    return saved !== null ? JSON.parse(saved) : false;
+  });
+
   const { token, user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -53,29 +59,45 @@ function MainLayout() {
     setMobileOpen(!mobileOpen);
   };
   
+  // CORRECTED: This function now simply toggles the single state variable.
   const handleSidebarToggle = () => {
-    setIsSidebarCollapsed(!isSidebarCollapsed);
+    const newState = !isSidebarCollapsed;
+    setIsSidebarCollapsed(newState);
+    localStorage.setItem('isSidebarCollapsed', JSON.stringify(newState));
   };
-
+  
   useEffect(() => {
     if (user && user.role === 'contractor' && location.pathname !== ROUTES.CONTRACTOR_DASHBOARD) {
         navigate(ROUTES.CONTRACTOR_DASHBOARD, { replace: true });
     }
+  }, [location.pathname, user, navigate]);
 
+  // CORRECTED: The useEffect now checks for the route, but only sets the state
+  // if the user hasn't explicitly toggled it.
+  useEffect(() => {
     const baseRoutesToCollapse = [
-      ROUTES.PROJECTS.split('/:')[0],
-      ROUTES.GIS_MAPPING.split('/:')[0],
-      ROUTES.USER_MANAGEMENT.split('/:')[0],
-      ROUTES.DASHBOARD.split('/:')[0],
-      ROUTES.STRATEGIC_PLANNING.split('/:')[0],
+        ROUTES.PROJECTS.split('/:')[0],
+        ROUTES.GIS_MAPPING.split('/:')[0],
+        ROUTES.USER_MANAGEMENT.split('/:')[0],
+        ROUTES.DASHBOARD.split('/:')[0],
+        ROUTES.STRATEGIC_PLANNING.split('/:')[0],
     ];
 
     const shouldCollapse = baseRoutesToCollapse.some(basePath =>
-      location.pathname.startsWith(basePath)
+        location.pathname.startsWith(basePath)
     );
 
-    setIsSidebarCollapsed(shouldCollapse);
-  }, [location.pathname, user, navigate]);
+    // Only update the state if the user hasn't manually collapsed it
+    // or if the new state is different from the current one.
+    if (shouldCollapse && !isSidebarCollapsed) {
+      setIsSidebarCollapsed(true);
+      localStorage.setItem('isSidebarCollapsed', 'true');
+    } else if (!shouldCollapse && isSidebarCollapsed) {
+      setIsSidebarCollapsed(false);
+      localStorage.setItem('isSidebarCollapsed', 'false');
+    }
+
+  }, [location.pathname]);
 
   if (!token) {
     return <Navigate to={ROUTES.LOGIN} replace />;
@@ -100,7 +122,7 @@ function MainLayout() {
       </Toolbar>
       <Divider />
       <List>
-        <Tooltip title="Dashboard" placement="right" disableHoverListener={!isSidebarCollapsed}>
+        <Tooltip title="Dashboard" placement="right" disableHoverListener={isSidebarCollapsed}>
           <ListItem disablePadding>
             <ListItemButton component={RouterLink} to={ROUTES.DASHBOARD}>
               <ListItemIcon><DashboardIcon color="primary" /></ListItemIcon>
@@ -109,7 +131,7 @@ function MainLayout() {
           </ListItem>
         </Tooltip>
         
-        <Tooltip title="Raw Data" placement="right" disableHoverListener={!isSidebarCollapsed}>
+        <Tooltip title="Raw Data" placement="right" disableHoverListener={isSidebarCollapsed}>
           <ListItem disablePadding>
             <ListItemButton component={RouterLink} to={ROUTES.RAW_DATA}>
               <ListItemIcon><TableChartIcon color="primary" /></ListItemIcon>
@@ -118,7 +140,7 @@ function MainLayout() {
           </ListItem>
         </Tooltip>
 
-        <Tooltip title="Project Management" placement="right" disableHoverListener={!isSidebarCollapsed}>
+        <Tooltip title="Project Management" placement="right" disableHoverListener={isSidebarCollapsed}>
           <ListItem disablePadding>
             <ListItemButton component={RouterLink} to={ROUTES.PROJECTS}>
               <ListItemIcon><FolderOpenIcon color="primary" /></ListItemIcon>
@@ -127,8 +149,7 @@ function MainLayout() {
           </ListItem>
         </Tooltip>
         
-        {/* NEW: Link to Contractor Dashboard for all internal roles */}
-        <Tooltip title="Contractor Dashboard" placement="right" disableHoverListener={!isSidebarCollapsed}>
+        <Tooltip title="Contractor Dashboard" placement="right" disableHoverListener={isSidebarCollapsed}>
           <ListItem disablePadding>
             <ListItemButton component={RouterLink} to={ROUTES.CONTRACTOR_DASHBOARD}>
               <ListItemIcon><PaidIcon color="primary" /></ListItemIcon>
@@ -137,7 +158,7 @@ function MainLayout() {
           </ListItem>
         </Tooltip>
 
-        <Tooltip title="Reports" placement="right" disableHoverListener={!isSidebarCollapsed}>
+        <Tooltip title="Reports" placement="right" disableHoverListener={isSidebarCollapsed}>
           <ListItem disablePadding>
             <ListItemButton component={RouterLink} to={ROUTES.REPORTS}>
               <ListItemIcon><AssessmentIcon color="primary" /></ListItemIcon>
@@ -146,7 +167,7 @@ function MainLayout() {
           </ListItem>
         </Tooltip>
         
-        <Tooltip title="GIS Mapping" placement="right" disableHoverListener={!isSidebarCollapsed}>
+        <Tooltip title="GIS Mapping" placement="right" disableHoverListener={isSidebarCollapsed}>
           <ListItem disablePadding>
             <ListItemButton component={RouterLink} to={ROUTES.GIS_MAPPING}>
               <ListItemIcon><MapIcon color="primary" /></ListItemIcon>
@@ -155,7 +176,7 @@ function MainLayout() {
           </ListItem>
         </Tooltip>
         
-        <Tooltip title="Import Map Data" placement="right" disableHoverListener={!isSidebarCollapsed}>
+        <Tooltip title="Import Map Data" placement="right" disableHoverListener={isSidebarCollapsed}>
           <ListItem disablePadding>
             <ListItemButton component={RouterLink} to={ROUTES.MAP_DATA_IMPORT}>
               <ListItemIcon><CloudUploadIcon color="primary" /></ListItemIcon>
@@ -164,7 +185,7 @@ function MainLayout() {
           </ListItem>
         </Tooltip>
         
-        <Tooltip title="Strategic Planning" placement="right" disableHoverListener={!isSidebarCollapsed}>
+        <Tooltip title="Strategic Planning" placement="right" disableHoverListener={isSidebarCollapsed}>
           <ListItem disablePadding>
             <ListItemButton component={RouterLink} to={ROUTES.STRATEGIC_PLANNING}>
               <ListItemIcon><AssignmentIcon color="primary" /></ListItemIcon>
@@ -173,7 +194,7 @@ function MainLayout() {
           </ListItem>
         </Tooltip>
         
-        <Tooltip title="Import Strategic Data" placement="right" disableHoverListener={!isSidebarCollapsed}>
+        <Tooltip title="Import Strategic Data" placement="right" disableHoverListener={isSidebarCollapsed}>
           <ListItem disablePadding>
             <ListItemButton component={RouterLink} to={ROUTES.STRATEGIC_DATA_IMPORT}>
               <ListItemIcon><CloudUploadIcon color="primary" /></ListItemIcon>
@@ -185,7 +206,7 @@ function MainLayout() {
         {user && user.role === 'admin' && (
           <>
             <Divider sx={{ my: 1 }} />
-            <Tooltip title="User Management" placement="right" disableHoverListener={!isSidebarCollapsed}>
+            <Tooltip title="User Management" placement="right" disableHoverListener={isSidebarCollapsed}>
               <ListItem disablePadding>
                 <ListItemButton component={RouterLink} to={ROUTES.USER_MANAGEMENT}>
                   <ListItemIcon><GroupIcon color="primary" /></ListItemIcon>
@@ -194,7 +215,7 @@ function MainLayout() {
               </ListItem>
             </Tooltip>
 
-            <Tooltip title="Metadata Management" placement="right" disableHoverListener={!isSidebarCollapsed}>
+            <Tooltip title="Metadata Management" placement="right" disableHoverListener={isSidebarCollapsed}>
               <ListItem disablePadding>
                 <ListItemButton component={RouterLink} to={ROUTES.METADATA_MANAGEMENT}>
                   <ListItemIcon><SettingsIcon color="primary" /></ListItemIcon>
@@ -203,8 +224,7 @@ function MainLayout() {
               </ListItem>
             </Tooltip>
             
-            {/* NEW: Link to Contractor Management */}
-            <Tooltip title="Contractor Management" placement="right" disableHoverListener={!isSidebarCollapsed}>
+            <Tooltip title="Contractor Management" placement="right" disableHoverListener={isSidebarCollapsed}>
               <ListItem disablePadding>
                 <ListItemButton component={RouterLink} to={ROUTES.CONTRACTOR_MANAGEMENT}>
                   <ListItemIcon><BusinessIcon color="primary" /></ListItemIcon>
@@ -232,7 +252,7 @@ function MainLayout() {
       </Toolbar>
       <Divider />
       <List>
-        <Tooltip title="My Projects" placement="right" disableHoverListener={!isSidebarCollapsed}>
+        <Tooltip title="My Projects" placement="right" disableHoverListener={isSidebarCollapsed}>
           <ListItem disablePadding>
             <ListItemButton component={RouterLink} to={ROUTES.CONTRACTOR_DASHBOARD}>
               <ListItemIcon><FolderOpenIcon color="primary" /></ListItemIcon>
@@ -240,17 +260,17 @@ function MainLayout() {
             </ListItemButton>
           </ListItem>
         </Tooltip>
-        <Tooltip title="Payment Requests" placement="right" disableHoverListener={!isSidebarCollapsed}>
+        <Tooltip title="Payment Requests" placement="right" disableHoverListener={isSidebarCollapsed}>
             <ListItem disablePadding>
-                <ListItemButton component={RouterLink} to={ROUTES.CONTRACTOR_DASHBOARD}>
+                <ListItemButton component={RouterLink} to={`${ROUTES.CONTRACTOR_DASHBOARD}/payments`}>
                     <ListItemIcon><PaidIcon color="primary" /></ListItemIcon>
                     {!isSidebarCollapsed && <ListItemText primary="Payments" />}
                 </ListItemButton>
             </ListItem>
         </Tooltip>
-        <Tooltip title="Progress Photos" placement="right" disableHoverListener={!isSidebarCollapsed}>
+        <Tooltip title="Progress Photos" placement="right" disableHoverListener={isSidebarCollapsed}>
             <ListItem disablePadding>
-                <ListItemButton component={RouterLink} to={ROUTES.CONTRACTOR_DASHBOARD}>
+                <ListItemButton component={RouterLink} to={`${ROUTES.CONTRACTOR_DASHBOARD}/photos`}>
                     <ListItemIcon><PhotoCameraIcon color="primary" /></ListItemIcon>
                     {!isSidebarCollapsed && <ListItemText primary="Photos" />}
                 </ListItemButton>
