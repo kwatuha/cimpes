@@ -1,5 +1,5 @@
 // src/hooks/useFormManagement.jsx
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { parseNumberFromFormattedInput } from '../utils/helpers';
 
 const useFormManagement = () => {
@@ -72,8 +72,10 @@ const useFormManagement = () => {
     attachment: attachmentFormData,
   };
 
-  const handleFormChange = (e) => {
-    const { name, value, type, checked, dataset } = e.target;
+  const handleFormChange = useCallback((e) => {
+    // CORRECTED: Safely get the dataset property
+    const { name, value, type, checked } = e.target;
+    const dataset = e.target.dataset || {};
     const currentSetter = setterMap[dialogType];
 
     let newValue = value;
@@ -84,7 +86,7 @@ const useFormManagement = () => {
     }
 
     currentSetter(prev => ({ ...prev, [name]: newValue }));
-  };
+  }, [setterMap, dialogType]);
 
   const handleOpenCreateDialog = (type, parentId = null) => {
     setDialogType(type);

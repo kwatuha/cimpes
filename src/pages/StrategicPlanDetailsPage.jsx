@@ -128,15 +128,14 @@ function StrategicPlanDetailsPage() {
     };
   };
 
+  // CORRECTED: The renderDialogForm now passes all common props in a single object
   const renderDialogForm = () => {
-    const commonProps = { formData, handleFormChange };
-    const jsonInputListProps = { ...commonProps, setFormData };
-
+    const commonFormProps = { formData, handleFormChange, setFormData };
     switch (dialogType) {
-      case 'strategicPlan': return <StrategicPlanForm {...commonProps} />;
-      case 'program': return <ProgramForm {...commonProps} />;
-      case 'subprogram': return <SubprogramForm {...commonProps} setFormData={setFormData} />;
-      case 'attachment': return <AttachmentForm {...jsonInputListProps} />;
+      case 'strategicPlan': return <StrategicPlanForm {...commonFormProps} />;
+      case 'program': return <ProgramForm {...commonFormProps} />;
+      case 'subprogram': return <SubprogramForm {...commonFormProps} />;
+      case 'attachment': return <AttachmentForm {...commonFormProps} />;
       default: return <Typography>No form available for this type.</Typography>;
     }
   };
