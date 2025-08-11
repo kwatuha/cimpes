@@ -20,7 +20,8 @@ import {
 } from '@mui/material';
 import * as XLSX from 'xlsx';
 import { useAuth } from '../context/AuthContext';
-import projectService from '../api/projectService';
+// CORRECTED: Use the central apiService
+import apiService from '../api';
 import metaDataService from '../api/metaDataService';
 
 // NEW: Import configuration from appConfig.js
@@ -76,8 +77,8 @@ function MapDataImportPage() {
     const fetchProjects = async () => {
       setProjectsLoading(true);
       try {
-        // UPDATED: Using the correct service function `getProjects()`
-        const allProjects = await projectService.getProjects();
+        // CORRECTED: Call the projects sub-service directly
+        const allProjects = await apiService.projects.getProjects();
         // The project objects should have a 'name' property
         setProjects(allProjects);
       } catch (err) {
@@ -87,7 +88,6 @@ function MapDataImportPage() {
         setProjectsLoading(false);
       }
     };
-
     fetchProjects();
   }, []);
 
@@ -195,7 +195,7 @@ function MapDataImportPage() {
           payload.resourceId = resourceId;
       }
 
-      await projectService.importMapData(payload);
+      await apiService.projectMaps.importMapData(payload); // CORRECTED: Use apiService.projectMaps
       setSuccess('Map data imported successfully!');
       setManualData({
         resourceType: '',
@@ -282,7 +282,7 @@ function MapDataImportPage() {
                   payload.resourceId = resourceId;
                 }
   
-                await projectService.importMapData(payload);
+                await apiService.projectMaps.importMapData(payload); // CORRECTED: Use apiService.projectMaps
                 successfulImports++;
               } catch (err) {
                 console.error('Error importing data for row:', row, err);
@@ -384,7 +384,6 @@ function MapDataImportPage() {
   useEffect(() => {
     const fetchInitialCounties = async () => {
       try {
-        // FIX: Corrected the typo from 'countiess' to 'counties'
         const fetchedCounties = await metaDataService.counties.getAllCounties();
         setCounties(fetchedCounties);
       } catch (err) {
@@ -524,7 +523,6 @@ function MapDataImportPage() {
             <ToggleButton value="MultiPoint">Multi-Point (Line/Polygon)</ToggleButton>
           </ToggleButtonGroup>
         </Grid>
-        {/* CORRECTED: Placing each input in a new Grid item to give it full width */}
         <Grid item xs={12}>
           <FormControl fullWidth required>
             <InputLabel id="resource-type-label">Resource Type</InputLabel>
@@ -545,7 +543,6 @@ function MapDataImportPage() {
         </Grid>
         <Grid item xs={12}>
           {manualData.resourceType === 'projects' ? (
-            // Use Autocomplete for a searchable project name input
             <Autocomplete
               fullWidth
               id="project-name-autocomplete"
@@ -578,7 +575,6 @@ function MapDataImportPage() {
               )}
             />
           ) : (
-            // Existing TextField for other resource types
             <TextField
               fullWidth
               label="Resource ID"
@@ -598,14 +594,27 @@ function MapDataImportPage() {
         </Grid>
         {manualGeometryType === 'Point' ? (
           <>
-            {/* NEW: Display coordinates as text instead of in input fields */}
             <Grid item xs={12} sm={6}>
-              <Typography variant="body1" color="text.secondary">Latitude:</Typography>
-              <Typography variant="h6">{manualData.latitude || 'Not Selected'}</Typography>
+              <TextField
+                fullWidth
+                label="Latitude"
+                name="latitude"
+                value={manualData.latitude}
+                onChange={handleChange}
+                required
+                disabled={loading}
+              />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <Typography variant="body1" color="text.secondary">Longitude:</Typography>
-              <Typography variant="h6">{manualData.longitude || 'Not Selected'}</Typography>
+              <TextField
+                fullWidth
+                label="Longitude"
+                name="longitude"
+                value={manualData.longitude}
+                onChange={handleChange}
+                required
+                disabled={loading}
+              />
             </Grid>
           </>
         ) : (

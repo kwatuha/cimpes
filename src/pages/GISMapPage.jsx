@@ -173,15 +173,16 @@ function GISMapPage() {
           onLayerToggle={handleLayerToggle}
         />
       </Box>
-      {/* UPDATED: The map container now takes the remaining vertical space */}
       <Box sx={{ flexGrow: 1 }}>
         <GoogleMapComponent
           center={mapCenter}
           zoom={mapZoom}
           style={{ height: '100%', width: '100%' }}
         >
+          {/* CORRECTED: Pass data.projects directly to ProjectsLayer */}
           {visibleLayers.projects && data.projects && <ProjectsLayer data={data.projects} />}
-          {visibleLayers.poles && data.projectMaps && <PolesLayer data={data.projectMaps} />}
+          {/* NEW: Pass an empty array to PolesLayer since that data is no longer separate */}
+          {visibleLayers.poles && <PolesLayer data={[]} />}
         </GoogleMapComponent>
       </Box>
     </Box>

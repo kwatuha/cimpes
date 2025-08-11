@@ -53,6 +53,13 @@ const projectService = {
         const response = await axiosInstance.delete(`/projects/${projectId}/remove-contractor/${contractorId}`);
         return response.data;
     },
+    // NEW: Function to get filtered map data for projects and poles
+    getFilteredProjectMaps: async (filters = {}) => {
+      const queryString = new URLSearchParams(filters).toString();
+      const url = queryString ? `/projects/maps-data?${queryString}` : '/projects/maps-data';
+      const response = await axiosInstance.get(url);
+      return response.data;
+    },
   },
 
   // --- Project Analytics API Calls ---
@@ -157,6 +164,14 @@ const projectService = {
       const response = await axiosInstance.delete(`/milestones/attachments/${attachmentId}`);
       return response.data;
     },
+  },
+  
+  // --- NEW: Project Maps API Calls ---
+  projectMaps: {
+      importMapData: async (payload) => {
+          const response = await axiosInstance.post(`/projects/project_maps/import`, payload);
+          return response.data;
+      },
   },
 
   // --- NEW: Project Photos API Calls ---
@@ -302,34 +317,6 @@ const projectService = {
     },
     deleteTaskAssignee: async (taskAssigneeId) => {
       const response = await axiosInstance.delete(`/task_assignees/${taskAssigneeId}`);
-      return response.data;
-    },
-  },
-
-  // --- Task Dependencies API Calls (kemri_task_dependencies) ---
-  taskDependencies: {
-    getAllTaskDependencies: async () => {
-      const response = await axiosInstance.get('/task_dependencies');
-      return response.data;
-    },
-    getTaskDependenciesForTask: async (taskId) => {
-      const response = await axiosInstance.get(`/task_dependencies/by-task/${taskId}`);
-      return response.data;
-    },
-    getTaskDependencyById: async (dependencyId) => {
-      const response = await axiosInstance.get(`/task_dependencies/${dependencyId}`);
-      return response.data;
-    },
-    createTaskDependency: async (dependencyData) => {
-      const response = await axiosInstance.post('/task_dependencies', dependencyData);
-      return response.data;
-    },
-    updateTaskDependency: async (dependencyId, dependencyData) => {
-      const response = await axiosInstance.put(`/task_dependencies/${dependencyId}`, dependencyData);
-      return response.data;
-    },
-    deleteTaskDependency: async (dependencyId) => {
-      const response = await axiosInstance.delete(`/task_dependencies/${dependencyId}`);
       return response.data;
     },
   },

@@ -1,10 +1,11 @@
 // src/hooks/useMapData.js
+
 import { useState, useEffect } from 'react';
-import projectService from '../api/projectService';
+import apiService from '../api'; // Use the central apiService
 
 /**
  * A custom hook to fetch necessary data for the GIS map with optional filters.
- * @param {{countyId?: string, subcountyId?: string, wardId?: string}} filters - Optional geographical filter object.
+ * @param {{countyId?: string, subcountyId?: string, wardId?: string, projectType?: string}} filters - Optional filter object.
  * @returns {{data: {projects: Array, projectMaps: Array, boundingBox: object}, loading: boolean, error: object}}
  */
 const useMapData = (filters) => {
@@ -18,26 +19,14 @@ const useMapData = (filters) => {
       setError(null);
       
       try {
-        // Construct query parameters from the filters object
-        const params = new URLSearchParams();
-        if (filters?.countyId) {
-          params.append('countyId', filters.countyId);
-        }
-        if (filters?.subcountyId) {
-          params.append('subcountyId', filters.subcountyId);
-        }
-        if (filters?.wardId) {
-          params.append('wardId', filters.wardId);
-        }
+        // Call the project service directly with the filters object
+        const response = await apiService.projects.getFilteredProjectMaps(filters);
         
-        // Use a single consolidated API call to fetch all map-related data
-        // The projectService.getFilteredProjectMaps function will need to be created.
-        const response = await projectService.getFilteredProjectMaps(params.toString());
-        
-        // The backend response is expected to have 'data' and 'boundingBox' properties
+        // The backend response is expected to have 'projects', 'projectMaps', and 'boundingBox'
+        // Data is now assumed to be in camelCase from the backend
         setData({
-          projects: response.data,
-          projectMaps: response.data, // Assuming projects and maps are combined here
+          projects: response.projects,
+          projectMaps: response.projectMaps,
           boundingBox: response.boundingBox,
         });
 
@@ -49,7 +38,6 @@ const useMapData = (filters) => {
       }
     };
     
-    // Fetch data whenever the filters object changes
     fetchMapData();
     
   }, [filters]);
