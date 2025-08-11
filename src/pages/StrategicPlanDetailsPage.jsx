@@ -5,13 +5,13 @@ import {
   Grid, Snackbar, Tabs, Tab, Chip, Dialog, DialogTitle, DialogContent, DialogActions, Paper,
   List, ListItem, ListItemText, IconButton,
   Accordion, AccordionSummary, AccordionDetails,
-  Divider, ListItemButton
+  Divider, ListItemButton, Stack, Tooltip, useTheme
 } from '@mui/material';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowBack as ArrowBackIcon, FileDownload as FileDownloadIcon,
   Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon, CloudUpload as CloudUploadIcon,
-  ExpandMore as ExpandMoreIcon
+  ExpandMore as ExpandMoreIcon, Star as StarIcon // Example icon for bullet points
 } from '@mui/icons-material';
 
 // Hooks
@@ -45,10 +45,12 @@ function StrategicPlanDetailsPage() {
   const { planId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const theme = useTheme();
 
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [activeTab, setActiveTab] = useState(0);
-  const [selectedProgram, setSelectedProgram] = useState(null);
+  const [expandedProgram, setExpandedProgram] = useState(false);
+  const [parentEntityId, setParentEntityId] = useState(null);
 
   const {
     strategicPlan, programs, subprograms, attachments,
@@ -73,10 +75,32 @@ function StrategicPlanDetailsPage() {
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
-    if (newValue !== 1) {
-        setSelectedProgram(null);
-    }
   };
+
+  const handleProgramAccordionChange = (programId) => (event, isExpanded) => {
+    setExpandedProgram(isExpanded ? programId : false);
+  };
+  
+  const handleOpenCreateProgramDialog = (parentId) => {
+      setParentEntityId(parentId);
+      handleOpenCreateDialog('program');
+  };
+
+  const handleOpenCreateSubprogramDialog = (programId) => {
+      setParentEntityId(programId);
+      handleOpenCreateDialog('subprogram');
+  };
+  
+  const handleOpenEditSubprogramDialog = (subprogram) => {
+    setParentEntityId(subprogram.programId);
+    handleOpenEditDialog('subprogram', subprogram);
+  };
+  
+  const handleCloseDialogWithReset = () => {
+      setParentEntityId(null);
+      handleCloseDialog();
+  };
+
 
   const TabPanel = (props) => {
     const { children, value, index, ...other } = props;
@@ -85,7 +109,7 @@ function StrategicPlanDetailsPage() {
         role="tabpanel"
         hidden={value !== index}
         id={`simple-tabpanel-${index}`}
-        aria-labelledby={`simple-tab-${index}`}
+        aria-controls={`simple-tab-${index}`}
         {...other}
       >
         {value === index && (
@@ -176,19 +200,19 @@ function StrategicPlanDetailsPage() {
       <Paper elevation={2} sx={{ p: 2.5, mb: 4, borderRadius: 2, bgcolor: 'primary.main', color: 'primary.contrastText' }}>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} sm={6} md={3}>
-            <Typography variant="subtitle1" color="inherit">{strategicPlanningLabels.strategicPlan.fields.cidpName}:</Typography>
+            <Typography variant="subtitle1" color="inherit"><strong>{strategicPlanningLabels.strategicPlan.fields.cidpName}:</strong></Typography>
             <Typography variant="h6" color="inherit" sx={{ wordBreak: 'break-word' }}>{strategicPlan.cidpName || 'N/A'}</Typography>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <Typography variant="subtitle1" color="inherit">{strategicPlanningLabels.strategicPlan.fields.cidpid}:</Typography>
+            <Typography variant="subtitle1" color="inherit"><strong>{strategicPlanningLabels.strategicPlan.fields.cidpid}:</strong></Typography>
             <Typography variant="h6" color="inherit">{strategicPlan.cidpid || 'N/A'}</Typography>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <Typography variant="subtitle1" color="inherit">{strategicPlanningLabels.strategicPlan.fields.startDate}:</Typography>
+            <Typography variant="subtitle1" color="inherit"><strong>{strategicPlanningLabels.strategicPlan.fields.startDate}:</strong></Typography>
             <Typography variant="h6" color="inherit">{strategicPlan.startDate || 'N/A'}</Typography>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <Typography variant="subtitle1" color="inherit">{strategicPlanningLabels.strategicPlan.fields.endDate}:</Typography>
+            <Typography variant="subtitle1" color="inherit"><strong>{strategicPlanningLabels.strategicPlan.fields.endDate}:</strong></Typography>
             <Typography variant="h6" color="inherit">{strategicPlan.endDate || 'N/A'}</Typography>
           </Grid>
         </Grid>
@@ -224,197 +248,185 @@ function StrategicPlanDetailsPage() {
       </TabPanel>
 
       <TabPanel value={activeTab} index={1}>
-        <Grid container spacing={4}>
-          <Grid item xs={12} md={selectedProgram ? 3 : 12}>
-            <Box mb={2}>
-              {checkUserPrivilege(user, 'program.create') && (
-                <Button startIcon={<AddIcon />} variant="contained" onClick={() => handleOpenCreateDialog('program', strategicPlan.cidpid)}>
+        <Box mb={2}>
+            {checkUserPrivilege(user, 'program.create') && (
+                <Button startIcon={<AddIcon />} variant="contained" onClick={() => handleOpenCreateProgramDialog(strategicPlan.cidpid)}>
                   Add Program
                 </Button>
-              )}
-            </Box>
-            <DataDisplayCard
-              title={strategicPlanningLabels.program.plural}
-              data={programs}
-              type="program"
-            >
-              {programs.length > 0 ? (
-                <List dense sx={{ maxHeight: CARD_CONTENT_MAX_HEIGHT, overflowY: 'auto' }}>
-                  {programs.map(program => (
-                    <ListItemButton
-                      key={program.programId}
-                      selected={selectedProgram?.programId === program.programId}
-                      onClick={() => setSelectedProgram(program)}
-                      sx={{
-                        py: 1.5,
-                        '&.Mui-selected': {
-                          borderLeft: '4px solid',
-                          borderLeftColor: 'primary.main',
-                          bgcolor: 'primary.light',
-                          '&:hover': {
-                            bgcolor: 'primary.light',
-                          },
-                        },
-                        '&:hover': {
-                          bgcolor: 'grey.100',
-                        },
-                        borderRadius: 1,
-                        my: 0.5,
-                      }}
-                    >
-                      <ListItemText
-                        primary={<Typography variant="body1" sx={{ fontWeight: 'bold' }}>{program.programme || 'N/A'}</Typography>}
-                        secondary={program.description || "No description"}
-                      />
-                    </ListItemButton>
-                  ))}
-                </List>
-              ) : (
-                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                  No programs available for this plan.
-                </Typography>
-              )}
-            </DataDisplayCard>
-          </Grid>
-          {selectedProgram && (
-            <Grid item xs={12} md={9}>
-              <Paper elevation={3} sx={{ p: 3, borderRadius: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                  <Typography variant="h6">Program Details</Typography>
-                  <Box>
-                    {checkUserPrivilege(user, 'program.update') && (
-                      <IconButton color="primary" onClick={() => handleOpenEditDialog('program', selectedProgram)}><EditIcon /></IconButton>
-                    )}
-                    {checkUserPrivilege(user, 'program.delete') && (
-                      <IconButton color="error" onClick={() => handleDelete('program', selectedProgram.programId)}><DeleteIcon /></IconButton>
-                    )}
-                    {checkUserPrivilege(user, 'program_pdf.download') && (
-                      <Button
-                        variant="contained"
-                        size="small"
-                        startIcon={<FileDownloadIcon />}
-                        onClick={() => handleDownloadPdf('program_pdf', selectedProgram.programme, selectedProgram.programId)}
-                        sx={{ ml: 2 }}
-                      >
-                        Download Program PDF
-                      </Button>
-                    )}
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      startIcon={<ArrowBackIcon />}
-                      onClick={() => setSelectedProgram(null)}
-                      sx={{ ml: 2 }}
-                    >
-                      Back to Programs
-                    </Button>
+            )}
+        </Box>
+        {programs.length > 0 ? (
+          <Box>
+            {programs.map(program => (
+              <Accordion
+                key={program.programId}
+                expanded={expandedProgram === program.programId}
+                onChange={handleProgramAccordionChange(program.programId)}
+                sx={{
+                  my: 1,
+                  boxShadow: 2,
+                  borderRadius: 1,
+                  '&:before': { display: 'none' },
+                  '&:hover': {
+                    boxShadow: theme.shadows[6],
+                  },
+                }}
+              >
+                <AccordionSummary
+                  expandIcon={<ExpandMoreIcon sx={{ transition: 'transform 0.3s' }} />}
+                  aria-controls={`panel-${program.programId}-content`}
+                  id={`panel-${program.programId}-header`}
+                  sx={{
+                    bgcolor: 'grey.100',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 1,
+                    '&.Mui-expanded': { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 },
+                    '& .MuiAccordionSummary-expandIconWrapper.Mui-expanded': {
+                      transform: 'rotate(180deg)',
+                    },
+                  }}
+                >
+                  <Grid container alignItems="center" spacing={1}>
+                    <Grid item>
+                      <Box sx={{ width: 16, height: 16, bgcolor: '#00A5A5', borderRadius: '4px' }} />
+                    </Grid>
+                    <Grid item>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>{program.programme || 'N/A'}</Typography>
+                      {program.description && <Typography variant="body2" color="text.secondary">{program.description}</Typography>}
+                    </Grid>
+                  </Grid>
+                </AccordionSummary>
+                <AccordionDetails sx={{ pt: 2 }}>
+                  <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                    <Typography variant="h6">Program Details</Typography>
+                    <Stack direction="row" spacing={1}>
+                      {checkUserPrivilege(user, 'program.update') && (
+                        <Tooltip title="Edit Program">
+                          <IconButton size="small" color="primary" onClick={(e) => { e.stopPropagation(); handleOpenEditDialog('program', program); }}><EditIcon /></IconButton>
+                        </Tooltip>
+                      )}
+                      {checkUserPrivilege(user, 'program.delete') && (
+                        <Tooltip title="Delete Program">
+                          <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); handleDelete('program', program.programId); }}><DeleteIcon /></IconButton>
+                        </Tooltip>
+                      )}
+                      {checkUserPrivilege(user, 'program_pdf.download') && (
+                        <Tooltip title="Download Program PDF">
+                          <IconButton
+                            size="small"
+                            color="primary"
+                            onClick={(e) => { e.stopPropagation(); handleDownloadPdf('program_pdf', program.programme, program.programId); }}
+                          >
+                            <FileDownloadIcon />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </Stack>
                   </Box>
-                </Box>
-                <Divider sx={{ mb: 2 }} />
-                <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
-                  <Typography variant="body1" sx={{ mb: 1 }}><strong>{strategicPlanningLabels.program.fields.programme}:</strong> {selectedProgram.programme || 'N/A'}</Typography>
-                  <MultiLineTextAsList text={selectedProgram.needsPriorities} label={strategicPlanningLabels.program.fields.needsPriorities} />
-                  <MultiLineTextAsList text={selectedProgram.strategies} label={strategicPlanningLabels.program.fields.strategies} />
-                  <MultiLineTextAsList text={selectedProgram.objectives} label={strategicPlanningLabels.program.fields.objectives} />
-                  <MultiLineTextAsList text={selectedProgram.outcomes} label={strategicPlanningLabels.program.fields.outcomes} />
-                  <MultiLineTextAsList text={selectedProgram.remarks} label={strategicPlanningLabels.program.fields.remarks} />
+                  <Divider sx={{ mb: 2 }} />
+
+                  <Box>
+                    <MultiLineTextAsList text={program.needsPriorities} label={strategicPlanningLabels.program.fields.needsPriorities} />
+                    <MultiLineTextAsList text={program.strategies} label={strategicPlanningLabels.program.fields.strategies} />
+                    <MultiLineTextAsList text={program.objectives} label={strategicPlanningLabels.program.fields.objectives} />
+                    <MultiLineTextAsList text={program.outcomes} label={strategicPlanningLabels.program.fields.outcomes} />
+                    <MultiLineTextAsList text={program.remarks} label={strategicPlanningLabels.program.fields.remarks} />
+                  </Box>
 
                   <Divider sx={{ my: 2 }} />
 
                   <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                    <Typography variant="subtitle2">{strategicPlanningLabels.subprogram.plural}</Typography>
+                    <Typography variant="h6">{strategicPlanningLabels.subprogram.plural}</Typography>
                     {checkUserPrivilege(user, 'subprogram.create') && (
                       <Button
                         startIcon={<AddIcon />}
                         variant="contained"
                         size="small"
-                        onClick={() => {
-                          handleOpenCreateDialog('subprogram', selectedProgram.programId);
-                        }}
+                        onClick={() => handleOpenCreateSubprogramDialog(program.programId)}
                       >
                         Add Subprogram
                       </Button>
                     )}
                   </Box>
                   <Divider sx={{ mb: 1 }} />
-                  {subprograms.filter(sub => sub.programId === selectedProgram.programId).length > 0 ? (
-                    <List disablePadding dense>
-                      {subprograms.filter(sub => sub.programId === selectedProgram.programId).map(item => (
-                        <Accordion key={item.subProgramId} sx={{ my: 1, boxShadow: 1 }}>
-                          <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: 'grey.100' }}>
-                            <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                              {strategicPlanningLabels.subprogram.fields.subProgramme}: {item.subProgramme || 'N/A'}
-                            </Typography>
-                          </AccordionSummary>
-                          <AccordionDetails>
-                            <Box sx={{ pl: 2, borderLeft: '2px solid', borderColor: 'primary.main' }}>
-                              <Typography variant="body2" sx={{ display: 'block' }}>
-                                <strong>{strategicPlanningLabels.subprogram.fields.kpi}:</strong> {item.kpi || 'N/A'}
-                              </Typography>
-                              <Typography variant="body2" sx={{ display: 'block' }}>
-                                <strong>{strategicPlanningLabels.subprogram.fields.totalBudget}:</strong> {formatCurrency(item.totalBudget)}
-                              </Typography>
-                              <Box sx={{ mt: 1 }}>
-                                <Grid container spacing={1}>
-                                  <Grid item xs={12} sm={6}>
-                                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Yearly Targets:</Typography>
-                                    <List disablePadding dense>
-                                      <ListItem disableGutters>
-                                        <ListItemText primary={`Year 1: ${item.yr1Targets || 'N/A'}`} />
-                                      </ListItem>
-                                      <ListItem disableGutters>
-                                        <ListItemText primary={`Year 2: ${item.yr2Targets || 'N/A'}`} />
-                                      </ListItem>
-                                      <ListItem disableGutters>
-                                        <ListItemText primary={`Year 3: ${item.yr3Targets || 'N/A'}`} />
-                                      </ListItem>
-                                      <ListItem disableGutters>
-                                        <ListItemText primary={`Year 4: ${item.yr4Targets || 'N/A'}`} />
-                                      </ListItem>
-                                      <ListItem disableGutters>
-                                        <ListItemText primary={`Year 5: ${item.yr5Targets || 'N/A'}`} />
-                                      </ListItem>
-                                    </List>
-                                  </Grid>
-                                  <Grid item xs={12} sm={6}>
-                                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Yearly Budgets:</Typography>
-                                    <List disablePadding dense>
-                                      <ListItem disableGutters>
-                                        <ListItemText primary={`Year 1: ${formatCurrency(item.yr1Budget)}`} />
-                                      </ListItem>
-                                      <ListItem disableGutters>
-                                        <ListItemText primary={`Year 2: ${formatCurrency(item.yr2Budget)}`} />
-                                      </ListItem>
-                                      <ListItem disableGutters>
-                                        <ListItemText primary={`Year 3: ${formatCurrency(item.yr3Budget)}`} />
-                                      </ListItem>
-                                      <ListItem disableGutters>
-                                        <ListItemText primary={`Year 4: ${formatCurrency(item.yr4Budget)}`} />
-                                      </ListItem>
-                                      <ListItem disableGutters>
-                                        <ListItemText primary={`Year 5: ${formatCurrency(item.yr5Budget)}`} />
-                                      </ListItem>
-                                    </List>
-                                  </Grid>
-                                </Grid>
-                              </Box>
-                              <MultiLineTextAsList text={item.keyOutcome} label={strategicPlanningLabels.subprogram.fields.keyOutcome} />
-                              <MultiLineTextAsList text={item.remarks} label={strategicPlanningLabels.subprogram.fields.remarks} />
+                  {subprograms.filter(sub => sub.programId === program.programId).length > 0 ? (
+                    subprograms.filter(sub => sub.programId === program.programId).map(item => (
+                      <Accordion key={item.subProgramId} sx={{ my: 1, boxShadow: 1 }}>
+                        <AccordionSummary
+                          expandIcon={<ExpandMoreIcon />}
+                          aria-controls={`subprogram-panel-${item.subProgramId}-content`}
+                          id={`subprogram-panel-${item.subProgramId}-header`}
+                          sx={{ bgcolor: 'grey.50', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}
+                        >
+                          <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
+                            {strategicPlanningLabels.subprogram.fields.subProgramme}: {item.subProgramme || 'N/A'}
+                          </Typography>
+                        </AccordionSummary>
+                        <AccordionDetails>
+                          <Box sx={{ pl: 2, borderLeft: '2px solid', borderColor: 'primary.main' }}>
+                            <Box display="flex" justifyContent="flex-end" mb={1}>
+                                {checkUserPrivilege(user, 'subprogram.update') && (
+                                    <Tooltip title="Edit Subprogram">
+                                        <IconButton size="small" color="primary" onClick={(e) => { e.stopPropagation(); handleOpenEditSubprogramDialog(item); }}><EditIcon /></IconButton>
+                                    </Tooltip>
+                                )}
+                                {checkUserPrivilege(user, 'subprogram.delete') && (
+                                    <Tooltip title="Delete Subprogram">
+                                        <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); handleDelete('subprogram', item.subProgramId); }}><DeleteIcon /></IconButton>
+                                    </Tooltip>
+                                )}
                             </Box>
-                          </AccordionDetails>
-                        </Accordion>
-                      ))}
-                    </List>
+                            <Typography variant="body2" sx={{ display: 'block' }}>
+                              <strong>{strategicPlanningLabels.subprogram.fields.kpi}:</strong> {item.kpi || 'N/A'}
+                            </Typography>
+                            <Typography variant="body2" sx={{ display: 'block' }}>
+                              <strong>{strategicPlanningLabels.subprogram.fields.totalBudget}:</strong> {formatCurrency(item.totalBudget)}
+                            </Typography>
+                            <Box sx={{ mt: 1 }}>
+                              <Grid container spacing={1}>
+                                <Grid item xs={12} sm={6}>
+                                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Yearly Targets:</Typography>
+                                  <List disablePadding dense>
+                                    <ListItem disableGutters><ListItemText primary={`Year 1: ${item.yr1Targets || 'N/A'}`} /></ListItem>
+                                    <ListItem disableGutters><ListItemText primary={`Year 2: ${item.yr2Targets || 'N/A'}`} /></ListItem>
+                                    <ListItem disableGutters><ListItemText primary={`Year 3: ${item.yr3Targets || 'N/A'}`} /></ListItem>
+                                    <ListItem disableGutters><ListItemText primary={`Year 4: ${item.yr4Targets || 'N/A'}`} /></ListItem>
+                                    <ListItem disableGutters><ListItemText primary={`Year 5: ${item.yr5Targets || 'N/A'}`} /></ListItem>
+                                  </List>
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Yearly Budgets:</Typography>
+                                  <List disablePadding dense>
+                                    <ListItem disableGutters><ListItemText primary={`Year 1: ${formatCurrency(item.yr1Budget)}`} /></ListItem>
+                                    <ListItem disableGutters><ListItemText primary={`Year 2: ${formatCurrency(item.yr2Budget)}`} /></ListItem>
+                                    <ListItem disableGutters><ListItemText primary={`Year 3: ${formatCurrency(item.yr3Budget)}`} /></ListItem>
+                                    <ListItem disableGutters><ListItemText primary={`Year 4: ${formatCurrency(item.yr4Budget)}`} /></ListItem>
+                                    <ListItem disableGutters><ListItemText primary={`Year 5: ${formatCurrency(item.yr5Budget)}`} /></ListItem>
+                                  </List>
+                                </Grid>
+                              </Grid>
+                            </Box>
+                            <MultiLineTextAsList text={item.keyOutcome} label={strategicPlanningLabels.subprogram.fields.keyOutcome} />
+                            <MultiLineTextAsList text={item.remarks} label={strategicPlanningLabels.subprogram.fields.remarks} />
+                          </Box>
+                        </AccordionDetails>
+                      </Accordion>
+                    ))
                   ) : (
-                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', mt: 2 }}>
                       No subprograms available for this program.
                     </Typography>
                   )}
-                </Box>
-              </Paper>
-            </Grid>
-          )}
-        </Grid>
+                </AccordionDetails>
+              </Accordion>
+            ))}
+          </Box>
+        ) : (
+          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+            No programs available for this plan.
+          </Typography>
+        )}
       </TabPanel>
 
       <TabPanel value={activeTab} index={2}>
@@ -461,7 +473,7 @@ function StrategicPlanDetailsPage() {
         </Grid>
       </TabPanel>
 
-      <Dialog open={openDialog} onClose={handleCloseDialog} fullWidth maxWidth="md">
+      <Dialog open={openDialog} onClose={handleCloseDialogWithReset} fullWidth maxWidth="md">
         <DialogTitle>
           {currentRecord ? `Edit ${getDialogLabel(dialogType).singular}` : `Add ${getDialogLabel(dialogType).singular}`}
         </DialogTitle>
@@ -469,8 +481,8 @@ function StrategicPlanDetailsPage() {
           {renderDialogForm()}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog} disabled={loading}>Cancel</Button>
-          <Button onClick={() => handleSubmit(dialogType, currentRecord, formData, handleCloseDialog, dialogType === 'subprogram' ? selectedProgram.programId : planId)} variant="contained" disabled={loading}>
+          <Button onClick={handleCloseDialogWithReset} disabled={loading}>Cancel</Button>
+          <Button onClick={() => handleSubmit(dialogType, currentRecord, formData, handleCloseDialogWithReset, parentEntityId)} variant="contained" disabled={loading}>
             {loading ? <CircularProgress size={24} /> : (currentRecord ? 'Update' : 'Create')}
           </Button>
         </DialogActions>

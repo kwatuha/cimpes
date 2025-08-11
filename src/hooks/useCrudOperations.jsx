@@ -11,12 +11,10 @@ import { checkUserPrivilege } from '../utils/helpers';
  * @param {string} serviceType - The top-level service to use ('strategy' or 'kdsp').
  * @param {function} fetchDataCallback - A callback function to refresh data after a successful operation.
  * @param {function} setSnackbar - The state setter for displaying snackbar messages.
- * @param {string} initialParentId - The ID of the parent resource (e.g., planId for a Strategic Plan).
  */
-const useCrudOperations = (serviceType, fetchDataCallback, setSnackbar, initialParentId) => {
+const useCrudOperations = (serviceType, fetchDataCallback, setSnackbar) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
-  const parentId = initialParentId;
 
   // Maps a dialog type (e.g., 'program') to the capitalized suffix used in the API method name.
   const apiMethodSuffixMap = {
@@ -93,8 +91,9 @@ const useCrudOperations = (serviceType, fetchDataCallback, setSnackbar, initialP
    * @param {object} currentRecord - The record being updated, or null for creation.
    * @param {object} formData - The data from the form.
    * @param {function} handleCloseDialog - Callback to close the dialog.
+   * @param {string|number} parentId - The ID of the parent resource for a new record.
    */
-  const handleSubmit = async (dialogType, currentRecord, formData, handleCloseDialog) => {
+  const handleSubmit = async (dialogType, currentRecord, formData, handleCloseDialog, parentId) => {
     setLoading(true);
     try {
       const isUpdate = !!currentRecord && !!currentRecord[recordIdKeyMap[dialogType]];
@@ -109,6 +108,7 @@ const useCrudOperations = (serviceType, fetchDataCallback, setSnackbar, initialP
         const recordId = currentRecord[recordIdKeyMap[dialogType]];
         apiCallArgs = [recordId, payload];
       } else {
+        // CORRECTED: Explicitly merge the parentId into the payload for new records
         if (dialogType === 'subprogram') {
             payload = { ...formData, programId: parentId };
         } else if (dialogType === 'program') {
@@ -194,7 +194,6 @@ const useCrudOperations = (serviceType, fetchDataCallback, setSnackbar, initialP
    * Handles downloading a PDF report.
    */
   const handleDownloadPdf = async (type, name, id) => {
-    // console.log('Downloading PDF type:', type); // Corrected debug log
     if (!checkUserPrivilege(user, `kdsp_project_pdf.download`)) {
       setSnackbar({ open: true, message: `You don't have permission to download PDF reports.`, severity: 'error' });
       return;
