@@ -16,7 +16,7 @@ const useCrudOperations = (serviceType, fetchDataCallback, setSnackbar) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
 
-  // Maps a dialog type (e.g., 'program') to the capitalized suffix used in the API method name.
+  // CORRECTED: Maps a dialog type to the capitalized suffix used in the API method name.
   const apiMethodSuffixMap = {
     // KDSP Mappings
     conceptNote: 'ProjectConceptNote',
@@ -37,9 +37,12 @@ const useCrudOperations = (serviceType, fetchDataCallback, setSnackbar) => {
     program: 'Program',
     subprogram: 'Subprogram',
     attachment: 'PlanningDocument',
+    // NEW MAPPINGS
+    workplan: 'WorkPlan',
+    activity: 'Activity'
   };
 
-  // Maps a dialog type to the key used to find the record's ID.
+  // CORRECTED: Maps a dialog type to the key used to find the record's ID.
   const recordIdKeyMap = {
     // KDSP Mappings
     conceptNote: 'conceptNoteId',
@@ -60,14 +63,23 @@ const useCrudOperations = (serviceType, fetchDataCallback, setSnackbar) => {
     program: 'programId',
     subprogram: 'subProgramId',
     attachment: 'attachmentId',
+    // NEW MAPPINGS
+    workplan: 'workplanId',
+    activity: 'activityId'
   };
 
   /**
-   * Retrieves the correct API service based on the serviceType.
-   * @returns {object} The API service object.
+   * CORRECTED: Retrieves the correct API service module based on the serviceType and dialogType.
+   * @returns {object} The API service object or a nested module.
    */
-  const getService = () => {
-    return serviceType === 'strategy' ? apiService.strategy : apiService.kdspIIService;
+  const getApiModule = (type) => {
+    switch (type) {
+        case 'workplan':
+        case 'activity':
+            return apiService.strategy.annualWorkPlans;
+        default:
+            return apiService.strategy;
+    }
   };
 
   /**
@@ -98,7 +110,9 @@ const useCrudOperations = (serviceType, fetchDataCallback, setSnackbar) => {
     try {
       const isUpdate = !!currentRecord && !!currentRecord[recordIdKeyMap[dialogType]];
       const actionName = isUpdate ? 'update' : 'create';
-      const service = getService();
+      
+      // CORRECTED: Get the correct nested module for the API call
+      const apiModule = getApiModule(dialogType);
       const serviceMethodName = getApiMethodName(actionName, dialogType);
 
       let payload = { ...formData };
@@ -108,11 +122,14 @@ const useCrudOperations = (serviceType, fetchDataCallback, setSnackbar) => {
         const recordId = currentRecord[recordIdKeyMap[dialogType]];
         apiCallArgs = [recordId, payload];
       } else {
-        // CORRECTED: Explicitly merge the parentId into the payload for new records
         if (dialogType === 'subprogram') {
             payload = { ...formData, programId: parentId };
         } else if (dialogType === 'program') {
             payload = { ...formData, cidpid: parentId };
+        } else if (dialogType === 'workplan') {
+            payload = { ...formData, subProgramId: parentId };
+        } else if (dialogType === 'activity') {
+            payload = { ...formData, workplanId: parentId };
         }
         apiCallArgs = [payload];
       }
@@ -131,7 +148,7 @@ const useCrudOperations = (serviceType, fetchDataCallback, setSnackbar) => {
         return;
       }
       
-      if (typeof service?.[serviceMethodName] !== 'function') {
+      if (typeof apiModule?.[serviceMethodName] !== 'function') {
         const fullMethodPath = `${serviceType}Service.${serviceMethodName}`;
         console.error(`Critical Error: API method '${fullMethodPath}' not found or is not a function.`);
         setSnackbar({
@@ -145,7 +162,7 @@ const useCrudOperations = (serviceType, fetchDataCallback, setSnackbar) => {
       
       console.log('Final Payload being sent:', payload);
 
-      await service[serviceMethodName](...apiCallArgs);
+      await apiModule[serviceMethodName](...apiCallArgs);
 
       setSnackbar({ open: true, message: `${dialogType.replace(/([A-Z])/g, ' $1').trim()} saved successfully!`, severity: 'success' });
       handleCloseDialog();
@@ -171,14 +188,15 @@ const useCrudOperations = (serviceType, fetchDataCallback, setSnackbar) => {
 
     setLoading(true);
     try {
-      const service = getService();
+      // CORRECTED: Get the correct nested module for the API call
+      const apiModule = getApiModule(type);
       const deleteMethodName = getApiMethodName('delete', type);
 
-      if (typeof service?.[deleteMethodName] !== 'function') {
+      if (typeof apiModule?.[deleteMethodName] !== 'function') {
         throw new Error(`API method '${deleteMethodName}' not found on service.`);
       }
 
-      await service[deleteMethodName](recordId);
+      await apiModule[deleteMethodName](recordId);
       setSnackbar({ open: true, message: `${type.replace(/([A-Z])/g, ' $1').trim()} deleted successfully!`, severity: 'success' });
       fetchDataCallback();
     } catch (err) {
@@ -201,7 +219,7 @@ const useCrudOperations = (serviceType, fetchDataCallback, setSnackbar) => {
     setLoading(true);
     setSnackbar({ open: true, message: 'Generating PDF report, please wait...', severity: 'info' });
     try {
-      const service = getService();
+      const apiModule = getApiModule(type); // get the module for this specific resource type
       let methodName;
       let idToDownload;
 
@@ -218,11 +236,11 @@ const useCrudOperations = (serviceType, fetchDataCallback, setSnackbar) => {
         throw new Error(`Unknown PDF download type: ${type}`);
       }
       
-      if (typeof service?.[methodName] !== 'function') {
+      if (typeof apiModule?.[methodName] !== 'function') {
           throw new Error(`PDF download method '${methodName}' not found on service.`);
       }
 
-      const response = await service[methodName](idToDownload);
+      const response = await apiModule[methodName](idToDownload);
       const url = window.URL.createObjectURL(new Blob([response]));
       const link = document.createElement('a');
       link.href = url;

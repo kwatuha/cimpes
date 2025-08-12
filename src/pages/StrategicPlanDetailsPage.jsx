@@ -26,8 +26,11 @@ import MultiLineTextAsList from '../components/common/MultiLineTextAsList.jsx';
 import JsonInputList from '../components/common/JsonInputList.jsx';
 import StrategicPlanForm from '../components/strategicPlan/StrategicPlanForm';
 import ProgramForm from '../components/strategicPlan/ProgramForm';
-import SubprogramForm from '../components/strategicPlan/SubprogramForm';
+import SubprogramForm from "../components/strategicPlan/SubprogramForm";
 import AttachmentForm from '../components/strategicPlan/AttachmentForm';
+import AnnualWorkPlanForm from '../components/strategicPlan/AnnualWorkPlanForm';
+import ActivityForm from '../components/strategicPlan/ActivityForm';
+
 
 // Helpers
 import {
@@ -50,10 +53,12 @@ function StrategicPlanDetailsPage() {
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [activeTab, setActiveTab] = useState(0);
   const [expandedProgram, setExpandedProgram] = useState(false);
+  const [expandedSubprogram, setExpandedSubprogram] = useState(false);
+  const [expandedWorkPlan, setExpandedWorkPlan] = useState(false);
   const [parentEntityId, setParentEntityId] = useState(null);
 
   const {
-    strategicPlan, programs, subprograms, attachments,
+    strategicPlan, programs, subprograms, annualWorkPlans, activities, attachments,
     loading: dataLoading, error, fetchStrategicPlanData
   } = useStrategicPlanDetails(planId);
 
@@ -80,7 +85,15 @@ function StrategicPlanDetailsPage() {
   const handleProgramAccordionChange = (programId) => (event, isExpanded) => {
     setExpandedProgram(isExpanded ? programId : false);
   };
+
+  const handleSubprogramAccordionChange = (subProgramId) => (event, isExpanded) => {
+    setExpandedSubprogram(isExpanded ? subProgramId : false);
+  };
   
+  const handleWorkPlanAccordionChange = (workplanId) => (event, isExpanded) => {
+      setExpandedWorkPlan(isExpanded ? workplanId : false);
+  };
+
   const handleOpenCreateProgramDialog = (parentId) => {
       setParentEntityId(parentId);
       handleOpenCreateDialog('program');
@@ -95,12 +108,37 @@ function StrategicPlanDetailsPage() {
     setParentEntityId(subprogram.programId);
     handleOpenEditDialog('subprogram', subprogram);
   };
+
+  const handleOpenCreateWorkPlanDialog = (subProgramId) => {
+      setParentEntityId(subProgramId);
+      handleOpenCreateDialog('workplan');
+  };
+  const handleOpenEditWorkPlanDialog = (workplan) => {
+      setParentEntityId(workplan.subProgramId);
+      handleOpenEditDialog('workplan', workplan);
+  };
+
+  // NEW: Handlers for Activities
+  const handleOpenCreateActivityDialog = (workplanId) => {
+    setParentEntityId(workplanId);
+    handleOpenCreateDialog('activity');
+  };
+  const handleOpenEditActivityDialog = (activity) => {
+    setParentEntityId(activity.workplanId);
+    handleOpenEditDialog('activity', activity);
+  };
   
   const handleCloseDialogWithReset = () => {
       setParentEntityId(null);
       handleCloseDialog();
   };
-
+  
+  const a11yProps = (index) => {
+    return {
+      id: `simple-tab-${index}`,
+      'aria-controls': `simple-tabpanel-${index}`,
+    };
+  };
 
   const TabPanel = (props) => {
     const { children, value, index, ...other } = props;
@@ -121,20 +159,14 @@ function StrategicPlanDetailsPage() {
     );
   };
 
-  const a11yProps = (index) => {
-    return {
-      id: `simple-tab-${index}`,
-      'aria-controls': `simple-tabpanel-${index}`,
-    };
-  };
-
-  // CORRECTED: The renderDialogForm now passes all common props in a single object
   const renderDialogForm = () => {
     const commonFormProps = { formData, handleFormChange, setFormData };
     switch (dialogType) {
       case 'strategicPlan': return <StrategicPlanForm {...commonFormProps} />;
       case 'program': return <ProgramForm {...commonFormProps} />;
       case 'subprogram': return <SubprogramForm {...commonFormProps} />;
+      case 'workplan': return <AnnualWorkPlanForm {...commonFormProps} />;
+      case 'activity': return <ActivityForm {...commonFormProps} />;
       case 'attachment': return <AttachmentForm {...commonFormProps} />;
       default: return <Typography>No form available for this type.</Typography>;
     }
@@ -176,6 +208,8 @@ function StrategicPlanDetailsPage() {
       strategicPlan: strategicPlanningLabels.strategicPlan,
       program: strategicPlanningLabels.program,
       subprogram: strategicPlanningLabels.subprogram,
+      workplan: { singular: 'Work Plan', plural: 'Work Plans' },
+      activity: { singular: 'Activity', plural: 'Activities' },
       attachment: strategicPlanningLabels.attachments,
     };
     return labelMapping[type] || { singular: 'Record' };
@@ -351,7 +385,12 @@ function StrategicPlanDetailsPage() {
                   <Divider sx={{ mb: 1 }} />
                   {subprograms.filter(sub => sub.programId === program.programId).length > 0 ? (
                     subprograms.filter(sub => sub.programId === program.programId).map(item => (
-                      <Accordion key={item.subProgramId} sx={{ my: 1, boxShadow: 1 }}>
+                      <Accordion
+                          key={item.subProgramId}
+                          expanded={expandedSubprogram === item.subProgramId}
+                          onChange={handleSubprogramAccordionChange(item.subProgramId)}
+                          sx={{ my: 1, boxShadow: 1 }}
+                      >
                         <AccordionSummary
                           expandIcon={<ExpandMoreIcon />}
                           aria-controls={`subprogram-panel-${item.subProgramId}-content`}
@@ -376,6 +415,89 @@ function StrategicPlanDetailsPage() {
                                     </Tooltip>
                                 )}
                             </Box>
+                            
+                            <Box sx={{ mb: 2 }}>
+                                <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>Annual Work Plans</Typography>
+                                    {checkUserPrivilege(user, 'workplan.create') && (
+                                        <Button startIcon={<AddIcon />} variant="contained" size="small" onClick={() => handleOpenCreateWorkPlanDialog(item.subProgramId)}>
+                                            Add Work Plan
+                                        </Button>
+                                    )}
+                                </Box>
+                                <Divider sx={{ mb: 1 }} />
+                                {(annualWorkPlans || []).filter(wp => wp.subProgramId === item.subProgramId).length > 0 ? (
+                                    (annualWorkPlans || []).filter(wp => wp.subProgramId === item.subProgramId).map(workplan => (
+                                        <Accordion key={workplan.workplanId} expanded={expandedWorkPlan === workplan.workplanId} onChange={handleWorkPlanAccordionChange(workplan.workplanId)} sx={{ my: 1, boxShadow: 1 }}>
+                                            <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: 'grey.100', border: '1px solid', borderColor: 'divider' }}>
+                                                <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
+                                                    {workplan.workplanName} ({workplan.financialYear})
+                                                </Typography>
+                                            </AccordionSummary>
+                                            <AccordionDetails>
+                                                <Box sx={{ pl: 2, borderLeft: '2px solid', borderColor: 'secondary.main' }}>
+                                                    <Box display="flex" justifyContent="flex-end" mb={1}>
+                                                        {checkUserPrivilege(user, 'workplan.update') && (
+                                                            <Tooltip title="Edit Work Plan">
+                                                                <IconButton size="small" color="primary" onClick={(e) => { e.stopPropagation(); handleOpenEditWorkPlanDialog(workplan); }}><EditIcon /></IconButton>
+                                                            </Tooltip>
+                                                        )}
+                                                        {checkUserPrivilege(user, 'workplan.delete') && (
+                                                            <Tooltip title="Delete Work Plan">
+                                                                <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); handleDelete('workplan', workplan.workplanId); }}><DeleteIcon /></IconButton>
+                                                            </Tooltip>
+                                                        )}
+                                                    </Box>
+                                                    <Typography variant="body2"><strong>Description:</strong> {workplan.workplanDescription}</Typography>
+                                                    <Typography variant="body2"><strong>Total Budget:</strong> {formatCurrency(workplan.totalBudget)}</Typography>
+                                                    <Typography variant="body2"><strong>Approval Status:</strong> <Chip label={workplan.approvalStatus} color={workplan.approvalStatus === 'approved' ? 'success' : 'warning'} size="small" /></Typography>
+
+                                                    {/* NEW: Activities section */}
+                                                    <Divider sx={{ my: 2 }} />
+                                                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                                                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Activities</Typography>
+                                                        {checkUserPrivilege(user, 'activity.create') && (
+                                                            <Button startIcon={<AddIcon />} variant="contained" size="small" onClick={() => handleOpenCreateActivityDialog(workplan.workplanId)}>
+                                                                Add Activity
+                                                            </Button>
+                                                        )}
+                                                    </Box>
+                                                    {(activities || []).filter(a => a.workplanId === workplan.workplanId).length > 0 ? (
+                                                        <List dense sx={{ ml: 2, py: 0 }}>
+                                                            {(activities || []).filter(a => a.workplanId === workplan.workplanId).map(activity => (
+                                                                <ListItem key={activity.activityId} disablePadding sx={{ py: 0.5 }}>
+                                                                    <ListItemText primary={activity.activityName} secondary={`Budget: ${formatCurrency(activity.budgetAllocated)} | Status: ${activity.activityStatus}`} />
+                                                                    <Box>
+                                                                        {checkUserPrivilege(user, 'activity.update') && (
+                                                                            <Tooltip title="Edit Activity">
+                                                                                <IconButton size="small" color="primary" onClick={(e) => { e.stopPropagation(); handleOpenEditActivityDialog(activity); }}><EditIcon /></IconButton>
+                                                                            </Tooltip>
+                                                                        )}
+                                                                        {checkUserPrivilege(user, 'activity.delete') && (
+                                                                            <Tooltip title="Delete Activity">
+                                                                                <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); handleDelete('activity', activity.activityId); }}><DeleteIcon /></IconButton>
+                                                                            </Tooltip>
+                                                                        )}
+                                                                    </Box>
+                                                                </ListItem>
+                                                            ))}
+                                                        </List>
+                                                    ) : (
+                                                        <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', ml: 2 }}>
+                                                            No activities found.
+                                                        </Typography>
+                                                    )}
+                                                </Box>
+                                            </AccordionDetails>
+                                        </Accordion>
+                                    ))
+                                ) : (
+                                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                        No work plans available for this subprogram.
+                                    </Typography>
+                                )}
+                            </Box>
+
                             <Typography variant="body2" sx={{ display: 'block' }}>
                               <strong>{strategicPlanningLabels.subprogram.fields.kpi}:</strong> {item.kpi || 'N/A'}
                             </Typography>

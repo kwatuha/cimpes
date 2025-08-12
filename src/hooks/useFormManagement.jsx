@@ -26,6 +26,9 @@ const useFormManagement = () => {
   const [strategicPlanFormData, setStrategicPlanFormData] = useState({});
   const [programFormData, setProgramFormData] = useState({});
   const [subprogramFormData, setSubprogramFormData] = useState({});
+  // CORRECTED: New form states
+  const [workplanFormData, setWorkplanFormData] = useState({});
+  const [activityFormData, setActivityFormData] = useState({});
   const [attachmentFormData, setAttachmentFormData] = useState({});
 
   const setterMap = {
@@ -47,6 +50,9 @@ const useFormManagement = () => {
     strategicPlan: setStrategicPlanFormData,
     program: setProgramFormData,
     subprogram: setSubprogramFormData,
+    // CORRECTED: New form setters
+    workplan: setWorkplanFormData,
+    activity: setActivityFormData,
     attachment: setAttachmentFormData,
   };
 
@@ -69,11 +75,13 @@ const useFormManagement = () => {
     strategicPlan: strategicPlanFormData,
     program: programFormData,
     subprogram: subprogramFormData,
+    // CORRECTED: New form data
+    workplan: workplanFormData,
+    activity: activityFormData,
     attachment: attachmentFormData,
   };
 
   const handleFormChange = useCallback((e) => {
-    // CORRECTED: Safely get the dataset property
     const { name, value, type, checked } = e.target;
     const dataset = e.target.dataset || {};
     const currentSetter = setterMap[dialogType];
@@ -125,6 +133,9 @@ const useFormManagement = () => {
       case 'strategicPlan': setStrategicPlanFormData({}); break;
       case 'program': setProgramFormData({ cidpid: parentId }); break;
       case 'subprogram': setSubprogramFormData({ programId: parentId }); break;
+      // CORRECTED: New cases for work plan and activity
+      case 'workplan': setWorkplanFormData({ subProgramId: parentId }); break;
+      case 'activity': setActivityFormData({ workplanId: parentId }); break;
       case 'attachment': setAttachmentFormData({}); break;
       default: break;
     }
@@ -164,6 +175,9 @@ const useFormManagement = () => {
       case 'strategicPlan': setStrategicPlanFormData(record); break;
       case 'program': setProgramFormData(record); break;
       case 'subprogram': setSubprogramFormData(record); break;
+      // CORRECTED: New cases for work plan and activity
+      case 'workplan': setWorkplanFormData(record); break;
+      case 'activity': setActivityFormData(record); break;
       case 'attachment': setAttachmentFormData(record); break;
       default: break;
     }

@@ -161,6 +161,86 @@ const strategyService = {
       throw error;
     }
   },
+  
+  // --- NEW: Annual Work Plans ---
+  annualWorkPlans: {
+      getWorkPlansBySubprogramId: async (subProgramId) => {
+          try {
+              const response = await axiosInstance.get(`/strategy/workplans/by-subprogram/${subProgramId}`);
+              return response.data;
+          } catch (error) {
+              console.error(`Error fetching work plans for subprogram ${subProgramId}:`, error);
+              throw error;
+          }
+      },
+      createWorkPlan: async (workPlanData) => {
+          try {
+              const response = await axiosInstance.post('/strategy/workplans', workPlanData);
+              return response.data;
+          } catch (error) {
+              console.error('Error creating work plan:', error);
+              throw error;
+          }
+      },
+      updateWorkPlan: async (workplanId, workPlanData) => {
+          try {
+              const response = await axiosInstance.put(`/strategy/workplans/${workplanId}`, workPlanData);
+              return response.data;
+          } catch (error) {
+              console.error(`Error updating work plan ${workplanId}:`, error);
+              throw error;
+          }
+      },
+      deleteWorkPlan: async (workplanId) => {
+          try {
+              const response = await axiosInstance.delete(`/strategy/workplans/${workplanId}`);
+              return response.data;
+          } catch (error) {
+              console.error(`Error deleting work plan ${workplanId}:`, error);
+              throw error;
+          }
+      },
+  },
+
+  // --- NEW: Activities ---
+  activities: {
+      getActivitiesByWorkPlanId: async (workplanId) => {
+          try {
+              const response = await axiosInstance.get(`/strategy/activities/by-workplan/${workplanId}`);
+              return response.data;
+          } catch (error) {
+              console.error(`Error fetching activities for work plan ${workplanId}:`, error);
+              throw error;
+          }
+      },
+      createActivity: async (activityData) => {
+          try {
+              const response = await axiosInstance.post('/strategy/activities', activityData);
+              return response.data;
+          } catch (error) {
+              console.error('Error creating activity:', error);
+              throw error;
+          }
+      },
+      updateActivity: async (activityId, activityData) => {
+          try {
+              const response = await axiosInstance.put(`/strategy/activities/${activityId}`, activityData);
+              return response.data;
+          } catch (error) {
+              console.error(`Error updating activity ${activityId}:`, error);
+              throw error;
+          }
+      },
+      deleteActivity: async (activityId) => {
+          try {
+              const response = await axiosInstance.delete(`/strategy/activities/${activityId}`);
+              return response.data;
+          } catch (error) {
+              console.error(`Error deleting activity ${activityId}:`, error);
+              throw error;
+          }
+      },
+  },
 
   // --- Planning Documents (kemri_planningDocuments) ---
   getPlanningDocuments: async () => {

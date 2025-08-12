@@ -12,6 +12,8 @@ const useStrategicPlanDetails = (planId) => {
   const [strategicPlan, setStrategicPlan] = useState(null);
   const [programs, setPrograms] = useState([]);
   const [subprograms, setSubprograms] = useState([]);
+  const [annualWorkPlans, setAnnualWorkPlans] = useState([]);
+  const [activities, setActivities] = useState([]);
   const [attachments, setAttachments] = useState([]);
 
   const fetchStrategicPlanData = useCallback(async () => {
@@ -31,22 +33,32 @@ const useStrategicPlanDetails = (planId) => {
       setStrategicPlan(planData);
 
       // Step 2: Fetch the programs associated with this specific plan.
-      const programsData = await apiService.strategy.getProgramsByPlanId(planId);
+      const programsData = await apiService.strategy.getProgramsByPlanId(planData.cidpid);
       setPrograms(programsData);
 
-      // Step 3: Fetch the subprograms for each program in the list.
-      // We use Promise.all to fetch all subprograms concurrently for efficiency.
-      const subprogramsPromises = programsData.map(program =>
-        apiService.strategy.getSubprogramsByProgramId(program.programId)
-      );
-      
-      const subprogramsResults = await Promise.all(subprogramsPromises);
-      
-      // Flatten the array of arrays into a single list of subprograms.
-      const allSubprograms = subprogramsResults.flat();
+      // Step 3: Fetch all subprograms.
+      const allSubprograms = (await Promise.all(
+        programsData.map(program =>
+          apiService.strategy.getSubprogramsByProgramId(program.programId)
+        )
+      )).flat();
       setSubprograms(allSubprograms);
 
-      // Step 4: Fetch attachments for the plan.
+      // Step 4: Fetch all work plans for all subprograms.
+      const workPlansPromises = allSubprograms.map(subprogram => 
+          apiService.strategy.annualWorkPlans.getWorkPlansBySubprogramId(subprogram.subProgramId)
+      );
+      const workPlansResults = (await Promise.all(workPlansPromises)).flat();
+      setAnnualWorkPlans(workPlansResults);
+
+      // Step 5: Fetch all activities for all work plans.
+      const activitiesPromises = workPlansResults.map(workplan =>
+          apiService.strategy.activities.getActivitiesByWorkPlanId(workplan.workplanId)
+      );
+      const activitiesResults = (await Promise.all(activitiesPromises)).flat();
+      setActivities(activitiesResults);
+      
+      // Step 6: Fetch attachments for the plan.
       const attachmentsData = await apiService.strategy.getPlanningDocumentsForEntity('plan', planId);
       setAttachments(attachmentsData);
 
@@ -63,7 +75,7 @@ const useStrategicPlanDetails = (planId) => {
   }, [fetchStrategicPlanData]);
 
   return {
-    strategicPlan, programs, subprograms, attachments,
+    strategicPlan, programs, subprograms, annualWorkPlans, activities, attachments,
     loading, error, fetchStrategicPlanData
   };
 };
