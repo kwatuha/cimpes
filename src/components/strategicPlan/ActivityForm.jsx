@@ -90,7 +90,7 @@ const ActivityForm = React.memo(({ formData, handleFormChange }) => {
             renderInput={(params) => (
               <TextField
                 {...params}
-                label="Associated Project"
+                label="Associated Project (Optional)"
                 variant="outlined"
                 margin="dense"
                 InputProps={{
