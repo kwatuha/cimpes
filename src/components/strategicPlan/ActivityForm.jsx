@@ -9,7 +9,8 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Autocomplete
+  Autocomplete,
+  CircularProgress // CORRECTED: Import CircularProgress
 } from '@mui/material';
 import apiService from '../../api';
 
@@ -44,7 +45,7 @@ const ActivityForm = React.memo(({ formData, handleFormChange }) => {
       try {
         const [projectsData, staffData] = await Promise.all([
           apiService.projects.getProjects(),
-          apiService.users.getStaff(), // Assuming a userService or staffService exists
+          apiService.users.getStaff(),
         ]);
         setProjects(projectsData);
         setStaff(staffData.map(s => ({ staffId: s.staffId, name: `${s.firstName} ${s.lastName}` })));

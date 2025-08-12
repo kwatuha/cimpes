@@ -133,6 +133,7 @@ function StrategicPlanDetailsPage() {
       handleCloseDialog();
   };
   
+  // CORRECTED: Added the missing a11yProps function back
   const a11yProps = (index) => {
     return {
       id: `simple-tab-${index}`,
@@ -258,27 +259,6 @@ function StrategicPlanDetailsPage() {
           <Tab label={strategicPlanningLabels.attachments.title} {...a11yProps(2)} />
         </Tabs>
       </Box>
-
-      <TabPanel value={activeTab} index={0}>
-        <Grid container spacing={4}>
-          <Grid item xs={12}>
-            <DataDisplayCard
-              title={strategicPlanningLabels.strategicPlan.singular}
-              data={strategicPlan}
-              type="strategicPlan"
-              onAdd={handleOpenCreateDialog}
-              onEdit={handleOpenEditDialog}
-              onDelete={handleDelete}
-            >
-              <Typography variant="body1" sx={{ mb: 1 }}><strong>{strategicPlanningLabels.strategicPlan.fields.cidpName}:</strong> {strategicPlan.cidpName || 'N/A'}</Typography>
-              <Typography variant="body1" sx={{ mb: 1 }}><strong>{strategicPlanningLabels.strategicPlan.fields.cidpid}:</strong> {strategicPlan.cidpid || 'N/A'}</Typography>
-              <Typography variant="body1" sx={{ mb: 1 }}><strong>{strategicPlanningLabels.strategicPlan.fields.startDate}:</strong> {strategicPlan.startDate || 'N/A'}</Typography>
-              <Typography variant="body1" sx={{ mb: 1 }}><strong>{strategicPlanningLabels.strategicPlan.fields.endDate}:</strong> {strategicPlan.endDate || 'N/A'}</Typography>
-              <MultiLineTextAsList text={strategicPlan.strategicGoal} label={strategicPlanningLabels.strategicPlan.fields.strategicGoal} sx={{ mb: 1.5 }} />
-            </DataDisplayCard>
-          </Grid>
-        </Grid>
-      </TabPanel>
 
       <TabPanel value={activeTab} index={1}>
         <Box mb={2}>
@@ -428,7 +408,12 @@ function StrategicPlanDetailsPage() {
                                 <Divider sx={{ mb: 1 }} />
                                 {(annualWorkPlans || []).filter(wp => wp.subProgramId === item.subProgramId).length > 0 ? (
                                     (annualWorkPlans || []).filter(wp => wp.subProgramId === item.subProgramId).map(workplan => (
-                                        <Accordion key={workplan.workplanId} expanded={expandedWorkPlan === workplan.workplanId} onChange={handleWorkPlanAccordionChange(workplan.workplanId)} sx={{ my: 1, boxShadow: 1 }}>
+                                        <Accordion
+                                            key={workplan.workplanId}
+                                            expanded={expandedWorkPlan === workplan.workplanId}
+                                            onChange={handleWorkPlanAccordionChange(workplan.workplanId)}
+                                            sx={{ my: 1, boxShadow: 1 }}
+                                        >
                                             <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: 'grey.100', border: '1px solid', borderColor: 'divider' }}>
                                                 <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
                                                     {workplan.workplanName} ({workplan.financialYear})
@@ -452,7 +437,6 @@ function StrategicPlanDetailsPage() {
                                                     <Typography variant="body2"><strong>Total Budget:</strong> {formatCurrency(workplan.totalBudget)}</Typography>
                                                     <Typography variant="body2"><strong>Approval Status:</strong> <Chip label={workplan.approvalStatus} color={workplan.approvalStatus === 'approved' ? 'success' : 'warning'} size="small" /></Typography>
 
-                                                    {/* NEW: Activities section */}
                                                     <Divider sx={{ my: 2 }} />
                                                     <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
                                                         <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Activities</Typography>

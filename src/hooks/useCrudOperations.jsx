@@ -69,14 +69,16 @@ const useCrudOperations = (serviceType, fetchDataCallback, setSnackbar) => {
   };
 
   /**
-   * CORRECTED: Retrieves the correct API service module based on the serviceType and dialogType.
+   * CORRECTED: Retrieves the correct API service module based on the dialogType.
+   * This is the fix for the 'createActivity not found' error.
    * @returns {object} The API service object or a nested module.
    */
   const getApiModule = (type) => {
     switch (type) {
         case 'workplan':
-        case 'activity':
             return apiService.strategy.annualWorkPlans;
+        case 'activity':
+            return apiService.strategy.activities;
         default:
             return apiService.strategy;
     }
@@ -111,7 +113,6 @@ const useCrudOperations = (serviceType, fetchDataCallback, setSnackbar) => {
       const isUpdate = !!currentRecord && !!currentRecord[recordIdKeyMap[dialogType]];
       const actionName = isUpdate ? 'update' : 'create';
       
-      // CORRECTED: Get the correct nested module for the API call
       const apiModule = getApiModule(dialogType);
       const serviceMethodName = getApiMethodName(actionName, dialogType);
 
@@ -188,7 +189,6 @@ const useCrudOperations = (serviceType, fetchDataCallback, setSnackbar) => {
 
     setLoading(true);
     try {
-      // CORRECTED: Get the correct nested module for the API call
       const apiModule = getApiModule(type);
       const deleteMethodName = getApiMethodName('delete', type);
 
@@ -219,7 +219,7 @@ const useCrudOperations = (serviceType, fetchDataCallback, setSnackbar) => {
     setLoading(true);
     setSnackbar({ open: true, message: 'Generating PDF report, please wait...', severity: 'info' });
     try {
-      const apiModule = getApiModule(type); // get the module for this specific resource type
+      const apiModule = getApiModule(type);
       let methodName;
       let idToDownload;
 
