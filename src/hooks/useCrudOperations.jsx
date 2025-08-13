@@ -16,7 +16,7 @@ const useCrudOperations = (serviceType, fetchDataCallback, setSnackbar) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
 
-  // CORRECTED: Maps a dialog type to the capitalized suffix used in the API method name.
+  // Maps a dialog type to the capitalized suffix used in the API method name.
   const apiMethodSuffixMap = {
     // KDSP Mappings
     conceptNote: 'ProjectConceptNote',
@@ -39,10 +39,11 @@ const useCrudOperations = (serviceType, fetchDataCallback, setSnackbar) => {
     attachment: 'PlanningDocument',
     // NEW MAPPINGS
     workplan: 'WorkPlan',
-    activity: 'Activity'
+    activity: 'Activity',
+    milestoneActivity: 'MilestoneActivity', // NEW: Mapping for the junction table
   };
 
-  // CORRECTED: Maps a dialog type to the key used to find the record's ID.
+  // Maps a dialog type to the key used to find the record's ID.
   const recordIdKeyMap = {
     // KDSP Mappings
     conceptNote: 'conceptNoteId',
@@ -65,9 +66,10 @@ const useCrudOperations = (serviceType, fetchDataCallback, setSnackbar) => {
     attachment: 'attachmentId',
     // NEW MAPPINGS
     workplan: 'workplanId',
-    activity: 'activityId'
+    activity: 'activityId',
+    milestoneActivity: 'id', // Assuming your junction table has a generic 'id'
   };
-
+  
   /**
    * CORRECTED: Retrieves the correct API service module based on the dialogType.
    * This is the fix for the 'createActivity not found' error.
@@ -79,6 +81,8 @@ const useCrudOperations = (serviceType, fetchDataCallback, setSnackbar) => {
             return apiService.strategy.annualWorkPlans;
         case 'activity':
             return apiService.strategy.activities;
+        case 'milestoneActivity':
+            return apiService.strategy.milestoneActivities; // NEW: Added case for milestone activities
         default:
             return apiService.strategy;
     }

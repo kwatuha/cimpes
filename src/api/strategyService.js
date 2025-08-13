@@ -241,6 +241,47 @@ const strategyService = {
           }
       },
   },
+  
+  // NEW: Milestone Activities Junction Table
+  milestoneActivities: {
+      getActivitiesByMilestoneId: async (milestoneId) => {
+          try {
+              const response = await axiosInstance.get(`/strategy/milestone-activities/by-milestone/${milestoneId}`);
+              return response.data;
+          } catch (error) {
+              console.error(`Error fetching activities for milestone ${milestoneId}:`, error);
+              throw error;
+          }
+      },
+      // --- ADDED: New method to get links by activity ID ---
+      getActivitiesByActivityId: async (activityId) => {
+          try {
+              const response = await axiosInstance.get(`/strategy/milestone-activities/by-activity/${activityId}`);
+              return response.data;
+          } catch (error) {
+              console.error(`Error fetching milestones for activity ${activityId}:`, error);
+              throw error;
+          }
+      },
+      createMilestoneActivity: async (linkData) => {
+          try {
+              const response = await axiosInstance.post('/strategy/milestone-activities', linkData);
+              return response.data;
+          } catch (error) {
+              console.error(`Error linking activity ${linkData.activityId} to milestone ${linkData.milestoneId}:`, error);
+              throw error;
+          }
+      },
+      deleteMilestoneActivity: async (milestoneId, activityId) => {
+          try {
+              const response = await axiosInstance.delete(`/strategy/milestone-activities/${milestoneId}/${activityId}`);
+              return response.data;
+          } catch (error) {
+              console.error(`Error unlinking activity ${activityId} from milestone ${milestoneId}:`, error);
+              throw error;
+          }
+      },
+  },
 
   // --- Planning Documents (kemri_planningDocuments) ---
   getPlanningDocuments: async () => {

@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+// src/pages/ProjectDetailsPage.jsx
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Typography, CircularProgress, Alert, Button, Paper,
   List, ListItem, ListItemText, IconButton, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, MenuItem, FormControl, InputLabel,
   Stack, Chip, Checkbox, FormControlLabel, Select, Snackbar, LinearProgress,
-  Tooltip
+  Tooltip, Accordion, AccordionSummary, AccordionDetails, useTheme
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon, Add as AddIcon, Edit as EditIcon,
@@ -15,16 +16,16 @@ import {
   Attachment as AttachmentIcon,
   PhotoCamera as PhotoCameraIcon,
   Visibility as VisibilityIcon,
-  Paid as PaidIcon // NEW: Imported PaidIcon
+  Paid as PaidIcon,
+  ExpandMore as ExpandMoreIcon
 } from '@mui/icons-material';
 import apiService from '../api';
 import { useAuth } from '../context/AuthContext';
 import { getProjectStatusBackgroundColor, getProjectStatusTextColor } from '../utils/projectStatusColors';
 import MilestoneAttachments from '../components/MilestoneAttachments.jsx';
 import ProjectMonitoringComponent from '../components/ProjectMonitoringComponent.jsx';
-// NEW: Import the ProjectManagerReviewPanel
 import ProjectManagerReviewPanel from '../components/ProjectManagerReviewPanel.jsx';
-
+import ActivityForm from '../components/strategicPlan/ActivityForm';
 
 const checkUserPrivilege = (user, privilegeName) => {
   return user && user.privileges && Array.isArray(user.privileges) && user.privileges.includes(privilegeName);
@@ -51,6 +52,7 @@ function ProjectDetailsPage() {
   const { projectId } = useParams();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const theme = useTheme();
 
   const [project, setProject] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -60,6 +62,11 @@ function ProjectDetailsPage() {
   const [projectCategory, setProjectCategory] = useState(null);
   const [applyingTemplate, setApplyingTemplate] = useState(false);
   const [categoryMilestones, setCategoryMilestones] = useState([]);
+  const [milestoneActivities, setMilestoneActivities] = useState([]);
+  const [expandedMilestone, setExpandedMilestone] = useState(null);
+  
+  const [projectWorkPlans, setProjectWorkPlans] = useState([]); // State to hold work plans
+  const [loadingWorkPlans, setLoadingWorkPlans] = useState(false); // Loading state for work plans
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -83,7 +90,7 @@ function ProjectDetailsPage() {
   const [currentMilestone, setCurrentMilestone] = useState(null);
   const [milestoneFormData, setMilestoneFormData] = useState({
     milestoneName: '',
-    milestoneDescription: '',
+    description: '',
     dueDate: '',
     completed: false,
     completedDate: '',
@@ -95,9 +102,31 @@ function ProjectDetailsPage() {
   const [openAttachmentsModal, setOpenAttachmentsModal] = useState(false);
   const [milestoneToViewAttachments, setMilestoneToViewAttachments] = useState(null);
   const [openMonitoringModal, setOpenMonitoringModal] = useState(false); 
-  // NEW: State for the review panel modal
   const [openReviewPanel, setOpenReviewPanel] = useState(false);
+  const [openActivityDialog, setOpenActivityDialog] = useState(false);
+  const [currentActivity, setCurrentActivity] = useState(null);
+  const [activityFormData, setActivityFormData] = useState({
+      activityName: '',
+      activityDescription: '',
+      responsibleOfficer: null,
+      startDate: '',
+      endDate: '',
+      budgetAllocated: null,
+      actualCost: null,
+      percentageComplete: null,
+      activityStatus: '',
+      projectId: null,
+      workplanId: null,
+      milestoneIds: [],
+  });
+  const [activityFormErrors, setActivityFormErrors] = useState({});
 
+  const [expandedWorkPlan, setExpandedWorkPlan] = useState(false); // New state for work plan accordions
+  const [selectedWorkplanName, setSelectedWorkplanName] = useState(''); // New state for selected work plan name
+
+  const handleAccordionChange = (panel) => (event, isExpanded) => {
+    setExpandedWorkPlan(isExpanded ? panel : false);
+  };
 
   const taskStatuses = [
     'Not Started', 'In Progress', 'Completed', 'On Hold', 'Cancelled', 'At Risk', 'Stalled', 'Delayed', 'Closed', 'Planning', 'Initiated'
@@ -128,6 +157,20 @@ function ProjectDetailsPage() {
       const projectData = await apiService.projects.getProjectById(projectId);
       setProject(projectData);
 
+      const subProgramId = projectData.subProgramId;
+      if (subProgramId) {
+        setLoadingWorkPlans(true);
+        try {
+          const workPlansData = await apiService.strategy.annualWorkPlans.getWorkPlansBySubprogramId(subProgramId);
+          setProjectWorkPlans(workPlansData);
+        } catch (err) {
+          console.error("Error fetching work plans for subprogram:", err);
+          setProjectWorkPlans([]);
+        } finally {
+          setLoadingWorkPlans(false);
+        }
+      }
+      
       if (projectData.categoryId) {
         const categoryData = await apiService.metadata.projectCategories.getCategoryById(projectData.categoryId);
         setProjectCategory(categoryData);
@@ -144,6 +187,12 @@ function ProjectDetailsPage() {
 
       const milestonesData = await apiService.milestones.getMilestonesForProject(projectId);
       setMilestones(milestonesData);
+      
+      const milestoneActivitiesPromises = milestonesData.map(m =>
+          apiService.strategy.milestoneActivities.getActivitiesByMilestoneId(m.milestoneId)
+      );
+      const milestoneActivitiesResults = (await Promise.all(milestoneActivitiesPromises)).flat();
+      setMilestoneActivities(milestoneActivitiesResults);
 
       const rawStaffData = await apiService.users.getStaff();
       const camelCaseStaffData = rawStaffData.map(s => snakeToCamelCase(s));
@@ -383,7 +432,7 @@ function ProjectDetailsPage() {
     }
     setCurrentMilestone(null);
     setMilestoneFormData({
-      milestoneName: '', milestoneDescription: '', dueDate: '', completed: false, completedDate: '', sequenceOrder: '',
+      milestoneName: '', description: '', dueDate: '', completed: false, completedDate: '', sequenceOrder: '',
       progress: 0,
       weight: 1,
     });
@@ -399,7 +448,7 @@ function ProjectDetailsPage() {
     setCurrentMilestone(milestone);
     setMilestoneFormData({
       milestoneName: milestone.milestoneName || '',
-      milestoneDescription: milestone.milestoneDescription || '',
+      description: milestone.description || '',
       dueDate: milestone.dueDate ? new Date(milestone.dueDate).toISOString().split('T')[0] : '',
       completed: milestone.completed || false,
       completedDate: milestone.completedDate ? new Date(milestone.completedDate).toISOString().split('T')[0] : '',
@@ -513,17 +562,132 @@ function ProjectDetailsPage() {
     setOpenMonitoringModal(false);
   };
   
-  // NEW: Handlers for review panel modal
   const handleOpenReviewPanel = () => {
     setOpenReviewPanel(true);
   };
   const handleCloseReviewPanel = () => {
     setOpenReviewPanel(false);
   };
+  
+  const handleOpenCreateActivityDialog = (workplanId, workplanName) => {
+      setOpenActivityDialog(true);
+      setCurrentActivity(null);
+      setSelectedWorkplanName(workplanName);
+      setActivityFormData({
+          activityName: '', activityDescription: '', responsibleOfficer: null, startDate: '', endDate: '', budgetAllocated: null,
+          actualCost: null, percentageComplete: null, activityStatus: 'not_started',
+          projectId: projectId,
+          workplanId: workplanId, // Pass the workplanId directly
+          milestoneIds: [],
+      });
+      setActivityFormErrors({});
+  };
+  
+  const handleOpenEditActivityDialog = async (activity) => {
+      setOpenActivityDialog(true);
+      setCurrentActivity(activity);
+      setSelectedWorkplanName(projectWorkPlans.find(wp => wp.workplanId === activity.workplanId)?.workplanName || '');
+
+      let currentMilestoneIds = [];
+      try {
+        const milestoneActivitiesData = await apiService.strategy.milestoneActivities.getActivitiesByActivityId(activity.activityId);
+        currentMilestoneIds = milestoneActivitiesData.map(ma => ma.milestoneId);
+      } catch (err) {
+        console.error("Error fetching milestone activities:", err);
+      }
+      
+      setActivityFormData({
+          ...activity,
+          startDate: activity.startDate ? new Date(activity.startDate).toISOString().split('T')[0] : '',
+          endDate: activity.endDate ? new Date(activity.endDate).toISOString().split('T')[0] : '',
+          milestoneIds: currentMilestoneIds,
+      });
+      setActivityFormErrors({});
+  };
+  
+  const handleCloseActivityDialog = () => {
+      setOpenActivityDialog(false);
+      setCurrentActivity(null);
+      setActivityFormErrors({});
+      setSelectedWorkplanName('');
+  };
+
+  const handleActivityFormChange = (e) => {
+      const { name, value, type, checked } = e.target;
+      setActivityFormData(prev => ({
+          ...prev,
+          [name]: type === 'checkbox' ? checked : (type === 'number' ? parseFloat(value) : value)
+      }));
+  };
+  
+  const handleMilestoneSelectionChange = (e, newValue) => {
+      const milestoneIds = newValue.map(m => m.milestoneId);
+      setActivityFormData(prev => ({ ...prev, milestoneIds }));
+  };
+  
+  const handleActivitySubmit = async () => {
+      // Validation would go here
+      try {
+          let activityIdToUse;
+          
+          if (currentActivity) {
+              await apiService.strategy.activities.updateActivity(currentActivity.activityId, activityFormData);
+              activityIdToUse = currentActivity.activityId;
+              setSnackbar({ open: true, message: 'Activity updated successfully!', severity: 'success' });
+          } else {
+              const createdActivity = await apiService.strategy.activities.createActivity(activityFormData);
+              activityIdToUse = createdActivity.activityId;
+              setSnackbar({ open: true, message: 'Activity created successfully!', severity: 'success' });
+          }
+
+          if (activityIdToUse) {
+              // Fetch all existing links for this activity
+              const existingMilestoneLinks = await apiService.strategy.milestoneActivities.getActivitiesByActivityId(activityIdToUse);
+              const existingMilestoneIds = new Set(existingMilestoneLinks.map(link => link.milestoneId));
+              const newMilestoneIds = new Set(activityFormData.milestoneIds);
+
+              // Find milestones to link (the ones in the form that don't already exist)
+              const milestonesToLink = Array.from(newMilestoneIds).filter(id => !existingMilestoneIds.has(id));
+              
+              // Find milestones to unlink (the ones in the database that are no longer in the form)
+              const milestonesToUnlink = Array.from(existingMilestoneIds).filter(id => !newMilestoneIds.has(id));
+
+              // Link new milestones
+              await Promise.all(milestonesToLink.map(milestoneId => 
+                  apiService.strategy.milestoneActivities.createMilestoneActivity({
+                      milestoneId: milestoneId,
+                      activityId: activityIdToUse
+                  })
+              ));
+
+              // Unlink old milestones
+              await Promise.all(milestonesToUnlink.map(milestoneId =>
+                  apiService.strategy.milestoneActivities.deleteMilestoneActivity(milestoneId, activityIdToUse)
+              ));
+          }
+
+          handleCloseActivityDialog();
+          fetchProjectDetails();
+      } catch (err) {
+          setSnackbar({ open: true, message: err.message || 'Failed to save activity.', severity: 'error' });
+      }
+  };
+  
+  const handleDeleteActivity = async (activityId) => {
+      if (window.confirm('Are you sure you want to delete this activity?')) {
+          try {
+              await apiService.strategy.activities.deleteActivity(activityId);
+              setSnackbar({ open: true, message: 'Activity deleted successfully!', severity: 'success' });
+              fetchProjectDetails();
+          } catch (err) {
+              setSnackbar({ open: true, message: err.message || 'Failed to delete activity.', severity: 'error' });
+          }
+      }
+  };
 
   const canApplyTemplate = !!projectCategory && checkUserPrivilege(user, 'project.apply_template');
   const canReviewSubmissions = checkUserPrivilege(user, 'project_manager.review'); // Assumed new privilege
-
+  
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -571,7 +735,7 @@ function ProjectDetailsPage() {
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h6" color="primary.main">Overview</Typography>
             <Stack direction="row" spacing={1}>
-                {canReviewSubmissions && ( // NEW: Conditionally render the review button
+                {canReviewSubmissions && (
                     <Tooltip title="Review Contractor Submissions">
                         <Button
                             variant="outlined"
@@ -634,97 +798,112 @@ function ProjectDetailsPage() {
           <Typography variant="body1"><strong>Objective:</strong> {project?.objective || 'N/A'}</Typography>
           <Typography variant="body1"><strong>Expected Output:</strong> {project?.expectedOutput || 'N/A'}</Typography>
           <Typography variant="body1"><strong>Expected Outcome:</strong> {project?.expectedOutcome || 'N/A'}</Typography>
-          <Typography variant="body1"><strong>Description:</strong> {project?.projectDescription || 'N/A'}</Typography>
         </Stack>
       </Paper>
 
-      {/* Tasks Section */}
+      {/* --- NEW SECTION: Work Plans Accordion --- */}
       <Box sx={{ mt: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h5" color="primary.main">Tasks</Typography>
-          <Stack direction="row" spacing={1}>
-            {checkUserPrivilege(user, 'task.create') && (
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={handleOpenCreateTaskDialog}
-                sx={{ backgroundColor: '#16a34a', '&:hover': { backgroundColor: '#15803d' } }}
-              >
-                Add Task
-              </Button>
-            )}
-            <Button
-              variant="outlined"
-              startIcon={<BarChartIcon />}
-              onClick={handleViewGanttChart}
-              sx={{ borderColor: '#0A2342', color: '#0A2342', '&:hover': { backgroundColor: '#e0e7ff' } }}
-            >
-              View Gantt Chart
-            </Button>
-          </Stack>
-        </Box>
-        {tasks.length === 0 ? (
-          <Alert severity="info">No tasks defined for this project.</Alert>
+        <Typography variant="h5" color="primary.main" gutterBottom>Work Plans</Typography>
+        {loadingWorkPlans ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                <CircularProgress />
+            </Box>
+        ) : projectWorkPlans.length === 0 ? (
+            <Alert severity="info">No work plans available for this project's subprogram.</Alert>
         ) : (
-          <List component={Paper} elevation={2} sx={{ borderRadius: '8px' }}>
-            {tasks.map((task) => (
-              <ListItem
-                key={task.taskId}
-                divider
-                secondaryAction={
-                  <Stack direction="row" spacing={1}>
-                    {checkUserPrivilege(user, 'task.update') && (
-                      <IconButton edge="end" aria-label="edit" onClick={() => handleOpenEditTaskDialog(task)}>
-                        <EditIcon />
-                      </IconButton>
-                    )}
-                    {checkUserPrivilege(user, 'task.delete') && (
-                      <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteTask(task.taskId)}>
-                        <DeleteIcon />
-                      </IconButton>
-                    )}
-                  </Stack>
-                }
-              >
-                <ListItemText
-                  primary={
-                    <Typography variant="h6" sx={{ fontWeight: 'bold' }}>{task.taskName || 'Unnamed Task'}</Typography>
-                  }
-                  secondary={
-                    <Box>
-                      <Typography variant="body2" color="text.secondary">{task.description || 'No description.'}</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Start: {task.startDate ? new Date(task.startDate).toLocaleDateString() : 'N/A'} | End: {task.endDate ? new Date(task.endDate).toLocaleDateString() : 'N/A'} | Due: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'N/A'}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
-                        Status: <Chip label={task.status || 'N/A'} size="small" sx={{ backgroundColor: getProjectStatusBackgroundColor(task.status), color: getProjectStatusTextColor(task.status), fontWeight: 'bold' }} />
-                      </Typography>
-                      {Array.isArray(task.assignees) && task.assignees.length > 0 && (
-                        <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
-                          <PeopleIcon sx={{ mr: 0.5, fontSize: '1rem' }} /> Assigned To: {
-                            task.assignees.map(aId => {
-                                const assignee = staff.find(s => s.staffId === aId);
-                                return assignee ? `${assignee.firstName} ${assignee.lastName}` : `Staff ${aId}`;
-                            }).join(', ')
-                          }
-                        </Typography>
-                      )}
-                      {Array.isArray(task.dependencies) && task.dependencies.length > 0 && (
-                        <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
-                          <LinkIcon sx={{ mr: 0.5, fontSize: '1rem' }} /> Depends On: {
-                              task.dependencies.map(d => {
-                                  const dependentTask = allTasks.find(t => t.taskId === d.dependsOnTaskId);
-                                  return dependentTask ? dependentTask.taskName : `Task ${d.dependsOnTaskId}`;
-                              }).join(', ')
-                          }
-                        </Typography>
-                      )}
-                    </Box>
-                  }
-                />
-              </ListItem>
-            ))}
-          </List>
+            projectWorkPlans.map((workplan) => {
+                // Calculate the budget of activities already added to this work plan
+                const activitiesForWorkplan = milestoneActivities.filter(a => String(a.workplanId) === String(workplan.workplanId));
+                const totalMappedBudget = activitiesForWorkplan.reduce((sum, activity) => sum + (parseFloat(activity.budgetAllocated) || 0), 0);
+                const remainingBudget = (parseFloat(workplan.totalBudget) || 0) - totalMappedBudget;
+
+                return (
+                    <Accordion
+                        key={workplan.workplanId}
+                        expanded={expandedWorkPlan === workplan.workplanId}
+                        onChange={handleAccordionChange(workplan.workplanId)}
+                        sx={{ mb: 2, borderRadius: '8px', '&:before': { display: 'none' } }}
+                    >
+                        <AccordionSummary
+                            expandIcon={<ExpandMoreIcon />}
+                            aria-controls={`panel-${workplan.workplanId}-content`}
+                            id={`panel-${workplan.workplanId}-header`}
+                        >
+                            <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                                <Typography variant="h6" sx={{ flexShrink: 0, fontWeight: 'bold' }}>
+                                    {workplan.workplanName} ({workplan.financialYear})
+                                </Typography>
+                                <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center' }}>
+                                    <Chip 
+                                        label={`Budget: KES ${parseFloat(workplan.totalBudget).toFixed(2)}`} 
+                                        color="primary" 
+                                        sx={{ mr: 1 }} 
+                                    />
+                                    <Chip 
+                                        label={`Utilized: KES ${totalMappedBudget.toFixed(2)}`} 
+                                        color="secondary" 
+                                        sx={{ mr: 1 }} 
+                                    />
+                                    <Chip 
+                                        label={`Remaining: KES ${remainingBudget.toFixed(2)}`} 
+                                        color={remainingBudget >= 0 ? 'success' : 'error'} 
+                                    />
+                                </Box>
+                            </Box>
+                        </AccordionSummary>
+                        <AccordionDetails>
+                            <Typography variant="body1" sx={{ fontStyle: 'italic' }}>
+                                {workplan.workplanDescription || 'No description provided.'}
+                            </Typography>
+                            <Box sx={{ mt: 2 }}>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>Activities</Typography>
+                                    {checkUserPrivilege(user, 'activity.create') && (
+                                        <Button
+                                            variant="contained"
+                                            startIcon={<AddIcon />}
+                                            size="small"
+                                            onClick={() => handleOpenCreateActivityDialog(workplan.workplanId, workplan.workplanName)}
+                                        >
+                                            Add Activity
+                                        </Button>
+                                    )}
+                                </Box>
+                                {activitiesForWorkplan.length > 0 ? (
+                                    <List dense>
+                                        {activitiesForWorkplan.map((activity) => (
+                                            <ListItem 
+                                                key={activity.activityId}
+                                                secondaryAction={
+                                                    <Stack direction="row" spacing={1}>
+                                                        {checkUserPrivilege(user, 'activity.update') && (
+                                                            <IconButton edge="end" aria-label="edit" onClick={() => handleOpenEditActivityDialog(activity)}>
+                                                                <EditIcon />
+                                                            </IconButton>
+                                                        )}
+                                                        {checkUserPrivilege(user, 'activity.delete') && (
+                                                            <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteActivity(activity.activityId)}>
+                                                                <DeleteIcon />
+                                                            </IconButton>
+                                                        )}
+                                                    </Stack>
+                                                }
+                                            >
+                                                <ListItemText
+                                                    primary={activity.activityName}
+                                                    secondary={`Budget: KES ${parseFloat(activity.budgetAllocated).toFixed(2)} | Status: ${activity.activityStatus.replace(/_/g, ' ')}`}
+                                                />
+                                            </ListItem>
+                                        ))}
+                                    </List>
+                                ) : (
+                                    <Typography variant="body2" color="text.secondary">No activities have been added to this work plan yet.</Typography>
+                                )}
+                            </Box>
+                        </AccordionDetails>
+                    </Accordion>
+                );
+            })
         )}
       </Box>
 
@@ -732,26 +911,28 @@ function ProjectDetailsPage() {
       <Box sx={{ mt: 4 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Typography variant="h5" color="primary.main">Milestones</Typography>
-          {checkUserPrivilege(user, 'project.apply_template') && projectCategory && (
+          <Stack direction="row" spacing={1}>
+            {checkUserPrivilege(user, 'project.apply_template') && projectCategory && (
+                <Button
+                    variant="contained"
+                    startIcon={<UpdateIcon />}
+                    onClick={handleApplyMilestoneTemplate}
+                    disabled={applyingTemplate}
+                >
+                    {applyingTemplate ? <CircularProgress size={24} /> : 'Apply Latest Milestones'}
+                </Button>
+            )}
+            {checkUserPrivilege(user, 'milestone.create') && !projectCategory && (
               <Button
-                  variant="contained"
-                  startIcon={<UpdateIcon />}
-                  onClick={handleApplyMilestoneTemplate}
-                  disabled={applyingTemplate}
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={handleOpenCreateMilestoneDialog}
+                sx={{ backgroundColor: '#16a34a', '&:hover': { backgroundColor: '#15803d' } }}
               >
-                  {applyingTemplate ? <CircularProgress size={24} /> : 'Apply Latest Milestones'}
+                Add Milestone
               </Button>
-          )}
-          {checkUserPrivilege(user, 'milestone.create') && !projectCategory && (
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleOpenCreateMilestoneDialog}
-              sx={{ backgroundColor: '#16a34a', '&:hover': { backgroundColor: '#15803d' } }}
-            >
-              Add Milestone
-            </Button>
-          )}
+            )}
+          </Stack>
         </Box>
         {milestones.length === 0 ? (
             projectCategory?.categoryName ? (
@@ -765,77 +946,79 @@ function ProjectDetailsPage() {
               <ListItem
                 key={milestone.milestoneId}
                 divider
-                secondaryAction={
-                  <Stack direction="row" spacing={1}>
-                    {/* NEW: Button to view attachments */}
-                    <IconButton edge="end" aria-label="attachments" onClick={() => {
-                        setMilestoneToViewAttachments(milestone);
-                        setOpenAttachmentsModal(true);
-                    }}>
-                        <AttachmentIcon />
-                    </IconButton>
-                    {checkUserPrivilege(user, 'milestone.update') && (
-                      <IconButton edge="end" aria-label="edit" onClick={() => handleOpenEditMilestoneDialog(milestone)}>
-                        <EditIcon />
-                      </IconButton>
-                    )}
-                    {checkUserPrivilege(user, 'milestone.delete') && (
-                      <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteMilestone(milestone.milestoneId)}>
-                        <DeleteIcon />
-                      </IconButton>
-                    )}
-                  </Stack>
-                }
               >
-                <ListItemText
-                  primary={
-                    <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                      {milestone.milestoneName || 'Unnamed Milestone'}
+                <Box sx={{ width: '100%' }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <ListItemText
+                      primary={
+                        <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                          {milestone.milestoneName || 'Unnamed Milestone'}
+                        </Typography>
+                      }
+                      sx={{ my: 0 }}
+                    />
+                    <Stack direction="row" spacing={1}>
+                      <IconButton edge="end" aria-label="attachments" onClick={() => {
+                          setMilestoneToViewAttachments(milestone);
+                          setOpenAttachmentsModal(true);
+                      }}>
+                          <AttachmentIcon />
+                      </IconButton>
+                      {checkUserPrivilege(user, 'milestone.update') && (
+                        <IconButton edge="end" aria-label="edit" onClick={() => handleOpenEditMilestoneDialog(milestone)}>
+                          <EditIcon />
+                        </IconButton>
+                      )}
+                      {checkUserPrivilege(user, 'milestone.delete') && (
+                        <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteMilestone(milestone.milestoneId)}>
+                          <DeleteIcon />
+                        </IconButton>
+                      )}
+                    </Stack>
+                  </Box>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">{milestone.description || 'No description.'}</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Due Date: {milestone.dueDate ? new Date(milestone.dueDate).toLocaleDateString() : 'N/A'}
                     </Typography>
-                  }
-                  secondary={
-                    <Box>
-                      <Typography variant="body2" color="text.secondary">{milestone.milestoneDescription || 'No description.'}</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Due Date: {milestone.dueDate ? new Date(milestone.dueDate).toLocaleDateString() : 'N/A'}
-                      </Typography>
-                      {/* NEW: Display milestone progress */}
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                        Progress: {milestone.progress}% (Weight: {milestone.weight})
-                      </Typography>
-                      <LinearProgress variant="determinate" value={milestone.progress || 0} sx={{ height: 6, borderRadius: 3 }} />
-                      
-                      <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-                        Completed: {!!milestone.completed ? 'Yes' : 'No'}
-                        {!!milestone.completed && milestone.completedDate && ` on ${new Date(milestone.completedDate).toLocaleDateString()}`}
-                        {!!milestone.completed && (
-                            <Chip
-                                label="Completed"
-                                size="small"
-                                sx={{
-                                    ml: 1,
-                                    backgroundColor: '#22c55e',
-                                    color: 'white',
-                                    fontWeight: 'bold',
-                                }}
-                            />
-                        )}
-                        {!milestone.completed && (
-                            <Chip
-                                label="Not Completed"
-                                size="small"
-                                sx={{
-                                    ml: 1,
-                                    backgroundColor: '#ef4444',
-                                    color: 'white',
-                                    fontWeight: 'bold',
-                                }}
-                            />
-                        )}
-                      </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                      Progress: {milestone.progress}% (Weight: {milestone.weight})
+                    </Typography>
+                    <LinearProgress variant="determinate" value={milestone.progress || 0} sx={{ height: 6, borderRadius: 3 }} />
+                    
+                    {/* Activities section for the milestone */}
+                    <Box sx={{ mt: 2, pl: 2, borderLeft: '2px solid', borderColor: theme.palette.secondary.main }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Activities</Typography>
+                      </Box>
+                      {(milestoneActivities || []).filter(a => a.milestoneId === milestone.milestoneId).length > 0 ? (
+                          <List dense disablePadding>
+                              {(milestoneActivities || []).filter(a => a.milestoneId === milestone.milestoneId).map(activity => (
+                                  <ListItem key={activity.activityId} disablePadding sx={{ py: 0.5 }}>
+                                      <ListItemText primary={activity.activityName} secondary={`Budget: ${parseFloat(activity.budgetAllocated).toFixed(2)} | Status: ${activity.activityStatus.replace(/_/g, ' ')}`} />
+                                      <Box>
+                                          {checkUserPrivilege(user, 'activity.update') && (
+                                              <Tooltip title="Edit Activity">
+                                                  <IconButton size="small" color="primary" onClick={(e) => { e.stopPropagation(); handleOpenEditActivityDialog(activity); }}><EditIcon /></IconButton>
+                                              </Tooltip>
+                                          )}
+                                          {checkUserPrivilege(user, 'activity.delete') && (
+                                              <Tooltip title="Delete Activity">
+                                                  <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); handleDeleteActivity(activity.activityId); }}><DeleteIcon /></IconButton>
+                                              </Tooltip>
+                                          )}
+                                      </Box>
+                                  </ListItem>
+                              ))}
+                          </List>
+                      ) : (
+                          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', ml: 2 }}>
+                              No activities linked to this milestone.
+                          </Typography>
+                      )}
                     </Box>
-                  }
-                />
+                  </Box>
+                </Box>
               </ListItem>
             ))}
           </List>
@@ -1011,14 +1194,14 @@ function ProjectDetailsPage() {
           />
           <TextField
             margin="dense"
-            name="milestoneDescription"
+            name="description"
             label="Description"
             type="text"
             fullWidth
             multiline
             rows={3}
             variant="outlined"
-            value={milestoneFormData.milestoneDescription}
+            value={milestoneFormData.description}
             onChange={handleMilestoneFormChange}
             sx={{ mb: 2 }}
           />
@@ -1098,6 +1281,30 @@ function ProjectDetailsPage() {
         </DialogActions>
       </Dialog>
         
+      {/* NEW: Activity Create/Edit Dialog */}
+      <Dialog open={openActivityDialog} onClose={handleCloseActivityDialog} fullWidth maxWidth="md">
+          <DialogTitle>
+              {currentActivity ? `Edit Activity: ${currentActivity.activityName}` : `Add New Activity to "${selectedWorkplanName}"`}
+          </DialogTitle>
+          <DialogContent dividers>
+              <ActivityForm
+                formData={activityFormData}
+                handleFormChange={handleActivityFormChange}
+                milestones={milestones}
+                workPlans={projectWorkPlans}
+                hideWorkplanSelector={true} // New prop to hide the work plan selector
+              />
+          </DialogContent>
+          <DialogActions>
+              <Button onClick={handleCloseActivityDialog} color="primary">
+                  Cancel
+              </Button>
+              <Button onClick={handleActivitySubmit} color="primary" variant="contained">
+                  {currentActivity ? 'Update Activity' : 'Create Activity'}
+              </Button>
+          </DialogActions>
+      </Dialog>
+
       <MilestoneAttachments
         open={openAttachmentsModal}
         onClose={() => setOpenAttachmentsModal(false)}
@@ -1112,7 +1319,6 @@ function ProjectDetailsPage() {
         projectId={projectId}
       />
       
-      {/* NEW: Render the ProjectManagerReviewPanel as a modal */}
       <ProjectManagerReviewPanel
           open={openReviewPanel}
           onClose={handleCloseReviewPanel}

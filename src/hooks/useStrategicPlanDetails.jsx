@@ -15,6 +15,8 @@ const useStrategicPlanDetails = (planId) => {
   const [annualWorkPlans, setAnnualWorkPlans] = useState([]);
   const [activities, setActivities] = useState([]);
   const [attachments, setAttachments] = useState([]);
+  const [milestones, setMilestones] = useState([]); // EXISTING: Milestones state
+  const [milestoneActivities, setMilestoneActivities] = useState([]); // NEW: State for linked activities
 
   const fetchStrategicPlanData = useCallback(async () => {
     setLoading(true);
@@ -61,6 +63,17 @@ const useStrategicPlanDetails = (planId) => {
       // Step 6: Fetch attachments for the plan.
       const attachmentsData = await apiService.strategy.getPlanningDocumentsForEntity('plan', planId);
       setAttachments(attachmentsData);
+      
+      // Step 7: Fetch all milestones for the project.
+      const milestonesData = await apiService.milestones.getMilestonesForProject(planId);
+      setMilestones(milestonesData);
+
+      // NEW: Step 8: Fetch all activities for each milestone.
+      const milestoneActivitiesPromises = milestonesData.map(milestone =>
+        apiService.strategy.milestoneActivities.getActivitiesByMilestoneId(milestone.milestoneId)
+      );
+      const milestoneActivitiesResults = (await Promise.all(milestoneActivitiesPromises)).flat();
+      setMilestoneActivities(milestoneActivitiesResults);
 
     } catch (err) {
       console.error('Error fetching strategic plan details:', err);
@@ -75,7 +88,7 @@ const useStrategicPlanDetails = (planId) => {
   }, [fetchStrategicPlanData]);
 
   return {
-    strategicPlan, programs, subprograms, annualWorkPlans, activities, attachments,
+    strategicPlan, programs, subprograms, annualWorkPlans, activities, attachments, milestones, milestoneActivities,
     loading, error, fetchStrategicPlanData
   };
 };

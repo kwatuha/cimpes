@@ -3,18 +3,21 @@ import React, { useState, useEffect } from 'react';
 import {
   Box,
   TextField,
-  Typography,
   Grid,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
   Autocomplete,
-  CircularProgress // CORRECTED: Import CircularProgress
+  CircularProgress,
+  Typography,
+  Chip,
+  List,
+  ListItem,
+  ListItemText
 } from '@mui/material';
 import apiService from '../../api';
 
-// Status options for the activity dropdown
 const activityStatusOptions = [
   'not_started',
   'in_progress',
@@ -23,97 +26,186 @@ const activityStatusOptions = [
   'cancelled',
 ];
 
-/**
- * Form component for creating and editing an Activity.
- * It uses a clean and responsive grid layout for optimal user experience.
- *
- * @param {object} props - The component props.
- * @param {object} props.formData - The current form data.
- * @param {function} props.handleFormChange - The change handler for form inputs.
- */
-const ActivityForm = React.memo(({ formData, handleFormChange }) => {
-  const [projects, setProjects] = useState([]);
+const ActivityForm = React.memo(({ formData, handleFormChange, workPlans, milestones, hideWorkplanSelector }) => {
   const [staff, setStaff] = useState([]);
-  const [loadingProjects, setLoadingProjects] = useState(true);
-  const [loadingStaff, setLoadingStaff] = useState(true);
+  const [loadingStaff, setLoadingStaff] = useState(false);
+  const [workplanActivities, setWorkplanActivities] = useState([]);
+  const [loadingWorkplanActivities, setLoadingWorkplanActivities] = useState(false);
 
-  // Fetch projects and staff data for Autocomplete/dropdowns
   useEffect(() => {
-    const fetchProjectsAndStaff = async () => {
-      setLoadingProjects(true);
+    const fetchStaffData = async () => {
       setLoadingStaff(true);
       try {
-        const [projectsData, staffData] = await Promise.all([
-          apiService.projects.getProjects(),
-          apiService.users.getStaff(),
-        ]);
-        setProjects(projectsData);
+        const staffData = await apiService.users.getStaff();
         setStaff(staffData.map(s => ({ staffId: s.staffId, name: `${s.firstName} ${s.lastName}` })));
       } catch (err) {
-        console.error("Error fetching projects and staff data:", err);
+        console.error("Error fetching staff data:", err);
       } finally {
-        setLoadingProjects(false);
         setLoadingStaff(false);
       }
     };
-    fetchProjectsAndStaff();
+    fetchStaffData();
   }, []);
+  
+  // New useEffect to fetch activities for the selected work plan
+  useEffect(() => {
+    const fetchWorkplanActivities = async () => {
+      if (formData.workplanId) {
+        setLoadingWorkplanActivities(true);
+        try {
+          const activities = await apiService.strategy.activities.getActivitiesByWorkPlanId(formData.workplanId);
+          setWorkplanActivities(activities);
+        } catch (err) {
+          console.error("Error fetching activities for work plan:", err);
+          setWorkplanActivities([]);
+        } finally {
+          setLoadingWorkplanActivities(false);
+        }
+      } else {
+        setWorkplanActivities([]);
+      }
+    };
+    fetchWorkplanActivities();
+  }, [formData.workplanId]);
+
+  // Filter milestones based on the project ID provided from the parent component
+  const relevantMilestones = milestones.filter(m => String(m.projectId) === String(formData.projectId));
+
+  const selectedWorkPlan = workPlans.find(wp => wp.workplanId === formData.workplanId);
+
+  // Calculate the total budget of activities already added to this work plan
+  const totalMappedBudget = workplanActivities.reduce((sum, activity) => sum + (parseFloat(activity.budgetAllocated) || 0), 0);
 
   return (
     <Box sx={{ mt: 2, p: 2 }}>
       <Grid container spacing={2}>
-        {/* Top-level details */}
+        {/* Row 1: Work Plan, Activity Name, Status */}
+        {!hideWorkplanSelector && (
+          <Grid item xs={12} sm={6}>
+              <Autocomplete
+                  fullWidth
+                  options={workPlans}
+                  getOptionLabel={(option) => option.workplanName || ''}
+                  isOptionEqualToValue={(option, value) => option.workplanId === value}
+                  value={selectedWorkPlan || null}
+                  onChange={(event, newValue) => {
+                      const workplanId = newValue ? newValue.workplanId : null;
+                      handleFormChange({ target: { name: 'workplanId', value: workplanId } });
+                      if (!newValue) {
+                        handleFormChange({ target: { name: 'milestoneIds', value: [] } });
+                      }
+                  }}
+                  loading={false}
+                  renderInput={(params) => (
+                      <TextField
+                          {...params}
+                          label="Select Work Plan"
+                          variant="outlined"
+                          margin="dense"
+                          InputProps={{
+                              ...params.InputProps,
+                              endAdornment: (
+                                  <>
+                                      {false ? <CircularProgress color="inherit" size={20} /> : null}
+                                      {params.InputProps.endAdornment}
+                                  </>
+                              ),
+                          }}
+                      />
+                  )}
+              />
+          </Grid>
+        )}
         <Grid item xs={12} sm={6}>
-          <TextField
-            autoFocus
-            margin="dense"
+            <TextField
             name="activityName"
             label="Activity Name"
             type="text"
             fullWidth
             variant="outlined"
+            margin="dense"
             value={formData.activityName || ''}
             onChange={handleFormChange}
           />
         </Grid>
         <Grid item xs={12} sm={6}>
-          <Autocomplete
+          <FormControl fullWidth margin="dense" variant="outlined">
+            <InputLabel>Activity Status</InputLabel>
+            <Select
+              name="activityStatus"
+              label="Activity Status"
+              value={formData.activityStatus || ''}
+              onChange={handleFormChange}
+            >
+              {activityStatusOptions.map((status) => (
+                <MenuItem key={status} value={status}>
+                  {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Grid>
+
+        {/* Row 2: Dates */}
+        <Grid item xs={12} sm={6}>
+          <TextField
+            name="startDate"
+            label="Start Date"
+            type="date"
             fullWidth
+            variant="outlined"
             margin="dense"
-            options={projects}
-            getOptionLabel={(option) => option.projectName || ''}
-            value={projects.find(p => p.id === formData.projectId) || null}
+            value={formData.startDate || ''}
+            onChange={handleFormChange}
+            InputLabelProps={{ shrink: true }}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField
+            name="endDate"
+            label="End Date"
+            type="date"
+            fullWidth
+            variant="outlined"
+            margin="dense"
+            value={formData.endDate || ''}
+            onChange={handleFormChange}
+            InputLabelProps={{ shrink: true }}
+          />
+        </Grid>
+
+        {/* Row 3: Contributes to Milestones */}
+        <Grid item xs={12} sm={6}>
+          <Autocomplete
+            multiple
+            fullWidth
+            options={relevantMilestones}
+            getOptionLabel={(option) => option.milestoneName || ''}
+            isOptionEqualToValue={(option, value) => option.milestoneId === value.milestoneId}
+            value={relevantMilestones.filter(m => (formData.milestoneIds || []).includes(m.milestoneId))}
             onChange={(event, newValue) => {
-              handleFormChange({ target: { name: 'projectId', value: newValue ? newValue.id : null } });
+              handleFormChange({ target: { name: 'milestoneIds', value: newValue.map(m => m.milestoneId) } });
             }}
-            loading={loadingProjects}
+            disabled={!formData.projectId}
             renderInput={(params) => (
               <TextField
                 {...params}
-                label="Associated Project (Optional)"
+                label="Contributes to Milestones"
                 variant="outlined"
                 margin="dense"
-                InputProps={{
-                  ...params.InputProps,
-                  endAdornment: (
-                    <>
-                      {loadingProjects ? <CircularProgress color="inherit" size={20} /> : null}
-                      {params.InputProps.endAdornment}
-                    </>
-                  ),
-                }}
+                helperText={formData.projectId && relevantMilestones.length === 0 ? "No milestones found for this project." : ""}
               />
             )}
           />
         </Grid>
 
-        {/* Responsible Officer & Status */}
+        {/* Row 4: Responsible Officer */}
         <Grid item xs={12} sm={6}>
           <Autocomplete
             fullWidth
-            margin="dense"
             options={staff}
             getOptionLabel={(option) => option.name || ''}
+            isOptionEqualToValue={(option, value) => option.staffId === value.staffId}
             value={staff.find(s => s.staffId === formData.responsibleOfficer) || null}
             onChange={(event, newValue) => {
               handleFormChange({ target: { name: 'responsibleOfficer', value: newValue ? newValue.staffId : null } });
@@ -138,94 +230,48 @@ const ActivityForm = React.memo(({ formData, handleFormChange }) => {
             )}
           />
         </Grid>
-        <Grid item xs={12} sm={6}>
-          <FormControl fullWidth margin="dense" variant="outlined">
-            <InputLabel>Activity Status</InputLabel>
-            <Select
-              name="activityStatus"
-              label="Activity Status"
-              value={formData.activityStatus || ''}
-              onChange={handleFormChange}
-            >
-              {activityStatusOptions.map((status) => (
-                <MenuItem key={status} value={status}>
-                  {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Grid>
 
-        {/* Dates */}
-        <Grid item xs={12} sm={6}>
-          <TextField
-            margin="dense"
-            name="startDate"
-            label="Start Date"
-            type="date"
-            fullWidth
-            variant="outlined"
-            value={formData.startDate || ''}
-            onChange={handleFormChange}
-            InputLabelProps={{ shrink: true }}
-          />
-        </Grid>
-        <Grid item xs={12} sm={6}>
-          <TextField
-            margin="dense"
-            name="endDate"
-            label="End Date"
-            type="date"
-            fullWidth
-            variant="outlined"
-            value={formData.endDate || ''}
-            onChange={handleFormChange}
-            InputLabelProps={{ shrink: true }}
-          />
-        </Grid>
-
-        {/* Financials & Progress */}
+        {/* Row 5: Financials & Progress */}
         <Grid item xs={12} sm={4}>
           <TextField
-            margin="dense"
             name="budgetAllocated"
             label="Budget Allocated"
             type="number"
             fullWidth
             variant="outlined"
+            margin="dense"
             value={formData.budgetAllocated || ''}
             onChange={handleFormChange}
           />
         </Grid>
         <Grid item xs={12} sm={4}>
           <TextField
-            margin="dense"
             name="actualCost"
             label="Actual Cost"
             type="number"
             fullWidth
             variant="outlined"
+            margin="dense"
             value={formData.actualCost || ''}
             onChange={handleFormChange}
           />
         </Grid>
         <Grid item xs={12} sm={4}>
           <TextField
-            margin="dense"
             name="percentageComplete"
             label="Percentage Complete (%)"
             type="number"
             fullWidth
             variant="outlined"
+            margin="dense"
             value={formData.percentageComplete || ''}
             onChange={handleFormChange}
           />
         </Grid>
 
-        {/* Descriptions and Remarks */}
+        {/* Row 6: Descriptions and Remarks */}
         <Grid item xs={12}>
           <TextField
-            margin="dense"
             name="activityDescription"
             label="Activity Description"
             type="text"
@@ -233,13 +279,13 @@ const ActivityForm = React.memo(({ formData, handleFormChange }) => {
             multiline
             rows={3}
             variant="outlined"
+            margin="dense"
             value={formData.activityDescription || ''}
             onChange={handleFormChange}
           />
         </Grid>
         <Grid item xs={12}>
           <TextField
-            margin="dense"
             name="remarks"
             label="Remarks"
             type="text"
@@ -247,11 +293,47 @@ const ActivityForm = React.memo(({ formData, handleFormChange }) => {
             multiline
             rows={3}
             variant="outlined"
+            margin="dense"
             value={formData.remarks || ''}
             onChange={handleFormChange}
           />
         </Grid>
       </Grid>
+      
+      {/* New section for work plan details */}
+      {selectedWorkPlan && (
+        <Box sx={{ mt: 4, p: 2, border: '1px solid #ccc', borderRadius: '8px' }}>
+          <Typography variant="h6" gutterBottom>Work Plan Summary: {selectedWorkPlan.workplanName}</Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>Total Work Plan Budget:</Typography>
+              <Chip label={`KES ${selectedWorkPlan.totalBudget ? parseFloat(selectedWorkPlan.totalBudget).toFixed(2) : '0.00'}`} color="primary" />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>Budget of Mapped Activities:</Typography>
+              <Chip label={`KES ${totalMappedBudget.toFixed(2)}`} color="secondary" />
+            </Grid>
+          </Grid>
+          
+          <Typography variant="h6" sx={{ mt: 3, mb: 1 }}>Activities Already in this Work Plan:</Typography>
+          {loadingWorkplanActivities ? (
+            <CircularProgress size={20} />
+          ) : workplanActivities.length > 0 ? (
+            <List dense>
+              {workplanActivities.map((activity) => (
+                <ListItem key={activity.activityId} disablePadding>
+                  <ListItemText
+                    primary={activity.activityName}
+                    secondary={`Budget: KES ${parseFloat(activity.budgetAllocated).toFixed(2)} | Status: ${activity.activityStatus.replace(/_/g, ' ')}`}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          ) : (
+            <Typography variant="body2" color="text.secondary">No activities have been added to this work plan yet.</Typography>
+          )}
+        </Box>
+      )}
     </Box>
   );
 });

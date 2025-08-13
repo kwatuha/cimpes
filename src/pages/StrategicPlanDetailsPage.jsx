@@ -1,5 +1,5 @@
 // src/pages/StrategicPlanDetailsPage.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box, Typography, CircularProgress, Alert, Button,
   Grid, Snackbar, Tabs, Tab, Chip, Dialog, DialogTitle, DialogContent, DialogActions, Paper,
@@ -11,7 +11,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowBack as ArrowBackIcon, FileDownload as FileDownloadIcon,
   Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon, CloudUpload as CloudUploadIcon,
-  ExpandMore as ExpandMoreIcon, Star as StarIcon // Example icon for bullet points
+  ExpandMore as ExpandMoreIcon, Star as StarIcon
 } from '@mui/icons-material';
 
 // Hooks
@@ -29,8 +29,6 @@ import ProgramForm from '../components/strategicPlan/ProgramForm';
 import SubprogramForm from "../components/strategicPlan/SubprogramForm";
 import AttachmentForm from '../components/strategicPlan/AttachmentForm';
 import AnnualWorkPlanForm from '../components/strategicPlan/AnnualWorkPlanForm';
-import ActivityForm from '../components/strategicPlan/ActivityForm';
-
 
 // Helpers
 import {
@@ -59,11 +57,11 @@ function StrategicPlanDetailsPage() {
 
   const {
     strategicPlan, programs, subprograms, annualWorkPlans, activities, attachments,
-    loading: dataLoading, error, fetchStrategicPlanData
+    loading: dataLoading, error, fetchStrategicPlanData, milestones
   } = useStrategicPlanDetails(planId);
 
   const {
-    openDialog, dialogType, currentRecord, formData, handleFormChange,
+    openDialog, dialogType, currentRecord, formData,
     handleOpenCreateDialog, handleOpenEditDialog, handleCloseDialog, setFormData
   } = useFormManagement();
 
@@ -72,6 +70,15 @@ function StrategicPlanDetailsPage() {
   } = useCrudOperations('strategy', fetchStrategicPlanData, setSnackbar);
 
   const loading = dataLoading || crudLoading;
+
+  // 💡 FIX: Wrap handleFormChange with useCallback to prevent memoized form components from re-rendering on every keystroke
+  const handleFormChange = useCallback((e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value,
+    }));
+  }, [setFormData]); // setFormData is a stable function, so this callback is stable
 
   const handleCloseSnackbar = (event, reason) => {
     if (reason === 'clickaway') return;
@@ -89,7 +96,7 @@ function StrategicPlanDetailsPage() {
   const handleSubprogramAccordionChange = (subProgramId) => (event, isExpanded) => {
     setExpandedSubprogram(isExpanded ? subProgramId : false);
   };
-  
+
   const handleWorkPlanAccordionChange = (workplanId) => (event, isExpanded) => {
       setExpandedWorkPlan(isExpanded ? workplanId : false);
   };
@@ -103,7 +110,7 @@ function StrategicPlanDetailsPage() {
       setParentEntityId(programId);
       handleOpenCreateDialog('subprogram');
   };
-  
+
   const handleOpenEditSubprogramDialog = (subprogram) => {
     setParentEntityId(subprogram.programId);
     handleOpenEditDialog('subprogram', subprogram);
@@ -118,22 +125,11 @@ function StrategicPlanDetailsPage() {
       handleOpenEditDialog('workplan', workplan);
   };
 
-  // NEW: Handlers for Activities
-  const handleOpenCreateActivityDialog = (workplanId) => {
-    setParentEntityId(workplanId);
-    handleOpenCreateDialog('activity');
-  };
-  const handleOpenEditActivityDialog = (activity) => {
-    setParentEntityId(activity.workplanId);
-    handleOpenEditDialog('activity', activity);
-  };
-  
   const handleCloseDialogWithReset = () => {
       setParentEntityId(null);
       handleCloseDialog();
   };
-  
-  // CORRECTED: Added the missing a11yProps function back
+
   const a11yProps = (index) => {
     return {
       id: `simple-tab-${index}`,
@@ -161,13 +157,13 @@ function StrategicPlanDetailsPage() {
   };
 
   const renderDialogForm = () => {
+    // 💡 Pass the memoized handleFormChange here
     const commonFormProps = { formData, handleFormChange, setFormData };
     switch (dialogType) {
       case 'strategicPlan': return <StrategicPlanForm {...commonFormProps} />;
       case 'program': return <ProgramForm {...commonFormProps} />;
       case 'subprogram': return <SubprogramForm {...commonFormProps} />;
       case 'workplan': return <AnnualWorkPlanForm {...commonFormProps} />;
-      case 'activity': return <ActivityForm {...commonFormProps} />;
       case 'attachment': return <AttachmentForm {...commonFormProps} />;
       default: return <Typography>No form available for this type.</Typography>;
     }
@@ -215,7 +211,7 @@ function StrategicPlanDetailsPage() {
     };
     return labelMapping[type] || { singular: 'Record' };
   };
-  
+
   return (
     <Box sx={{ p: 3 }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
@@ -440,11 +436,7 @@ function StrategicPlanDetailsPage() {
                                                     <Divider sx={{ my: 2 }} />
                                                     <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
                                                         <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Activities</Typography>
-                                                        {checkUserPrivilege(user, 'activity.create') && (
-                                                            <Button startIcon={<AddIcon />} variant="contained" size="small" onClick={() => handleOpenCreateActivityDialog(workplan.workplanId)}>
-                                                                Add Activity
-                                                            </Button>
-                                                        )}
+                                                        {/* Removed the 'Add Activity' button from here */}
                                                     </Box>
                                                     {(activities || []).filter(a => a.workplanId === workplan.workplanId).length > 0 ? (
                                                         <List dense sx={{ ml: 2, py: 0 }}>
@@ -452,16 +444,7 @@ function StrategicPlanDetailsPage() {
                                                                 <ListItem key={activity.activityId} disablePadding sx={{ py: 0.5 }}>
                                                                     <ListItemText primary={activity.activityName} secondary={`Budget: ${formatCurrency(activity.budgetAllocated)} | Status: ${activity.activityStatus}`} />
                                                                     <Box>
-                                                                        {checkUserPrivilege(user, 'activity.update') && (
-                                                                            <Tooltip title="Edit Activity">
-                                                                                <IconButton size="small" color="primary" onClick={(e) => { e.stopPropagation(); handleOpenEditActivityDialog(activity); }}><EditIcon /></IconButton>
-                                                                            </Tooltip>
-                                                                        )}
-                                                                        {checkUserPrivilege(user, 'activity.delete') && (
-                                                                            <Tooltip title="Delete Activity">
-                                                                                <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); handleDelete('activity', activity.activityId); }}><DeleteIcon /></IconButton>
-                                                                            </Tooltip>
-                                                                        )}
+                                                                        {/* Removed the edit and delete activity buttons from here */}
                                                                     </Box>
                                                                 </ListItem>
                                                             ))}
