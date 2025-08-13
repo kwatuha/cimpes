@@ -39,14 +39,6 @@ function DataImportPage() {
   const [mapZoom, setMapZoom] = useState(6);
   const mapRef = useRef(null);
   
-  // NEW: State for filters and filter data
-  const [filterCountyId, setFilterCountyId] = useState('');
-  const [filterSubcountyId, setFilterSubcountyId] = useState('');
-  const [filterWardId, setFilterWardId] = useState('');
-  const [counties, setCounties] = useState([]);
-  const [subcounties, setSubcounties] = useState([]);
-  const [wards, setWards] = useState([]);
-
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -62,59 +54,6 @@ function DataImportPage() {
     }
   }, [authLoading, user]);
   
-  // NEW: Fetch initial counties list on component mount
-  useEffect(() => {
-    const fetchInitialCounties = async () => {
-      try {
-        const fetchedCounties = await metaDataService.counties.getAllCounties();
-        setCounties(fetchedCounties);
-      } catch (err) {
-        console.error("Error fetching initial counties:", err);
-      }
-    };
-    fetchInitialCounties();
-  }, []);
-
-  // NEW: Fetch subcounties when a county is selected
-  useEffect(() => {
-    const fetchSubcounties = async () => {
-      if (filterCountyId) {
-        try {
-          const subs = await metaDataService.counties.getSubcountiesByCounty(filterCountyId);
-          setSubcounties(subs);
-        } catch (err) {
-          console.error(`Error fetching sub-counties for county ${filterCountyId}:`, err);
-          setSubcounties([]);
-        }
-      } else {
-        setSubcounties([]);
-        setFilterSubcountyId('');
-        setFilterWardId('');
-      }
-    };
-    fetchSubcounties();
-  }, [filterCountyId]);
-
-  // NEW: Fetch wards when a subcounty is selected
-  useEffect(() => {
-    const fetchWards = async () => {
-      if (filterSubcountyId) {
-        try {
-          const w = await metaDataService.subcounties.getWardsBySubcounty(filterSubcountyId);
-          setWards(w);
-        } catch (err) {
-          console.error(`Error fetching wards for sub-county ${filterSubcountyId}:`, err);
-          setWards([]);
-        }
-      } else {
-        setWards([]);
-        setFilterWardId('');
-      }
-    };
-    fetchWards();
-  }, [filterSubcountyId]);
-
-
   const handleFileChange = (event) => {
     setSelectedFile(event.target.files[0]);
     setImportReport(null);
@@ -216,48 +155,7 @@ function DataImportPage() {
     if (reason === 'clickaway') return;
     setSnackbar({ ...snackbar, open: false });
   };
-
-  // NEW: Map navigation handlers and states
-  const handleGoToCoordinates = () => {
-    const lat = parseFloat(goToLatitude);
-    const lng = parseFloat(goToLongitude);
-    if (!isNaN(lat) && !isNaN(lng)) {
-      setMapCenter({ lat, lng });
-      setMapZoom(12);
-    } else {
-      setSnackbar({ open: true, message: 'Please enter valid latitude and longitude.', severity: 'error' });
-    }
-  };
-
-  const handleGoToArea = useCallback(() => {
-    // This function will need to be implemented once you have the filtered data and bounding box
-    // from your backend in this component. For now, it remains a placeholder.
-    setSnackbar({ open: true, message: 'Go to Area functionality is a placeholder.', severity: 'info' });
-  }, []);
-
-  const handleGeographicalFilterChange = useCallback((e) => {
-    const { name, value } = e.target;
-    if (name === 'countyId') {
-      setFilterCountyId(value);
-      setFilterSubcountyId('');
-      setFilterWardId('');
-    } else if (name === 'subcountyId') {
-      setFilterSubcountyId(value);
-      setFilterWardId('');
-    } else if (name === 'wardId') {
-      setFilterWardId(value);
-    }
-  }, []);
-
-  if (authLoading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" height="80vh">
-        <CircularProgress />
-        <Typography sx={{ ml: 2 }}>Loading user permissions...</Typography>
-      </Box>
-    );
-  }
-
+  
   const isUploadButtonDisabled = !selectedFile || loading || !checkUserPrivilege(user, 'strategic_plan.import');
 
   return (
@@ -350,113 +248,6 @@ function DataImportPage() {
             )}
           </Grid>
         </Grid>
-        
-        {/* --- Corrected Map Navigation Section --- */}
-        <Box sx={{ mt: 4 }}>
-          <Typography variant="h6" gutterBottom>Map Navigation</Typography>
-          <Paper elevation={1} sx={{ p: 2 }}>
-            <Grid container spacing={2} alignItems="center">
-              {/* County Filter */}
-              <Grid item xs={12} sm={4} md={2}>
-                <FormControl fullWidth size="small" variant="outlined">
-                  <InputLabel shrink>County</InputLabel>
-                  <Select
-                    value={filterCountyId}
-                    onChange={handleGeographicalFilterChange}
-                    label="County"
-                    name="countyId"
-                  >
-                    <MenuItem value=""><em>None</em></MenuItem>
-                    {counties.map(county => (
-                      <MenuItem key={county.countyId} value={String(county.countyId)}>{county.name}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              {/* Sub-County Filter */}
-              <Grid item xs={12} sm={4} md={2}>
-                <FormControl fullWidth size="small" variant="outlined" disabled={!filterCountyId}>
-                  <InputLabel shrink>Sub-County</InputLabel>
-                  <Select
-                    value={filterSubcountyId}
-                    onChange={handleGeographicalFilterChange}
-                    label="Sub-County"
-                    name="subcountyId"
-                  >
-                    <MenuItem value=""><em>None</em></MenuItem>
-                    {subcounties.map(subc => (
-                      <MenuItem key={subc.subcountyId} value={String(subc.subcountyId)}>{subc.name}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              {/* Ward Filter */}
-              <Grid item xs={12} sm={4} md={2}>
-                <FormControl fullWidth size="small" variant="outlined" disabled={!filterSubcountyId}>
-                  <InputLabel shrink>Ward</InputLabel>
-                  <Select
-                    value={filterWardId}
-                    onChange={handleGeographicalFilterChange}
-                    label="Ward"
-                    name="wardId"
-                  >
-                    <MenuItem value=""><em>None</em></MenuItem>
-                    {wards.map(ward => (
-                      <MenuItem key={ward.wardId} value={String(ward.wardId)}>{ward.name}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              {/* Go to Area Button */}
-              <Grid item xs={12} sm={4} md={2}>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  onClick={handleGoToArea}
-                  fullWidth
-                  disabled={!filterCountyId && !filterSubcountyId && !filterWardId}
-                  startIcon={<PlaceIcon />}
-                >
-                  Go to Area
-                </Button>
-              </Grid>
-              {/* Go to Lat/Lng Inputs and Button */}
-              <Grid item xs={12} sm={4} md={2}>
-                <TextField
-                  fullWidth
-                  label="Go To Latitude"
-                  value={goToLatitude}
-                  onChange={(e) => setGoToLatitude(e.target.value)}
-                  variant="outlined"
-                  size="small"
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={4} md={2}>
-                <TextField
-                  fullWidth
-                  label="Go To Longitude"
-                  value={goToLongitude}
-                  onChange={(e) => setGoToLongitude(e.target.value)}
-                  variant="outlined"
-                  size="small"
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={4} md={1}>
-                <Button
-                  variant="contained"
-                  color="secondary"
-                  onClick={handleGoToCoordinates}
-                  fullWidth
-                >
-                  Go
-                </Button>
-              </Grid>
-            </Grid>
-          </Paper>
-        </Box>
-        {/* End of Map Navigation Section */}
         
         {importReport && (
           <Box sx={{ mt: 3, p: 2, border: '1px solid', borderColor: importReport.success ? 'success.main' : 'error.main', borderRadius: '8px' }}>

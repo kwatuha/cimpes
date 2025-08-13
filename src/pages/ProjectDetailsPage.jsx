@@ -55,15 +55,12 @@ function ProjectDetailsPage() {
   const theme = useTheme();
 
   const [project, setProject] = useState(null);
-  const [tasks, setTasks] = useState([]);
   const [milestones, setMilestones] = useState([]);
   const [staff, setStaff] = useState([]);
-  const [allTasks, setAllTasks] = useState([]);
   const [projectCategory, setProjectCategory] = useState(null);
   const [applyingTemplate, setApplyingTemplate] = useState(false);
   const [categoryMilestones, setCategoryMilestones] = useState([]);
   const [milestoneActivities, setMilestoneActivities] = useState([]);
-  const [expandedMilestone, setExpandedMilestone] = useState(null);
   
   const [projectWorkPlans, setProjectWorkPlans] = useState([]); // State to hold work plans
   const [loadingWorkPlans, setLoadingWorkPlans] = useState(false); // Loading state for work plans
@@ -71,20 +68,6 @@ function ProjectDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
-
-  const [openTaskDialog, setOpenTaskDialog] = useState(false);
-  const [currentTask, setCurrentTask] = useState(null);
-  const [taskFormData, setTaskFormData] = useState({
-    taskName: '',
-    description: '',
-    startDate: '',
-    endDate: '',
-    dueDate: '',
-    status: 'Not Started',
-    assignees: [],
-    dependencies: []
-  });
-  const [taskFormErrors, setTaskFormErrors] = useState({});
 
   const [openMilestoneDialog, setOpenMilestoneDialog] = useState(false);
   const [currentMilestone, setCurrentMilestone] = useState(null);
@@ -127,11 +110,7 @@ function ProjectDetailsPage() {
   const handleAccordionChange = (panel) => (event, isExpanded) => {
     setExpandedWorkPlan(isExpanded ? panel : false);
   };
-
-  const taskStatuses = [
-    'Not Started', 'In Progress', 'Completed', 'On Hold', 'Cancelled', 'At Risk', 'Stalled', 'Delayed', 'Closed', 'Planning', 'Initiated'
-  ];
-
+  
   const fetchProjectDetails = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -181,10 +160,6 @@ function ProjectDetailsPage() {
         setCategoryMilestones([]);
       }
 
-      const tasksData = await apiService.tasks.getTasksForProject(projectId);
-      setTasks(tasksData);
-      setAllTasks(tasksData);
-
       const milestonesData = await apiService.milestones.getMilestonesForProject(projectId);
       setMilestones(milestonesData);
       
@@ -212,201 +187,6 @@ function ProjectDetailsPage() {
   useEffect(() => {
     fetchProjectDetails();
   }, [fetchProjectDetails]);
-
-  const handleOpenCreateTaskDialog = () => {
-    if (!checkUserPrivilege(user, 'task.create')) {
-      setSnackbar({ open: true, message: 'You do not have permission to create tasks.', severity: 'error' });
-      return;
-    }
-    setCurrentTask(null);
-    setTaskFormData({
-      taskName: '', description: '', startDate: '', endDate: '', dueDate: '',
-      status: 'Not Started', assignees: [], dependencies: []
-    });
-    setTaskFormErrors({});
-    setOpenTaskDialog(true);
-  };
-
-  const handleOpenEditTaskDialog = async (task) => {
-    if (!checkUserPrivilege(user, 'task.update')) {
-      setSnackbar({ open: true, message: 'You do not have permission to edit tasks.', severity: 'error' });
-      return;
-    }
-    setCurrentTask(task);
-
-    let currentAssignees = [];
-    let currentDependencies = [];
-
-    try {
-      const assigneesResponse = await apiService.taskAssignees.getTaskAssigneesForTask(task.taskId);
-      currentAssignees = assigneesResponse.map(a => a.staffId);
-
-    } catch (err) {
-      console.error('Error fetching task assignees for edit:', err);
-      setSnackbar({ open: true, message: 'Failed to load task assignees.', severity: 'error' });
-    }
-
-    try {
-      const dependenciesResponse = await apiService.taskDependencies.getTaskDependenciesForTask(task.taskId);
-      currentDependencies = dependenciesResponse.map(d => d.dependsOnTaskId);
-    } catch (err) {
-        console.error('Error fetching task dependencies for edit:', err);
-        setSnackbar({ open: true, message: 'Failed to load task dependencies.', severity: 'error' });
-    }
-
-    setTaskFormData({
-      taskName: task.taskName || '',
-      description: task.description || '',
-      startDate: task.startDate ? new Date(task.startDate).toISOString().split('T')[0] : '',
-      endDate: task.endDate ? new Date(task.endDate).toISOString().split('T')[0] : '',
-      dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '',
-      status: task.status || 'Not Started',
-      assignees: currentAssignees,
-      dependencies: currentDependencies
-    });
-    setTaskFormErrors({});
-    setOpenTaskDialog(true);
-  };
-
-  const handleCloseTaskDialog = () => {
-    setOpenTaskDialog(false);
-    setCurrentTask(null);
-    setTaskFormErrors({});
-  };
-
-  const handleTaskFormChange = (e) => {
-    const { name, value } = e.target;
-    setTaskFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleAssigneesChange = (e) => {
-    const { value } = e.target;
-    setTaskFormData(prev => ({ ...prev, assignees: typeof value === 'string' ? value.split(',') : value }));
-  };
-
-  const handleDependenciesChange = (e) => {
-    const { value } = e.target;
-    setTaskFormData(prev => ({ ...prev, dependencies: typeof value === 'string' ? value.split(',').map(Number) : value.map(Number) }));
-  };
-
-  const validateTaskForm = () => {
-    let errors = {};
-    if (!taskFormData.taskName.trim()) errors.taskName = 'Task Name is required.';
-    if (!taskFormData.startDate) errors.startDate = 'Start Date is required.';
-    if (!taskFormData.endDate) errors.endDate = 'End Date is required.';
-    if (!taskFormData.dueDate) errors.dueDate = 'Due Date is required.';
-    if (taskFormData.startDate && taskFormData.endDate && new Date(taskFormData.startDate) > new Date(taskFormData.endDate)) {
-      errors.dateRange = 'End Date cannot be before Start Date.';
-    }
-    if (taskFormData.endDate && taskFormData.dueDate && new Date(taskFormData.endDate) > new Date(taskFormData.dueDate)) {
-        errors.dueDateRange = 'Due Date cannot be before End Date.';
-    }
-
-    setTaskFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleTaskSubmit = async () => {
-    if (!validateTaskForm()) {
-      setSnackbar({ open: true, message: 'Please correct the task form errors.', severity: 'error' });
-      return;
-    }
-
-    try {
-      let taskIdToUse;
-      const taskDataToSubmit = {
-          ...taskFormData,
-          projectId: projectId,
-      };
-
-      if (currentTask) {
-        if (!checkUserPrivilege(user, 'task.update')) {
-          setSnackbar({ open: true, message: 'You do not have permission to update tasks.', severity: 'error' });
-          return;
-        }
-        const response = await apiService.tasks.updateTask(currentTask.taskId, taskDataToSubmit);
-        taskIdToUse = response.taskId;
-        setSnackbar({ open: true, message: 'Task updated successfully!', severity: 'success' });
-      } else {
-        if (!checkUserPrivilege(user, 'task.create')) {
-          setSnackbar({ open: true, message: 'You do not have permission to create tasks.', severity: 'error' });
-          return;
-        }
-        const response = await apiService.tasks.createTask(taskDataToSubmit);
-        taskIdToUse = response.taskId;
-        setSnackbar({ open: true, message: 'Task created successfully!', severity: 'success' });
-      }
-
-      if (checkUserPrivilege(user, 'task.manage_assignees')) {
-        const existingAssignees = await apiService.taskAssignees.getTaskAssigneesForTask(taskIdToUse);
-        const existingStaffIds = new Set(existingAssignees.map(a => a.staffId));
-        const newStaffIds = new Set(taskFormData.assignees);
-
-        for (const existingStaffId of existingStaffIds) {
-          if (!newStaffIds.has(existingStaffId)) {
-            const assignmentToDelete = existingAssignees.find(a => a.staffId === existingStaffId);
-            if (assignmentToDelete) {
-              await apiService.taskAssignees.deleteTaskAssignee(assignmentToDelete.taskAssigneeId);
-            }
-          }
-        }
-
-        for (const newStaffId of newStaffIds) {
-          if (!existingStaffIds.has(newStaffId)) {
-            await apiService.taskAssignees.createTaskAssignee({ taskId: taskIdToUse, staffId: newStaffId, assignedAt: new Date() });
-          }
-        }
-      } else if (taskFormData.assignees.length > 0) {
-        setSnackbar({ open: true, message: 'Warning: You lack privilege to manage assignees. Task created/updated without assignee changes.', severity: 'warning' });
-      }
-
-      if (checkUserPrivilege(user, 'task.manage_dependencies')) {
-        const existingDependencies = await apiService.taskDependencies.getTaskDependenciesForTask(taskIdToUse);
-        const existingDependsOnTaskIds = new Set(existingDependencies.map(d => d.dependsOnTaskId));
-        const newDependsOnTaskIds = new Set(taskFormData.dependencies);
-
-        for (const existingDependsOnTaskId of existingDependsOnTaskIds) {
-          if (!newDependsOnTaskIds.has(existingDependsOnTaskIds)) {
-            const dependencyToDelete = existingDependencies.find(d => d.dependsOnTaskId === existingDependsOnTaskIds);
-            if (dependencyToDelete) {
-              await apiService.taskDependencies.deleteTaskDependency(dependencyToDelete.dependencyId);
-            }
-          }
-        }
-
-        for (const newDependsOnTaskId of newDependsOnTaskIds) {
-          if (!existingDependsOnTaskIds.has(newDependsOnTaskIds)) {
-            await apiService.taskDependencies.createTaskDependency({ taskId: taskIdToUse, dependsOnTaskIds: newDependsOnTaskIds });
-          }
-        }
-      } else if (taskFormData.dependencies.length > 0) {
-        setSnackbar({ open: true, message: 'Warning: You lack privilege to manage dependencies. Task created/updated without dependency changes.', severity: 'warning' });
-      }
-
-      handleCloseTaskDialog();
-      fetchProjectDetails();
-    } catch (err) {
-      console.error("Submit task error:", err);
-      setSnackbar({ open: true, message: err.error || err.message || 'Failed to save task.', severity: 'error' });
-    }
-  };
-
-  const handleDeleteTask = async (taskId) => {
-    if (!checkUserPrivilege(user, 'task.delete')) {
-      setSnackbar({ open: true, message: 'You do not have permission to delete tasks.', severity: 'error' });
-      return;
-    }
-    if (window.confirm('Are you sure you want to delete this task? This will also remove its assignees and dependencies.')) {
-      try {
-        await apiService.tasks.deleteTask(taskId);
-        setSnackbar({ open: true, message: 'Task deleted successfully!', severity: 'success' });
-        fetchProjectDetails();
-      } catch (err) {
-        console.error("Delete task error:", err);
-        setSnackbar({ open: true, message: err.error || err.message || 'Failed to delete task.', severity: 'error' });
-      }
-    }
-  };
 
   const handleApplyMilestoneTemplate = async () => {
     if (!checkUserPrivilege(user, 'project.apply_template')) {
@@ -547,10 +327,7 @@ function ProjectDetailsPage() {
     setSnackbar({ ...snackbar, open: false });
   };
 
-  const handleViewGanttChart = () => {
-    navigate(`/projects/${projectId}/gantt-chart`);
-  };
-
+  // Re-added the missing function
   const handleManagePhotos = () => {
     navigate(`/projects/${projectId}/photos`);
   };
@@ -607,7 +384,7 @@ function ProjectDetailsPage() {
   
   const handleCloseActivityDialog = () => {
       setOpenActivityDialog(false);
-      setCurrentActivity(null);
+      setCurrentActivity(null);/*  */
       setActivityFormErrors({});
       setSelectedWorkplanName('');
   };
@@ -1024,286 +801,6 @@ function ProjectDetailsPage() {
           </List>
         )}
       </Box>
-
-      {/* Task Create/Edit Dialog */}
-      <Dialog open={openTaskDialog} onClose={handleCloseTaskDialog} fullWidth maxWidth="md">
-        <DialogTitle>{currentTask ? 'Edit Task' : 'Add New Task'}</DialogTitle>
-        <DialogContent dividers>
-          <TextField
-            autoFocus
-            margin="dense"
-            name="taskName"
-            label="Task Name"
-            type="text"
-            fullWidth
-            variant="outlined"
-            value={taskFormData.taskName}
-            onChange={handleTaskFormChange}
-            error={!!taskFormErrors.taskName}
-            helperText={taskFormErrors.taskName}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            margin="dense"
-            name="description"
-            label="Description"
-            type="text"
-            fullWidth
-            multiline
-            rows={3}
-            variant="outlined"
-            value={taskFormData.description}
-            onChange={handleTaskFormChange}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            margin="dense"
-            name="startDate"
-            label="Start Date"
-            type="date"
-            fullWidth
-            variant="outlined"
-            InputLabelProps={{ shrink: true }}
-            value={taskFormData.startDate}
-            onChange={handleTaskFormChange}
-            error={!!taskFormErrors.startDate}
-            helperText={taskFormErrors.startDate}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            margin="dense"
-            name="endDate"
-            label="End Date"
-            type="date"
-            fullWidth
-            variant="outlined"
-            InputLabelProps={{ shrink: true }}
-            value={taskFormData.endDate}
-            onChange={handleTaskFormChange}
-            error={!!taskFormErrors.endDate || !!taskFormErrors.dateRange}
-            helperText={taskFormErrors.endDate || taskFormErrors.dateRange}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            margin="dense"
-            name="dueDate"
-            label="Due Date"
-            type="date"
-            fullWidth
-            variant="outlined"
-            InputLabelProps={{ shrink: true }}
-            value={taskFormData.dueDate}
-            onChange={handleTaskFormChange}
-            error={!!taskFormErrors.dueDate || !!taskFormErrors.dueDateRange}
-            helperText={taskFormErrors.dueDate || taskFormErrors.dueDateRange}
-            sx={{ mb: 2 }}
-          />
-          <FormControl fullWidth margin="dense" variant="outlined" sx={{ mb: 2 }}>
-            <InputLabel>Status</InputLabel>
-            <Select
-              name="status"
-              label="Status"
-              value={taskFormData.status}
-              onChange={handleTaskFormChange}
-            >
-              {taskStatuses.map(status => (
-                <MenuItem key={status} value={status}>{status}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          {checkUserPrivilege(user, 'task.manage_assignees') && (
-            <FormControl fullWidth margin="dense" variant="outlined" sx={{ mb: 2 }}>
-              <InputLabel>Assignees</InputLabel>
-              <Select
-                name="assignees"
-                label="Assignees"
-                multiple
-                value={taskFormData.assignees}
-                onChange={handleAssigneesChange}
-                renderValue={(selected) => (
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                        {selected.map(id => {
-                            const assignee = staff.find(s => s.staffId === id);
-                            return <Chip key={id} label={assignee ? `${assignee.firstName} ${assignee.lastName}` : `Staff ${id}`} />;
-                        })}
-                    </Box>
-                )}
-              >
-                {staff.map((s) => (
-                  <MenuItem key={s.staffId} value={s.staffId}>
-                    {s.firstName} {s.lastName}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )}
-          {checkUserPrivilege(user, 'task.manage_dependencies') && (
-            <FormControl fullWidth margin="dense" variant="outlined" sx={{ mb: 2 }}>
-              <InputLabel>Dependencies</InputLabel>
-              <Select
-                name="dependencies"
-                label="Dependencies"
-                multiple
-                value={taskFormData.dependencies}
-                onChange={handleDependenciesChange}
-                renderValue={(selected) => (
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                        {selected.map(id => {
-                            const dependentTask = allTasks.find(t => t.taskId === id);
-                            return <Chip key={id} label={dependentTask ? dependentTask.taskName : `Task ${id}`} />;
-                        })}
-                    </Box>
-                )}
-              >
-                {allTasks.filter(t => t.taskId !== (currentTask ? currentTask.taskId : null)).map((t) => (
-                  <MenuItem key={t.taskId} value={t.taskId}>
-                    {t.taskName}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseTaskDialog} color="primary">
-            Cancel
-          </Button>
-          <Button onClick={handleTaskSubmit} color="primary" variant="contained">
-            {currentTask ? 'Update Task' : 'Create Task'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Milestone Create/Edit Dialog */}
-      <Dialog open={openMilestoneDialog} onClose={handleCloseMilestoneDialog} fullWidth maxWidth="sm">
-        <DialogTitle>{currentMilestone ? 'Edit Milestone' : 'Add New Milestone'}</DialogTitle>
-        <DialogContent dividers>
-          <TextField
-            autoFocus
-            margin="dense"
-            name="milestoneName"
-            label="Milestone Name"
-            type="text"
-            fullWidth
-            variant="outlined"
-            value={milestoneFormData.milestoneName}
-            onChange={handleMilestoneFormChange}
-            error={!!milestoneFormErrors.milestoneName}
-            helperText={milestoneFormErrors.milestoneName}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            margin="dense"
-            name="description"
-            label="Description"
-            type="text"
-            fullWidth
-            multiline
-            rows={3}
-            variant="outlined"
-            value={milestoneFormData.description}
-            onChange={handleMilestoneFormChange}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            margin="dense"
-            name="dueDate"
-            label="Due Date"
-            type="date"
-            fullWidth
-            variant="outlined"
-            InputLabelProps={{ shrink: true }}
-            value={milestoneFormData.dueDate}
-            onChange={handleMilestoneFormChange}
-            error={!!milestoneFormErrors.dueDate}
-            helperText={milestoneFormErrors.dueDate}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            margin="dense"
-            name="progress"
-            label="Progress (%)"
-            type="number"
-            fullWidth
-            variant="outlined"
-            value={milestoneFormData.progress}
-            onChange={handleMilestoneFormChange}
-            inputProps={{ min: 0, max: 100, step: 0.01 }}
-            sx={{ mb: 2 }}
-          />
-
-          <TextField
-            margin="dense"
-            name="weight"
-            label="Weight"
-            type="number"
-            fullWidth
-            variant="outlined"
-            value={milestoneFormData.weight}
-            onChange={handleMilestoneFormChange}
-            inputProps={{ min: 0, step: 0.1 }}
-            sx={{ mb: 2 }}
-          />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={milestoneFormData.completed}
-                onChange={handleMilestoneFormChange}
-                name="completed"
-                color="primary"
-              />
-            }
-            label="Completed"
-            sx={{ mb: 2 }}
-          />
-          {milestoneFormData.completed && (
-            <TextField
-              margin="dense"
-              name="completedDate"
-              label="Completed Date"
-              type="date"
-              fullWidth
-              variant="outlined"
-              InputLabelProps={{ shrink: true }}
-              value={milestoneFormData.completedDate}
-              onChange={handleMilestoneFormChange}
-              sx={{ mb: 2 }}
-            />
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseMilestoneDialog} color="primary">
-            Cancel
-          </Button>
-          <Button onClick={handleMilestoneSubmit} color="primary" variant="contained">
-            {currentMilestone ? 'Update Milestone' : 'Create Milestone'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-        
-      {/* NEW: Activity Create/Edit Dialog */}
-      <Dialog open={openActivityDialog} onClose={handleCloseActivityDialog} fullWidth maxWidth="md">
-          <DialogTitle>
-              {currentActivity ? `Edit Activity: ${currentActivity.activityName}` : `Add New Activity to "${selectedWorkplanName}"`}
-          </DialogTitle>
-          <DialogContent dividers>
-              <ActivityForm
-                formData={activityFormData}
-                handleFormChange={handleActivityFormChange}
-                milestones={milestones}
-                workPlans={projectWorkPlans}
-                hideWorkplanSelector={true} // New prop to hide the work plan selector
-              />
-          </DialogContent>
-          <DialogActions>
-              <Button onClick={handleCloseActivityDialog} color="primary">
-                  Cancel
-              </Button>
-              <Button onClick={handleActivitySubmit} color="primary" variant="contained">
-                  {currentActivity ? 'Update Activity' : 'Create Activity'}
-              </Button>
-          </DialogActions>
-      </Dialog>
 
       <MilestoneAttachments
         open={openAttachmentsModal}
