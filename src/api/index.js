@@ -1,5 +1,6 @@
-// src/api/index.js
+import axios from 'axios';
 
+// Import the specific axios instance file
 import axiosInstance from './axiosInstance';
 
 import authService from './authService';
@@ -15,11 +16,11 @@ import kdspIIService from './kdspIIService';
 
 // Export the base URL for API calls (used by axiosInstance)
 // Use the VITE_API_BASE_URL environment variable
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
 
 // Export the base URL for directly accessing static files
 // Use the VITE_FILE_SERVER_BASE_URL environment variable
-export const FILE_SERVER_BASE_URL = import.meta.env.VITE_FILE_SERVER_BASE_URL;
+export const FILE_SERVER_BASE_URL = import.meta.env.VITE_FILE_SERVER_BASE_URL || 'http://localhost:3000';
 
 const apiService = {
   // Use the spread syntax to merge all top-level properties from projectService.
@@ -37,5 +38,7 @@ const apiService = {
   dashboard: dashboardService,
   metadata: metaDataService,
 };
+
+export { axiosInstance};
 
 export default apiService;

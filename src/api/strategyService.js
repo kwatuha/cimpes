@@ -1,5 +1,5 @@
-// src/api/strategyService.js
-import axiosInstance from './axiosInstance';
+import axios from 'axios';
+import { axiosInstance} from './index';
 
 const strategyService = {
   // --- Strategic Plans (kemri_strategicPlans) ---
@@ -253,7 +253,6 @@ const strategyService = {
               throw error;
           }
       },
-      // --- ADDED: New method to get links by activity ID ---
       getActivitiesByActivityId: async (activityId) => {
           try {
               const response = await axiosInstance.get(`/strategy/milestone-activities/by-activity/${activityId}`);
@@ -277,7 +276,7 @@ const strategyService = {
               const response = await axiosInstance.delete(`/strategy/milestone-activities/${milestoneId}/${activityId}`);
               return response.data;
           } catch (error) {
-              console.error(`Error unlinking activity ${activityId} from milestone ${milestoneId}:`, error);
+              console.error(`Error deleting milestone-activity link:, error`);
               throw error;
           }
       },
@@ -307,7 +306,7 @@ const strategyService = {
       const response = await axiosInstance.get(`/strategy/attachments/by-entity/${entityType}/${entityId}`);
       return response.data;
     } catch (error) {
-      console.error(`Error fetching planning documents for entity ${entityType}:${entityId}:`, error);
+      console.error(`Error fetching documents for entity ${entityType}:${entityId}:`, error);
       throw error;
     }
   },
@@ -380,6 +379,19 @@ const strategyService = {
       console.error(`Error downloading PDF for program ${programId}:`, error);
       throw error;
     }
+  },
+
+  // REVISED: Public route for downloading the template
+  downloadTemplate: async () => {
+      try {
+          const response = await axiosInstance.get('/strategy/download-template', {
+              responseType: 'blob' // Important for downloading files
+          });
+          return response.data;
+      } catch (error) {
+          console.error('Error downloading strategic plan template:', error);
+          throw error;
+      }
   },
 
   // --- Placeholder for Filter Options ---

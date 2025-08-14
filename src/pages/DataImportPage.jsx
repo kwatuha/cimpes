@@ -146,9 +146,27 @@ function DataImportPage() {
     setSnackbar({ open: true, message: 'Import process cancelled.', severity: 'info' });
   };
 
-  const handleDownloadTemplate = () => {
-    const templateURL = `${FILE_SERVER_BASE_URL}/api/strategy/download-template`;
-    window.open(templateURL, '_blank');
+  const handleDownloadTemplate = async () => {
+    setLoading(true);
+    try {
+        const response = await apiService.strategy.downloadTemplate();
+        // Create a blob URL and a link to download the file
+        const blob = new Blob([response], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'strategic_plan_template.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+        setSnackbar({ open: true, message: 'Template downloaded successfully!', severity: 'success' });
+    } catch (error) {
+        setSnackbar({ open: true, message: 'Failed to download template file.', severity: 'error' });
+        console.error('Download error:', error);
+    } finally {
+        setLoading(false);
+    }
   };
 
   const handleCloseSnackbar = (event, reason) => {
@@ -171,6 +189,7 @@ function DataImportPage() {
               startIcon={<DownloadIcon />}
               onClick={handleDownloadTemplate}
               fullWidth
+              disabled={loading}
             >
               Download Template
             </Button>
