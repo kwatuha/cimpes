@@ -39,6 +39,8 @@ import ProjectPhotoManager from './pages/ProjectPhotoManager.jsx';
 import ContractorDashboard from './pages/ContractorDashboard.jsx';
 // NEW: Import the ContractorManagementPage component
 import ContractorManagementPage from './pages/ContractorManagementPage.jsx';
+// NEW: Import the HrModulePage component
+import HrModulePage from './pages/HrModulePage.jsx';
 
 
 // Define a custom theme to match KEMRI's blue
@@ -181,7 +183,12 @@ const router = createBrowserRouter([
       {
         path: 'settings/project-categories',
         element: <ProjectCategoryPage />,
-      }
+      },
+      // NEW: Route for the HR Module page
+      {
+        path: 'hr-module',
+        element: <HrModulePage />,
+      },
     ],
   },
   {

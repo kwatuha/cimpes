@@ -8,7 +8,7 @@ import {
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, ExpandMore as ExpandMoreIcon } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext.jsx';
-import apiService from '../api/metaDataService';
+import apiService from '../api';
 import useDepartmentData from '../hooks/useDepartmentData';
 
 // Reusable Delete Confirmation Dialog

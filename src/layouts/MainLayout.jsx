@@ -31,7 +31,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import PaidIcon from '@mui/icons-material/Paid';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import BusinessIcon from '@mui/icons-material/Business';
-
+import PeopleIcon from '@mui/icons-material/People'; // New import for HR icon
 
 import { Link as RouterLink, Outlet, useNavigate, Navigate, useLocation } from 'react-router-dom';
 
@@ -51,7 +51,7 @@ function MainLayout() {
     return saved !== null ? JSON.parse(saved) : false;
   });
 
-  const { token, user, logout } = useAuth();
+  const { token, user, logout, hasPrivilege } = useAuth(); // Destructure hasPrivilege from useAuth
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -81,23 +81,21 @@ function MainLayout() {
         ROUTES.USER_MANAGEMENT.split('/:')[0],
         ROUTES.DASHBOARD.split('/:')[0],
         ROUTES.STRATEGIC_PLANNING.split('/:')[0],
+        ROUTES.HR, // New HR route
     ];
 
     const shouldCollapse = baseRoutesToCollapse.some(basePath =>
         location.pathname.startsWith(basePath)
     );
 
-    // Only update the state if the user hasn't manually collapsed it
-    // or if the new state is different from the current one.
+    // Only update the state if the new state is different from the current one.
     if (shouldCollapse && !isSidebarCollapsed) {
       setIsSidebarCollapsed(true);
-      localStorage.setItem('isSidebarCollapsed', 'true');
     } else if (!shouldCollapse && isSidebarCollapsed) {
       setIsSidebarCollapsed(false);
-      localStorage.setItem('isSidebarCollapsed', 'false');
     }
 
-  }, [location.pathname]);
+  }, [location.pathname, isSidebarCollapsed]);
 
   if (!token) {
     return <Navigate to={ROUTES.LOGIN} replace />;
@@ -202,6 +200,18 @@ function MainLayout() {
             </ListItemButton>
           </ListItem>
         </Tooltip>
+        
+        {/* New HR Module Link */}
+        {hasPrivilege('hr.access') && (
+          <Tooltip title="HR Module" placement="right" disableHoverListener={isSidebarCollapsed}>
+            <ListItem disablePadding>
+              <ListItemButton component={RouterLink} to={ROUTES.HR}>
+                <ListItemIcon><PeopleIcon color="primary" /></ListItemIcon>
+                {!isSidebarCollapsed && <ListItemText primary="HR Module" />}
+              </ListItemButton>
+            </ListItem>
+          </Tooltip>
+        )}
         
         {user && user.role === 'admin' && (
           <>

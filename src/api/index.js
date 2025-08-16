@@ -13,6 +13,7 @@ import generalService from './generalService';
 import dashboardService from './dashboardService';
 import metaDataService from './metaDataService';
 import kdspIIService from './kdspIIService';
+import hrService from './hrService';
 
 // Export the base URL for API calls (used by axiosInstance)
 // Use the VITE_API_BASE_URL environment variable
@@ -37,6 +38,7 @@ const apiService = {
   general: generalService,
   dashboard: dashboardService,
   metadata: metaDataService,
+  hr: hrService,
 };
 
 export { axiosInstance};

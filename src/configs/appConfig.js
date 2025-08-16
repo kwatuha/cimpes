@@ -47,6 +47,7 @@ export const ROUTES = {
     USER_MANAGEMENT: '/user-management',
     STRATEGIC_PLANNING: '/strategic-planning',
     METADATA_MANAGEMENT: '/metadata-management',
+    HR: '/hr-module', // New route for the HR module
 
     // Sub-routes with dynamic parameters
     PROJECT_DETAILS: '/projects/:projectId',
