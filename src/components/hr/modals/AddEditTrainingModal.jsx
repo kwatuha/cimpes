@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, Button,
-  Grid, TextField, FormControl, InputLabel, Select, MenuItem, Typography
+  Grid, TextField, FormControl, InputLabel, Select, MenuItem
 } from '@mui/material';
 import apiService from '../../../api';
 
@@ -10,6 +10,7 @@ export default function AddEditTrainingModal({
   onClose,
   editedItem,
   employees,
+  currentEmployeeInView,
   showNotification,
   refreshData
 }) {
@@ -17,15 +18,19 @@ export default function AddEditTrainingModal({
   const isEditMode = !!editedItem;
 
   useEffect(() => {
-    setFormData(isEditMode ? editedItem : {
-      staffId: '',
-      courseName: '',
-      institution: '',
-      certificationName: '',
-      completionDate: '',
-      expiryDate: ''
-    });
-  }, [isEditMode, editedItem]);
+    if (isEditMode && editedItem) {
+      setFormData(editedItem);
+    } else {
+      setFormData({
+        staffId: currentEmployeeInView ? currentEmployeeInView.staffId : '',
+        courseName: '',
+        institution: '',
+        certificationName: '',
+        completionDate: '',
+        expiryDate: ''
+      });
+    }
+  }, [isOpen, editedItem, isEditMode, currentEmployeeInView]);
 
   const handleFormChange = (e) => {
     const { name, value } = e.target;
@@ -34,8 +39,14 @@ export default function AddEditTrainingModal({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!formData.staffId) {
+        showNotification('Please select an employee.', 'error');
+        return;
+    }
+    
     const action = isEditMode ? 'updateTraining' : 'addTraining';
-    const apiFunction = apiService.hr[`${action.charAt(0).toLowerCase() + action.slice(1)}`];
+    const apiFunction = apiService.hr[action];
 
     if (!apiFunction) {
       showNotification(`API function for ${action} not found.`, 'error');
@@ -50,16 +61,12 @@ export default function AddEditTrainingModal({
         await apiFunction(payload);
       }
       showNotification(`Training record ${isEditMode ? 'updated' : 'added'} successfully.`, 'success');
-      onClose();
+      
       refreshData();
+      onClose();
     } catch (error) {
       showNotification(error.response?.data?.message || `Failed to ${isEditMode ? 'update' : 'add'} training record.`, 'error');
     }
-  };
-
-  const renderEmployeeValue = (selectedId) => {
-    const employee = employees.find(emp => String(emp.staffId) === String(selectedId));
-    return employee ? `${employee.firstName} ${employee.lastName}` : '';
   };
 
   return (
@@ -68,49 +75,52 @@ export default function AddEditTrainingModal({
         {isEditMode ? 'Edit Training Record' : 'Add New Training Record'}
       </DialogTitle>
       <DialogContent dividers>
-        <form onSubmit={handleSubmit}>
-          <Grid container spacing={2}>
+        <form onSubmit={handleSubmit} id="training-form">
+          <Grid container spacing={2} sx={{ pt: 1 }}>
+            
+            {!currentEmployeeInView && (
+              <Grid item xs={12}>
+                <FormControl fullWidth required>
+                  <InputLabel>Select Employee</InputLabel>
+                  <Select
+                    name="staffId"
+                    value={formData?.staffId || ''}
+                    onChange={handleFormChange}
+                    label="Select Employee"
+                  >
+                    <MenuItem value=""><em>Select an employee...</em></MenuItem>
+                    {employees.map((emp) => (
+                      <MenuItem key={emp.staffId} value={String(emp.staffId)}>{emp.firstName} {emp.lastName}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+            )}
+
             <Grid item xs={12} sm={6}>
-              <FormControl fullWidth margin="normal" required sx={{ minWidth: 200 }}>
-                <InputLabel>Select Employee</InputLabel>
-                <Select
-                  name="staffId"
-                  value={formData?.staffId || ''}
-                  onChange={handleFormChange}
-                  label="Select Employee"
-                  renderValue={renderEmployeeValue}
-                >
-                  <MenuItem value=""><em>Select an employee...</em></MenuItem>
-                  {employees.map((emp) => (
-                    <MenuItem key={emp.staffId} value={String(emp.staffId)}>{emp.firstName} {emp.lastName}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <TextField fullWidth name="courseName" label="Course Name" value={formData?.courseName || ''} onChange={handleFormChange} required />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField fullWidth margin="dense" name="courseName" label="Course Name" type="text" value={formData?.courseName || ''} onChange={handleFormChange} required />
+              <TextField fullWidth name="institution" label="Institution" value={formData?.institution || ''} onChange={handleFormChange} />
+            </Grid> {/* <-- TYPO WAS HERE */}
+            <Grid item xs={12}>
+              <TextField fullWidth name="certificationName" label="Certification Name" value={formData?.certificationName || ''} onChange={handleFormChange} />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField fullWidth margin="dense" name="institution" label="Institution" type="text" value={formData?.institution || ''} onChange={handleFormChange} />
+              <TextField fullWidth name="completionDate" label="Completion Date" type="date" value={formData?.completionDate?.slice(0, 10) || ''} onChange={handleFormChange} InputLabelProps={{ shrink: true }} />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField fullWidth margin="dense" name="certificationName" label="Certification Name" type="text" value={formData?.certificationName || ''} onChange={handleFormChange} />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField fullWidth margin="dense" name="completionDate" label="Completion Date" type="date" value={formData?.completionDate?.slice(0, 10) || ''} onChange={handleFormChange} InputLabelProps={{ shrink: true }} />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField fullWidth margin="dense" name="expiryDate" label="Expiry Date" type="date" value={formData?.expiryDate?.slice(0, 10) || ''} onChange={handleFormChange} InputLabelProps={{ shrink: true }} />
+              <TextField fullWidth name="expiryDate" label="Expiry Date" type="date" value={formData?.expiryDate?.slice(0, 10) || ''} onChange={handleFormChange} InputLabelProps={{ shrink: true }} />
             </Grid>
           </Grid>
-          <DialogActions>
-            <Button onClick={onClose} color="primary" variant="outlined">Cancel</Button>
-            <Button type="submit" variant="contained" color="success">
-              {isEditMode ? 'Update' : 'Add'}
-            </Button>
-          </DialogActions>
         </form>
       </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} color="primary" variant="outlined">Cancel</Button>
+        <Button type="submit" form="training-form" variant="contained" color="success">
+          {isEditMode ? 'Update' : 'Save'}
+        </Button>
+      </DialogActions>
     </Dialog>
   );
 }

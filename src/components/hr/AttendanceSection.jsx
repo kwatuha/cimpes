@@ -24,7 +24,7 @@ export default function AttendanceSection({ employees, attendanceRecords, handle
       showNotification('Please select an employee first.', 'warning');
       return;
     }
-    handleAttendance(getAttendanceButtonState(), selectedStaffId);
+    handleAttendance(selectedStaffId);
   };
 
   return (

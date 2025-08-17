@@ -7,7 +7,7 @@ import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/ico
 import { useAuth } from '../../context/AuthContext';
 import AddEditAssignedAssetsModal from './modals/AddEditAssignedAssetsModal';
 
-export default function AssignedAssetsSection({ assignedAssets, showNotification, refreshData, handleOpenDeleteConfirmModal }) {
+export default function AssignedAssetsSection({ assignedAssets, employees, showNotification, refreshData, handleOpenDeleteConfirmModal }) {
     const { hasPrivilege } = useAuth();
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -94,6 +94,7 @@ export default function AssignedAssetsSection({ assignedAssets, showNotification
                 isOpen={isAddModalOpen || isEditModalOpen}
                 onClose={handleCloseModal}
                 editedItem={editedItem}
+                employees={employees}
                 showNotification={showNotification}
                 refreshData={refreshData}
             />
