@@ -57,13 +57,14 @@ export default function DataCard({
   };
 
   return (
-    <Paper elevation={1} sx={{ p: 2, mb: 2, borderRadius: '8px', position: 'relative', backgroundColor: 'tomato' }}>
+    // The 'backgroundColor' property has been removed from the sx prop below
+    <Paper elevation={1} sx={{ p: 2, mb: 2, borderRadius: '8px', position: 'relative' }}>
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 1, sm: 4 }}>
         {fields.map((field) => (
           <Box key={field.key} sx={{ flexGrow: 1, minWidth: '100px' }}>
             <Typography variant="subtitle2" color="text.secondary">{field.label}</Typography>
             <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-              {getDisplayValue(item[field.key], field.key)}
+              {field.customRenderer ? field.customRenderer(item[field.key]) : getDisplayValue(item[field.key], field.key)}
             </Typography>
           </Box>
         ))}
