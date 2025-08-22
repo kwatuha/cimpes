@@ -14,7 +14,8 @@ export default function LeaveApplicationsSection({ leaveApplications, employees,
   const [editedItem, setEditedItem] = useState(null);
 
   const handleOpenAddModal = () => {
-    if (!hasPrivilege('leave.application.create')) {
+    // FIX: Aligned with backend route privilege
+    if (!hasPrivilege('leave.apply')) {
       showNotification('Permission denied.', 'error');
       return;
     }
@@ -23,7 +24,8 @@ export default function LeaveApplicationsSection({ leaveApplications, employees,
   };
 
   const handleOpenEditModal = (item) => {
-    if (!hasPrivilege('leave.application.update')) {
+    // FIX: Aligned with backend route privilege
+    if (!hasPrivilege('leave.update')) {
       showNotification('Permission denied.', 'error');
       return;
     }
@@ -40,7 +42,6 @@ export default function LeaveApplicationsSection({ leaveApplications, employees,
   const showApprovalModal = (app) => {
     setSelectedApplication(app);
     setIsApprovalModalOpen(true);
-    // Set approved dates to requested dates by default
     setApprovedDates({ startDate: app.startDate, endDate: app.endDate });
   };
   
@@ -52,7 +53,8 @@ export default function LeaveApplicationsSection({ leaveApplications, employees,
 
   return (
     <Box>
-      {hasPrivilege('leave.application.create') && (
+      {/* FIX: Aligned with backend route privilege */}
+      {hasPrivilege('leave.apply') && (
         <Button
           variant="contained"
           startIcon={<AddIcon />}
@@ -76,7 +78,8 @@ export default function LeaveApplicationsSection({ leaveApplications, employees,
               <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Actual Return</TableCell>
               <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Handover</TableCell>
               <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Status</TableCell>
-              {(hasPrivilege('leave.approve') || hasPrivilege('leave.application.update') || hasPrivilege('leave.application.delete')) && <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Actions</TableCell>}
+              {/* FIX: Aligned with backend route privileges */}
+              {(hasPrivilege('leave.approve') || hasPrivilege('leave.update') || hasPrivilege('leave.delete')) && <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Actions</TableCell>}
             </TableRow>
           </TableHead>
           <TableBody>
@@ -102,7 +105,8 @@ export default function LeaveApplicationsSection({ leaveApplications, employees,
                                 {app.status}
                             </Typography>
                         </TableCell>
-                        {(hasPrivilege('leave.approve') || hasPrivilege('leave.application.update') || hasPrivilege('leave.application.delete')) && (
+                        {/* FIX: Aligned with backend route privileges */}
+                        {(hasPrivilege('leave.approve') || hasPrivilege('leave.update') || hasPrivilege('leave.delete')) && (
                             <TableCell>
                                 <Stack direction="row" spacing={1}>
                                     {app.status === 'Pending' && hasPrivilege('leave.approve') && (
@@ -114,13 +118,13 @@ export default function LeaveApplicationsSection({ leaveApplications, employees,
                                     {app.status === 'Approved' && !app.actualReturnDate && hasPrivilege('leave.complete') && (
                                         <Button size="small" variant="contained" color="primary" onClick={() => showReturnModal(app)}>Record Return</Button>
                                     )}
-                                    {app.status === 'Pending' && hasPrivilege('leave.application.update') && (
+                                    {app.status === 'Pending' && hasPrivilege('leave.update') && (
                                         <IconButton color="primary" onClick={() => handleOpenEditModal(app)}>
                                             <EditIcon />
                                         </IconButton>
                                     )}
-                                    {(app.status === 'Pending' || app.status === 'Rejected') && hasPrivilege('leave.application.delete') && (
-                                        <IconButton color="error" onClick={() => handleOpenDeleteConfirmModal(app.id, `Leave Application for ${app.firstName} ${app.lastName}`, 'leaveApplication')}>
+                                    {(app.status === 'Pending' || app.status === 'Rejected') && hasPrivilege('leave.delete') && (
+                                        <IconButton color="error" onClick={() => handleOpenDeleteConfirmModal(app.id, `Leave Application for ${app.firstName} ${app.lastName}`, 'leave.application')}>
                                             <DeleteIcon />
                                         </IconButton>
                                     )}

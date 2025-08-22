@@ -3,35 +3,33 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, Button,
   Grid, TextField, FormControl, InputLabel, Select, MenuItem, Rating
 } from '@mui/material';
-import apiService from '../../../api'; // Assuming your api service path
+import apiService from '../../../api';
 
 export default function AddEditPerformanceReviewModal({
   isOpen,
   onClose,
   editedItem,
   employees,
-  currentEmployeeInView, // 1. PROP ADDED to receive the current employee
+  currentEmployeeInView,
   showNotification,
   refreshData
 }) {
   const [formData, setFormData] = useState({});
   const isEditMode = !!editedItem;
 
-  // 2. useEffect UPDATED to pre-fill the employee
   useEffect(() => {
     if (isEditMode && editedItem) {
       setFormData(editedItem);
     } else {
-      // For new reviews, pre-fill the employee ID if available
       setFormData({
         staffId: currentEmployeeInView ? currentEmployeeInView.staffId : '',
-        reviewDate: new Date().toISOString().slice(0, 10), // Default to today
+        reviewDate: new Date().toISOString().slice(0, 10),
         reviewScore: 3,
         comments: '',
-        reviewerId: '' // The person conducting the review
+        reviewerId: ''
       });
     }
-  }, [isOpen, editedItem, isEditMode, currentEmployeeInView]);
+  }, [isOpen, isEditMode, editedItem, currentEmployeeInView]);
 
   const handleFormChange = (e) => {
     const { name, value } = e.target;
@@ -49,8 +47,8 @@ export default function AddEditPerformanceReviewModal({
         return;
     }
 
-    const action = isEditMode ? 'updatePerformance' : 'addPerformance';
-    const apiFunction = apiService.hr[action]; // Make sure your apiService has these methods
+    const action = isEditMode ? 'updatePerformanceReview' : 'addPerformanceReview';
+    const apiFunction = apiService.hr[action];
 
     if (!apiFunction) {
         showNotification(`API function for ${action} not found.`, 'error');
@@ -80,10 +78,10 @@ export default function AddEditPerformanceReviewModal({
         <form onSubmit={handleSubmit} id="performance-form">
           <Grid container spacing={2} sx={{ pt: 1 }}>
 
-            {/* 3. EMPLOYEE SELECTOR IS NOW CONDITIONAL */}
             {!currentEmployeeInView && (
-              <Grid item xs={12}>
-                <FormControl fullWidth required>
+              <Grid xs={12}>
+                {/* FIX: Added minWidth to ensure label is visible */}
+                <FormControl fullWidth required sx={{ minWidth: 200 }}>
                   <InputLabel>Select Employee</InputLabel>
                   <Select
                     name="staffId"
@@ -91,7 +89,7 @@ export default function AddEditPerformanceReviewModal({
                     onChange={handleFormChange}
                     label="Select Employee"
                   >
-                    {employees.map((emp) => (
+                    {Array.isArray(employees) && employees.map((emp) => (
                       <MenuItem key={emp.staffId} value={String(emp.staffId)}>{emp.firstName} {emp.lastName}</MenuItem>
                     ))}
                   </Select>
@@ -99,12 +97,13 @@ export default function AddEditPerformanceReviewModal({
               </Grid>
             )}
 
-            <Grid item xs={12} sm={6}>
+            <Grid xs={12} sm={6}>
               <TextField fullWidth name="reviewDate" label="Review Date" type="date" value={formData?.reviewDate?.slice(0, 10) || ''} onChange={handleFormChange} InputLabelProps={{ shrink: true }} required />
             </Grid>
 
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth required>
+            <Grid xs={12} sm={6}>
+              {/* FIX: Added minWidth to ensure label is visible */}
+              <FormControl fullWidth required sx={{ minWidth: 200 }}>
                   <InputLabel>Reviewer</InputLabel>
                   <Select
                     name="reviewerId"
@@ -112,14 +111,14 @@ export default function AddEditPerformanceReviewModal({
                     onChange={handleFormChange}
                     label="Reviewer"
                   >
-                    {employees.map((emp) => (
+                    {Array.isArray(employees) && employees.map((emp) => (
                       <MenuItem key={emp.staffId} value={String(emp.staffId)}>{emp.firstName} {emp.lastName}</MenuItem>
                     ))}
                   </Select>
                 </FormControl>
             </Grid>
             
-            <Grid item xs={12}>
+            <Grid xs={12}>
                 <InputLabel sx={{ mb: 1 }}>Performance Rating</InputLabel>
                 <Rating 
                     name="reviewScore" 
@@ -129,7 +128,7 @@ export default function AddEditPerformanceReviewModal({
                 />
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid xs={12}>
               <TextField fullWidth multiline rows={4} name="comments" label="Comments" value={formData?.comments || ''} onChange={handleFormChange} />
             </Grid>
 

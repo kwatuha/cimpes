@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, CircularProgress, Stack, Button, Snackbar, Alert } from '@mui/material';
+import { Box, Typography, CircularProgress, Stack, Button, Snackbar, Alert, Tabs, Tab } from '@mui/material';
 import { People as PeopleIcon, WorkHistory as WorkHistoryIcon, Settings as SettingsIcon } from '@mui/icons-material';
 import apiService from '../api';
 import { useAuth } from '../context/AuthContext';
@@ -9,6 +9,8 @@ import LeaveApplicationsSection from '../components/hr/LeaveApplicationsSection'
 import LeaveTypesSection from '../components/hr/LeaveTypesSection';
 import JobGroupsSection from '../components/hr/JobGroupsSection';
 import AttendanceSection from '../components/hr/AttendanceSection';
+import LeaveEntitlementsSection from '../components/hr/LeaveEntitlementsSection';
+import PublicHolidaysSection from '../components/hr/PublicHolidaysSection';
 import ConfirmDeleteModal from '../components/hr/modals/ConfirmDeleteModal';
 import ApproveLeaveModal from '../components/hr/modals/ApproveLeaveModal';
 import RecordReturnModal from '../components/hr/modals/RecordReturnModal';
@@ -22,7 +24,8 @@ export default function HrModule() {
   const CURRENT_USER_ID = 1;
 
   const [currentPage, setCurrentPage] = useState('employees');
-  const [loading, setLoading] = useState(false);
+  const [adminSubTab, setAdminSubTab] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [employees, setEmployees] = useState([]);
   const [employee360View, setEmployee360View] = useState(null);
   const [currentEmployeeInView, setCurrentEmployeeInView] = useState(null);
@@ -30,6 +33,7 @@ export default function HrModule() {
   const [leaveApplications, setLeaveApplications] = useState([]);
   const [jobGroups, setJobGroups] = useState([]);
   const [attendanceRecords, setAttendanceRecords] = useState([]);
+  const [leaveBalances, setLeaveBalances] = useState([]);
 
   const [itemToDelete, setItemToDelete] = useState(null);
   const [isDeleteConfirmModalOpen, setIsDeleteConfirmModalOpen] = useState(false);
@@ -40,7 +44,6 @@ export default function HrModule() {
   const [approvedDates, setApprovedDates] = useState({ startDate: '', endDate: '' });
   const [actualReturnDate, setActualReturnDate] = useState('');
 
-  // Modals for add/edit forms
   const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
   const [isLeaveTypeModalOpen, setIsLeaveTypeModalOpen] = useState(false);
   const [isLeaveApplicationModalOpen, setIsLeaveApplicationModalOpen] = useState(false);
@@ -53,21 +56,45 @@ export default function HrModule() {
   const handleCloseSnackbar = (event, reason) => { if (reason === 'clickaway') return; setSnackbar({ ...snackbar, open: false }); };
   
   const handleOpenDeleteConfirmModal = (id, name, type) => {
-    if (!hasPrivilege(`${type}.delete`)) { showNotification('Permission denied.', 'error'); return; }
+    const permissionKey = type.replace(/\./g, '_') + '.delete';
+    if (!hasPrivilege(permissionKey) && !hasPrivilege(`${type}.delete`)) { 
+      showNotification('Permission denied.', 'error'); 
+      return; 
+    }
     setItemToDelete({ id, name, type });
     setIsDeleteConfirmModalOpen(true);
   };
 
+  // UPDATED: Smarter handleDelete function to handle special cases
   const handleDelete = async () => {
     if (!itemToDelete) return;
-    if (!hasPrivilege(`${itemToDelete.type}.delete`)) { showNotification('Permission denied.', 'error'); return; }
+
+    const functionNameMap = {
+        'holiday': 'deletePublicHoliday',
+        'leave.entitlement': 'deleteLeaveEntitlement',
+        'job_group': 'deleteJobGroup',
+        'leave_type': 'deleteLeaveType'
+    };
+
+    let apiFunctionName = functionNameMap[itemToDelete.type];
+
+    if (!apiFunctionName) {
+        const formattedType = itemToDelete.type.replace(/\./g, '_').split('_').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join('');
+        apiFunctionName = `delete${formattedType}`;
+    }
+    
+    if (!apiService.hr[apiFunctionName]) { 
+        showNotification(`API function '${apiFunctionName}' not found.`, 'error'); 
+        return; 
+    }
     
     setLoading(true);
     try {
-      const apiFunction = apiService.hr[`delete${itemToDelete.type.split('.').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join('')}`];
+      const apiFunction = apiService.hr[apiFunctionName];
       await apiFunction(itemToDelete.id);
-      showNotification(`${itemToDelete.type.split('.')[0]} deleted successfully.`, 'success');
+      showNotification(`${itemToDelete.name} deleted successfully.`, 'success');
       setIsDeleteConfirmModalOpen(false);
+      setItemToDelete(null);
       
       if (currentPage === 'employee360') {
         fetchEmployee360View(currentEmployeeInView.staffId);
@@ -85,55 +112,49 @@ export default function HrModule() {
     setLoading(true);
     try {
       switch (page) {
-        case 'employees':
-          const employeesData = await apiService.hr.getEmployees();
-          setEmployees(employeesData);
-          break;
-        case 'leaveTypes':
-          const leaveTypesData = await apiService.hr.getLeaveTypes();
-          setLeaveTypes(leaveTypesData);
-          break;
         case 'leaveApplications':
           const leaveAppData = await apiService.hr.getLeaveApplications();
           setLeaveApplications(leaveAppData);
           break;
         case 'attendance':
-          const [employeesForAttendance, attendanceRecordsData] = await Promise.all([
-            apiService.hr.getEmployees(),
-            apiService.hr.getTodayAttendance(),
-          ]);
-          setEmployees(employeesForAttendance);
+          const attendanceRecordsData = await apiService.hr.getTodayAttendance();
           setAttendanceRecords(attendanceRecordsData);
           break;
-        case 'jobGroups':
-          const jobGroupsData = await apiService.hr.getJobGroups();
-          setJobGroups(jobGroupsData);
-          break;
+        case 'employees':
+        case 'administration':
+             const [employeesData, leaveTypesData, jobGroupsData] = await Promise.all([
+                apiService.hr.getEmployees(),
+                apiService.hr.getLeaveTypes(),
+                apiService.hr.getJobGroups()
+            ]);
+            setEmployees(employeesData);
+            setLeaveTypes(leaveTypesData);
+            setJobGroups(jobGroupsData);
+            break;
         default:
           break;
       }
     } catch (error) {
-      showNotification(`Failed to fetch ${page.split('.').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ')} data.`, 'error');
+      showNotification(`Failed to fetch data for ${page}.`, 'error');
     } finally {
       setLoading(false);
     }
   };
+  
+  useEffect(() => {
+    fetchData('employees');
+  }, []);
 
   const fetchEmployee360View = async (employeeId) => {
     setLoading(true);
     try {
-      const [employee360Data, allEmployeesData, allJobGroupsData] = await Promise.all([
+      const [employee360Data, balanceData] = await Promise.all([
         apiService.hr.getEmployee360View(employeeId),
-        apiService.hr.getEmployees(),
-        apiService.hr.getJobGroups(),
+        apiService.hr.getLeaveBalance(employeeId, new Date().getFullYear())
       ]);
-
-      setEmployee360View({
-        ...employee360Data,
-        employees: allEmployeesData,
-        jobGroups: allJobGroupsData,
-      });
-
+      
+      setEmployee360View(employee360Data);
+      setLeaveBalances(balanceData);
       setCurrentEmployeeInView(employee360Data.profile);
       setCurrentPage('employee360');
     } catch (error) {
@@ -145,8 +166,14 @@ export default function HrModule() {
     }
   };
 
+  useEffect(() => {
+    if (currentPage === 'leaveApplications' || currentPage === 'attendance' || currentPage === 'administration') {
+        fetchData(currentPage);
+    }
+  }, [currentPage]);
+
   const handleUpdateLeaveStatus = async (status) => {
-    if (!hasPrivilege('leave.approve')) { showNotification('Permission denied to approve or reject leave.', 'error'); return; }
+    if (!hasPrivilege('leave.approve')) { showNotification('Permission denied.', 'error'); return; }
     setLoading(true);
     try {
       const payload = { status, userId: CURRENT_USER_ID };
@@ -161,7 +188,7 @@ export default function HrModule() {
 
   const handleRecordReturn = async (e) => {
     e.preventDefault();
-    if (!hasPrivilege('leave.complete')) { showNotification('Permission denied to record actual return.', 'error'); return; }
+    if (!hasPrivilege('leave.complete')) { showNotification('Permission denied.', 'error'); return; }
     setLoading(true);
     try { await apiService.hr.recordActualReturn(selectedApplication.id, { actualReturnDate, userId: CURRENT_USER_ID }); showNotification('Actual return date recorded successfully.', 'success'); setIsReturnModalOpen(false); fetchData('leaveApplications'); }
     catch (error) { showNotification(error.response?.data?.message || 'Failed to record actual return date.', 'error'); }
@@ -169,7 +196,7 @@ export default function HrModule() {
   };
   
   const handleAttendance = async (staffId) => {
-    if (!hasPrivilege('attendance.create')) { showNotification('Permission denied to record attendance.', 'error'); return; }
+    if (!hasPrivilege('attendance.create')) { showNotification('Permission denied.', 'error'); return; }
     if (!staffId) { showNotification('Please select a staff member.', 'warning'); return; }
     setLoading(true);
     try {
@@ -187,36 +214,17 @@ export default function HrModule() {
     finally { setLoading(false); }
   };
 
-  const handleOpenAddEmployeeModal = (item = null) => {
-    setEditedItem(item);
-    setIsEmployeeModalOpen(true);
-  };
+  const handleOpenAddEmployeeModal = (item = null) => { setEditedItem(item); setIsEmployeeModalOpen(true); };
   const handleCloseEmployeeModal = () => setIsEmployeeModalOpen(false);
-
-  const handleOpenAddLeaveTypeModal = (item = null) => {
-    setEditedItem(item);
-    setIsLeaveTypeModalOpen(true);
-  };
+  const handleOpenAddLeaveTypeModal = (item = null) => { setEditedItem(item); setIsLeaveTypeModalOpen(true); };
   const handleCloseLeaveTypeModal = () => setIsLeaveTypeModalOpen(false);
-
-  const handleOpenAddLeaveApplicationModal = (item = null) => {
-    setEditedItem(item);
-    setIsLeaveApplicationModalOpen(true);
-  };
+  const handleOpenAddLeaveApplicationModal = (item = null) => { setEditedItem(item); setIsLeaveApplicationModalOpen(true); };
   const handleCloseLeaveApplicationModal = () => setIsLeaveApplicationModalOpen(false);
-
-  const handleOpenAddJobGroupModal = (item = null) => {
-    setEditedItem(item);
-    setIsJobGroupModalOpen(true);
-  };
+  const handleOpenAddJobGroupModal = (item = null) => { setEditedItem(item); setIsJobGroupModalOpen(true); };
   const handleCloseJobGroupModal = () => setIsJobGroupModalOpen(false);
 
-  useEffect(() => {
-    fetchData(currentPage);
-  }, [currentPage]);
-
   const renderContent = () => {
-    if (loading) {
+    if (loading && employees.length === 0) {
       return (
         <Box display="flex" justifyContent="center" alignItems="center" height="40vh">
           <CircularProgress />
@@ -228,15 +236,38 @@ export default function HrModule() {
       case 'employees':
         return <EmployeeSection {...{ employees, showNotification, refreshData: () => fetchData('employees'), fetchEmployee360View, handleOpenDeleteConfirmModal, handleOpenAddEmployeeModal, handleOpenEditEmployeeModal: handleOpenAddEmployeeModal }} />;
       case 'employee360':
-        return <Employee360ViewSection {...{ employee360View, employees, hasPrivilege, showNotification, refreshEmployee360View: () => fetchEmployee360View(currentEmployeeInView.staffId), handleOpenDeleteConfirmModal }} />;
+        return <Employee360ViewSection {...{ employee360View, employees, leaveTypes, jobGroups, leaveBalances, hasPrivilege, showNotification, refreshEmployee360View: () => fetchEmployee360View(currentEmployeeInView.staffId), handleOpenDeleteConfirmModal }} />;
       case 'leaveApplications':
         return <LeaveApplicationsSection {...{ leaveApplications, employees, leaveTypes, showNotification, refreshData: () => fetchData('leaveApplications'), handleUpdateLeaveStatus, setSelectedApplication, setIsApprovalModalOpen, setIsReturnModalOpen, setApprovedDates, setActualReturnDate, handleOpenDeleteConfirmModal, handleOpenAddLeaveApplicationModal, handleOpenEditApplicationModal: handleOpenAddLeaveApplicationModal }} />;
-      case 'leaveTypes':
-        return <LeaveTypesSection {...{ leaveTypes, showNotification, refreshData: () => fetchData('leaveTypes'), handleOpenDeleteConfirmModal, handleOpenAddLeaveTypeModal, handleOpenEditLeaveTypeModal: handleOpenAddLeaveTypeModal }} />;
       case 'attendance':
         return <AttendanceSection {...{ employees, attendanceRecords, handleAttendance, showNotification, refreshData: () => fetchData('attendance') }} />;
-      case 'jobGroups':
-        return <JobGroupsSection {...{ jobGroups, showNotification, refreshData: () => fetchData('jobGroups'), handleOpenDeleteConfirmModal, handleOpenAddJobGroupModal, handleOpenEditJobGroupModal: handleOpenAddJobGroupModal }} />;
+      
+      case 'administration':
+        const handleAdminSubTabChange = (event, newValue) => { setAdminSubTab(newValue); };
+        return (
+            <Box>
+                <Tabs value={adminSubTab} onChange={handleAdminSubTabChange} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                    <Tab label="Job Groups" />
+                    <Tab label="Leave Types" />
+                    <Tab label="Leave Entitlements" />
+                    <Tab label="Public Holidays" />
+                </Tabs>
+                <Box sx={{ pt: 3 }}>
+                    {adminSubTab === 0 && (
+                        <JobGroupsSection {...{ jobGroups, showNotification, refreshData: () => fetchData('administration'), handleOpenDeleteConfirmModal, handleOpenAddJobGroupModal, handleOpenEditJobGroupModal: handleOpenAddJobGroupModal }} />
+                    )}
+                    {adminSubTab === 1 && (
+                        <LeaveTypesSection {...{ leaveTypes, showNotification, refreshData: () => fetchData('administration'), handleOpenDeleteConfirmModal, handleOpenAddLeaveTypeModal, handleOpenEditLeaveTypeModal: handleOpenAddLeaveTypeModal }} />
+                    )}
+                    {adminSubTab === 2 && (
+                        <LeaveEntitlementsSection {...{ employees, leaveTypes, showNotification, handleOpenDeleteConfirmModal }} />
+                    )}
+                    {adminSubTab === 3 && (
+                        <PublicHolidaysSection {...{ showNotification, handleOpenDeleteConfirmModal }} />
+                    )}
+                </Box>
+            </Box>
+        );
       default:
         return null;
     }
@@ -250,72 +281,20 @@ export default function HrModule() {
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 4 }}>
         <Stack direction="row" spacing={2} role="tablist">
           <Button variant={currentPage === 'employees' || currentPage === 'employee360' ? 'contained' : 'text'} onClick={() => setCurrentPage('employees')} startIcon={<PeopleIcon />}>Employees</Button>
-          <Button variant={currentPage === 'leaveApplications' || currentPage === 'leaveTypes' || currentPage === 'attendance' ? 'contained' : 'text'} onClick={() => setCurrentPage('leaveApplications')} startIcon={<WorkHistoryIcon />}>Personnel Actions</Button>
-          <Button variant={currentPage === 'jobGroups' ? 'contained' : 'text'} onClick={() => setCurrentPage('jobGroups')} startIcon={<SettingsIcon />}>Administration</Button>
+          <Button variant={currentPage === 'leaveApplications' || currentPage === 'attendance' ? 'contained' : 'text'} onClick={() => setCurrentPage('leaveApplications')} startIcon={<WorkHistoryIcon />}>Personnel Actions</Button>
+          <Button variant={currentPage === 'administration' ? 'contained' : 'text'} onClick={() => setCurrentPage('administration')} startIcon={<SettingsIcon />}>Administration</Button>
         </Stack>
       </Box>
 
       {renderContent()}
 
-      <ConfirmDeleteModal
-        isOpen={isDeleteConfirmModalOpen}
-        onClose={() => setIsDeleteConfirmModalOpen(false)}
-        itemToDelete={itemToDelete}
-        onConfirm={handleDelete}
-      />
-      
-      <ApproveLeaveModal
-        isOpen={isApprovalModalOpen}
-        onClose={() => setIsApprovalModalOpen(false)}
-        selectedApplication={selectedApplication}
-        approvedDates={approvedDates}
-        setApprovedDates={setApprovedDates}
-        onApprove={handleUpdateLeaveStatus}
-      />
-      
-      <RecordReturnModal
-        isOpen={isReturnModalOpen}
-        onClose={() => setIsReturnModalOpen(false)}
-        selectedApplication={selectedApplication}
-        actualReturnDate={actualReturnDate}
-        setActualReturnDate={setActualReturnDate}
-        onRecordReturn={handleRecordReturn}
-      />
-
-      <AddEditEmployeeModal
-        isOpen={isEmployeeModalOpen}
-        onClose={handleCloseEmployeeModal}
-        editedItem={editedItem}
-        employees={employees}
-        showNotification={showNotification}
-        refreshData={() => fetchData('employees')}
-      />
-
-      <AddEditLeaveTypeModal
-        isOpen={isLeaveTypeModalOpen}
-        onClose={handleCloseLeaveTypeModal}
-        editedItem={editedItem}
-        showNotification={showNotification}
-        refreshData={() => fetchData('leaveTypes')}
-      />
-
-      <AddEditLeaveApplicationModal
-        isOpen={isLeaveApplicationModalOpen}
-        onClose={handleCloseLeaveApplicationModal}
-        editedItem={editedItem}
-        employees={employees}
-        leaveTypes={leaveTypes}
-        showNotification={showNotification}
-        refreshData={() => fetchData('leaveApplications')}
-      />
-
-      <AddEditJobGroupModal
-        isOpen={isJobGroupModalOpen}
-        onClose={handleCloseJobGroupModal}
-        editedItem={editedItem}
-        showNotification={showNotification}
-        refreshData={() => fetchData('jobGroups')}
-      />
+      <ConfirmDeleteModal isOpen={isDeleteConfirmModalOpen} onClose={() => setIsDeleteConfirmModalOpen(false)} itemToDelete={itemToDelete} onConfirm={handleDelete} />
+      <ApproveLeaveModal isOpen={isApprovalModalOpen} onClose={() => setIsApprovalModalOpen(false)} selectedApplication={selectedApplication} approvedDates={approvedDates} setApprovedDates={setApprovedDates} onApprove={handleUpdateLeaveStatus} leaveBalances={leaveBalances} />
+      <RecordReturnModal isOpen={isReturnModalOpen} onClose={() => setIsReturnModalOpen(false)} selectedApplication={selectedApplication} actualReturnDate={actualReturnDate} setActualReturnDate={setActualReturnDate} onRecordReturn={handleRecordReturn} />
+      <AddEditEmployeeModal isOpen={isEmployeeModalOpen} onClose={handleCloseEmployeeModal} editedItem={editedItem} employees={employees} showNotification={showNotification} refreshData={() => fetchData('employees')} />
+      <AddEditLeaveTypeModal isOpen={isLeaveTypeModalOpen} onClose={handleCloseLeaveTypeModal} editedItem={editedItem} showNotification={showNotification} refreshData={() => fetchData('administration')} />
+      <AddEditLeaveApplicationModal isOpen={isLeaveApplicationModalOpen} onClose={handleCloseLeaveApplicationModal} editedItem={editedItem} employees={employees} leaveTypes={leaveTypes} leaveBalances={leaveBalances} showNotification={showNotification} refreshData={() => fetchData('leaveApplications')} />
+      <AddEditJobGroupModal isOpen={isJobGroupModalOpen} onClose={handleCloseJobGroupModal} editedItem={editedItem} showNotification={showNotification} refreshData={() => fetchData('administration')} />
       
       <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar}>
         <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>{snackbar.message}</Alert>

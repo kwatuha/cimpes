@@ -17,11 +17,20 @@ const hrService = {
   updatePerformanceReview: (id, data) => axiosInstance.put(`/hr/employees/performance/${id}`, data).then(processResponse),
   deletePerformanceReview: (id) => axiosInstance.delete(`/hr/employees/performance/${id}`).then(processResponse),
 
+  // --- Leave Balance ---
+  getLeaveBalance: (employeeId, year) => axiosInstance.get(`/hr/employees/${employeeId}/leave-balance?year=${year}`).then(processResponse),
+
   // --- Leave Types ---
   getLeaveTypes: () => axiosInstance.get('/hr/leave-types').then(processResponse),
   addLeaveType: (data) => axiosInstance.post('/hr/leave-types', data).then(processResponse),
   updateLeaveType: (id, data) => axiosInstance.put(`/hr/leave-types/${id}`, data).then(processResponse),
   deleteLeaveType: (id) => axiosInstance.delete(`/hr/leave-types/${id}`).then(processResponse),
+
+  // NEW: --- Leave Entitlements ---
+  getLeaveEntitlements: (employeeId) => axiosInstance.get(`/hr/employees/${employeeId}/leave-entitlements`).then(processResponse),
+  addLeaveEntitlement: (data) => axiosInstance.post('/hr/leave-entitlements', data).then(processResponse),
+  updateLeaveEntitlement: (id, data) => axiosInstance.put(`/hr/leave-entitlements/${id}`, data).then(processResponse),
+  deleteLeaveEntitlement: (id) => axiosInstance.delete(`/hr/leave-entitlements/${id}`).then(processResponse),
 
   // --- Leave Applications ---
   getLeaveApplications: () => axiosInstance.get('/hr/leave-applications').then(processResponse),
@@ -86,6 +95,15 @@ const hrService = {
   addProjectAssignment: (data) => axiosInstance.post('/hr/project-assignments', data).then(processResponse),
   updateProjectAssignment: (id, data) => axiosInstance.put(`/hr/project-assignments/${id}`, data).then(processResponse),
   deleteProjectAssignment: (id) => axiosInstance.delete(`/hr/project-assignments/${id}`).then(processResponse),
+// NEW: Function to get leave balance for a specific employee and year
+  getLeaveBalance: (employeeId, year) => axiosInstance.get(`/hr/employees/${employeeId}/leave-balance?year=${year}`).then(processResponse),
+// --- Public Holidays ---
+  getPublicHolidays: () => axiosInstance.get('/hr/public-holidays').then(processResponse),
+  addPublicHoliday: (data) => axiosInstance.post('/hr/public-holidays', data).then(processResponse),
+  updatePublicHoliday: (id, data) => axiosInstance.put(`/hr/public-holidays/${id}`, data).then(processResponse),
+  deletePublicHoliday: (id) => axiosInstance.delete(`/hr/public-holidays/${id}`).then(processResponse),
+ calculateWorkingDays: (startDate, endDate) => axiosInstance.get(`/hr/calculate-working-days?startDate=${startDate}&endDate=${endDate}`).then(processResponse),
+ 
 };
 
 export default hrService;

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, Button,
-  Grid, TextField, FormControl, InputLabel, Select, MenuItem, Typography
+  Grid, TextField, FormControl, InputLabel, Select, MenuItem
 } from '@mui/material';
 import apiService from '../../../api';
 
@@ -10,21 +10,27 @@ export default function AddEditCompensationModal({
   onClose,
   editedItem,
   employees,
+  currentEmployeeInView, // CHANGED: Added prop
   showNotification,
   refreshData
 }) {
   const [formData, setFormData] = useState({});
   const isEditMode = !!editedItem;
 
+  // CHANGED: useEffect logic updated
   useEffect(() => {
-    setFormData(isEditMode ? editedItem : {
-      staffId: '',
-      baseSalary: '',
-      allowances: '',
-      bonuses: '',
-      payFrequency: ''
-    });
-  }, [isEditMode, editedItem]);
+    if (isEditMode && editedItem) {
+      setFormData(editedItem);
+    } else {
+      setFormData({
+        staffId: currentEmployeeInView ? currentEmployeeInView.staffId : '', // Pre-fill employee
+        baseSalary: '',
+        allowances: '',
+        bonuses: '',
+        payFrequency: 'Monthly' // Default value
+      });
+    }
+  }, [isOpen, isEditMode, editedItem, currentEmployeeInView]);
 
   const handleFormChange = (e) => {
     const { name, value } = e.target;
@@ -33,8 +39,12 @@ export default function AddEditCompensationModal({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.staffId) {
+        showNotification('An employee must be selected.', 'error');
+        return;
+    }
     const action = isEditMode ? 'updateCompensation' : 'addCompensation';
-    const apiFunction = apiService.hr[`${action.charAt(0).toLowerCase() + action.slice(1)}`];
+    const apiFunction = apiService.hr[action];
 
     if (!apiFunction) {
       showNotification(`API function for ${action} not found.`, 'error');
@@ -49,16 +59,13 @@ export default function AddEditCompensationModal({
         await apiFunction(payload);
       }
       showNotification(`Compensation record ${isEditMode ? 'updated' : 'added'} successfully.`, 'success');
-      onClose();
+      
+      // CHANGED: Corrected refresh order
       refreshData();
+      onClose();
     } catch (error) {
       showNotification(error.response?.data?.message || `Failed to ${isEditMode ? 'update' : 'add'} compensation record.`, 'error');
     }
-  };
-
-  const renderEmployeeValue = (selectedId) => {
-    const employee = employees.find(emp => String(emp.staffId) === String(selectedId));
-    return employee ? `${employee.firstName} ${employee.lastName}` : '';
   };
 
   return (
@@ -67,36 +74,40 @@ export default function AddEditCompensationModal({
         {isEditMode ? 'Edit Compensation' : 'Add New Compensation'}
       </DialogTitle>
       <DialogContent dividers>
-        <form onSubmit={handleSubmit}>
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth margin="normal" required sx={{ minWidth: 200 }}>
-                <InputLabel>Select Employee</InputLabel>
-                <Select
-                  name="staffId"
-                  value={formData?.staffId || ''}
-                  onChange={handleFormChange}
-                  label="Select Employee"
-                  renderValue={renderEmployeeValue}
-                >
-                  <MenuItem value=""><em>Select an employee...</em></MenuItem>
-                  {employees.map((emp) => (
-                    <MenuItem key={emp.staffId} value={String(emp.staffId)}>{emp.firstName} {emp.lastName}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+        <form onSubmit={handleSubmit} id="compensation-form">
+          {/* UPDATED: Grid v2 syntax and spacing */}
+          <Grid container spacing={2} sx={{ pt: 1 }}>
+
+            {/* CHANGED: Conditionally render the employee selector */}
+            {!currentEmployeeInView && (
+              <Grid xs={12}>
+                <FormControl fullWidth required sx={{ minWidth: 200 }}>
+                  <InputLabel>Select Employee</InputLabel>
+                  <Select
+                    name="staffId"
+                    value={formData?.staffId || ''}
+                    onChange={handleFormChange}
+                    label="Select Employee"
+                  >
+                    {employees && employees.map((emp) => (
+                      <MenuItem key={emp.staffId} value={String(emp.staffId)}>{emp.firstName} {emp.lastName}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+            )}
+
+            <Grid xs={12} sm={6}>
+              <TextField fullWidth name="baseSalary" label="Base Salary" type="number" value={formData?.baseSalary || ''} onChange={handleFormChange} required />
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField fullWidth margin="dense" name="baseSalary" label="Base Salary" type="number" value={formData?.baseSalary || ''} onChange={handleFormChange} required />
+            <Grid xs={12} sm={6}>
+              <TextField fullWidth name="allowances" label="Allowances" type="number" value={formData?.allowances || ''} onChange={handleFormChange} />
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField fullWidth margin="dense" name="allowances" label="Allowances" type="number" value={formData?.allowances || ''} onChange={handleFormChange} />
+            <Grid xs={12} sm={6}>
+              <TextField fullWidth name="bonuses" label="Bonuses" type="number" value={formData?.bonuses || ''} onChange={handleFormChange} />
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField fullWidth margin="dense" name="bonuses" label="Bonuses" type="number" value={formData?.bonuses || ''} onChange={handleFormChange} />
-            </Grid>
-            <Grid item xs={12}>
-              <FormControl fullWidth margin="normal" required sx={{ minWidth: 200 }}>
+            <Grid xs={12} sm={6}>
+              <FormControl fullWidth required sx={{ minWidth: 200 }}>
                 <InputLabel>Pay Frequency</InputLabel>
                 <Select name="payFrequency" value={formData?.payFrequency || ''} onChange={handleFormChange} label="Pay Frequency">
                   <MenuItem value="Monthly">Monthly</MenuItem>
@@ -106,14 +117,14 @@ export default function AddEditCompensationModal({
               </FormControl>
             </Grid>
           </Grid>
-          <DialogActions>
-            <Button onClick={onClose} color="primary" variant="outlined">Cancel</Button>
-            <Button type="submit" variant="contained" color="success">
-              {isEditMode ? 'Update' : 'Add'}
-            </Button>
-          </DialogActions>
         </form>
       </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} color="primary" variant="outlined">Cancel</Button>
+        <Button type="submit" form="compensation-form" variant="contained" color="success">
+          {isEditMode ? 'Update' : 'Save'}
+        </Button>
+      </DialogActions>
     </Dialog>
   );
 }
