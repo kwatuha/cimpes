@@ -54,9 +54,11 @@ const InfoCard = ({ title, onEdit, children }) => (
 
 // Helper function to format data for the table cells
 const getDisplayValue = (item, field) => {
+    if (field.customRenderer) return field.customRenderer(item);
+    
     const value = item[field.key];
     if (value === null || value === undefined || value === '') return 'N/A';
-    if (field.customRenderer) return field.customRenderer(value);
+
     if (field.key.includes('Date') || field.key.includes('Period')) return value.slice(0, 10);
     if (['baseSalary', 'allowances', 'bonuses', 'grossSalary', 'netSalary', 'loanAmount'].includes(field.key)) {
       return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
@@ -282,7 +284,7 @@ export default function Employee360ViewSection({
                         <Tab label="Promotions" /> <Tab label="Training" /> <Tab label="Disciplinary" /> <Tab label="Assigned Assets" /> <Tab label="Project Assignments" />
                     </Tabs>
                 </Box>
-                {employeeSubTab === 0 && renderDataSection(promotions, 'promotion', 'Promotions', [ { key: 'oldJobGroupId', label: 'Previous Job Group', customRenderer: (value) => getJobGroupName(value) }, { key: 'newJobGroupId', label: 'New Job Group', customRenderer: (value) => getJobGroupName(value) }, { key: 'promotionDate', label: 'Promotion Date' } ])}
+                {employeeSubTab === 0 && renderDataSection(promotions, 'promotion', 'Promotions', [ { key: 'oldJobGroupId', label: 'Previous Job Group', customRenderer: (item) => getJobGroupName(item.oldJobGroupId) }, { key: 'newJobGroupId', label: 'New Job Group', customRenderer: (item) => getJobGroupName(item.newJobGroupId) }, { key: 'promotionDate', label: 'Promotion Date' } ])}
                 {employeeSubTab === 1 && renderDataSection(trainings, 'training', 'Training History', [ { key: 'courseName', label: 'Course Name' }, { key: 'institution', label: 'Institution' }, { key: 'completionDate', label: 'Completion Date' } ])}
                 {employeeSubTab === 2 && renderDataSection(disciplinaries, 'disciplinary', 'Disciplinary Records', [ { key: 'actionType', label: 'Action Type' }, { key: 'actionDate', label: 'Action Date' }, { key: 'reason', label: 'Reason' } ])}
                 {employeeSubTab === 3 && renderDataSection(assignedAssets, 'assets', 'Assigned Assets', [ { key: 'assetName', label: 'Asset Name' }, { key: 'serialNumber', label: 'Serial No.' }, { key: 'assignmentDate', label: 'Assignment Date' } ])}
@@ -348,12 +350,44 @@ export default function Employee360ViewSection({
                             ))}
                         </Grid>
                         
+                        {/* UPDATED: The 'status' field now has a customRenderer for the badge */}
                         {renderDataSection(leaveApplications, 'leave.apply', 'Leave Application History', [ 
                             { key: 'leaveTypeName', label: 'Leave Type' }, 
                             { key: 'startDate', label: 'Start Date' }, 
                             { key: 'endDate', label: 'End Date' }, 
                             { key: 'numberOfDays', label: 'Days' }, 
-                            { key: 'status', label: 'Status' } 
+                            { 
+                              key: 'status', 
+                              label: 'Status',
+                              customRenderer: (item) => (
+                                  <Typography
+                                      component="span"
+                                      sx={{
+                                          padding: '4px 8px',
+                                          borderRadius: '6px',
+                                          fontWeight: 'bold',
+                                          fontSize: '0.75rem',
+                                          color: 'white',
+                                          whiteSpace: 'nowrap',
+                                          bgcolor: item.status === 'Pending' ? 'warning.main' : 
+                                                   item.status === 'Approved' ? 'success.main' : 
+                                                   item.status === 'Completed' ? 'info.main' : 'error.main',
+                                      }}
+                                  >
+                                      {item.status}
+                                  </Typography>
+                              )
+                            },
+                            { key: 'reason', label: 'Reason' },
+                            { 
+                              key: 'handoverStaffId', 
+                              label: 'Handover To',
+                              customRenderer: (item) => {
+                                  if (!item.handoverFirstName) return 'N/A';
+                                  return `${item.handoverFirstName} ${item.handoverLastName}`;
+                              }
+                            },
+                            { key: 'handoverComments', label: 'Handover Comments' }
                         ])}
                     </>
                 )}
