@@ -9,31 +9,31 @@ import AddEditJobGroupModal from './modals/AddEditJobGroupModal';
 
 export default function JobGroupsSection({ jobGroups, showNotification, refreshData, handleOpenDeleteConfirmModal }) {
     const { hasPrivilege } = useAuth();
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
     const [editedItem, setEditedItem] = useState(null);
 
     const handleOpenAddModal = () => {
-        if (!hasPrivilege('job.group.create')) {
+        // FIX: Corrected permission key to use underscore
+        if (!hasPrivilege('job_group.create')) {
             showNotification('Permission denied.', 'error');
             return;
         }
         setEditedItem(null);
-        setIsAddModalOpen(true);
+        setIsModalOpen(true);
     };
 
     const handleOpenEditModal = (item) => {
-        if (!hasPrivilege('job.group.update')) {
+        // FIX: Corrected permission key to use underscore
+        if (!hasPrivilege('job_group.update')) {
             showNotification('Permission denied.', 'error');
             return;
         }
         setEditedItem(item);
-        setIsEditModalOpen(true);
+        setIsModalOpen(true);
     };
     
     const handleCloseModal = () => {
-        setIsAddModalOpen(false);
-        setIsEditModalOpen(false);
+        setIsModalOpen(false);
         setEditedItem(null);
     };
 
@@ -41,7 +41,8 @@ export default function JobGroupsSection({ jobGroups, showNotification, refreshD
         <Box>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                 <Typography variant="h5" component="h2">Job Groups</Typography>
-                {hasPrivilege('job.group.create') && (
+                {/* FIX: Corrected permission key to use underscore */}
+                {hasPrivilege('job_group.create') && (
                     <Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={handleOpenAddModal}>
                         Add Job Group
                     </Button>
@@ -66,13 +67,15 @@ export default function JobGroupsSection({ jobGroups, showNotification, refreshD
                                     <TableCell>{group.description}</TableCell>
                                     <TableCell>
                                         <Stack direction="row" spacing={1}>
-                                            {hasPrivilege('job.group.update') && (
+                                            {/* FIX: Corrected permission key to use underscore */}
+                                            {hasPrivilege('job_group.update') && (
                                                 <IconButton color="primary" onClick={() => handleOpenEditModal(group)}>
                                                     <EditIcon />
                                                 </IconButton>
                                             )}
-                                            {hasPrivilege('job.group.delete') && (
-                                                <IconButton color="error" onClick={() => handleOpenDeleteConfirmModal(group.id, group.groupName, 'job.group')}>
+                                            {/* FIX: Corrected permission key to use underscore */}
+                                            {hasPrivilege('job_group.delete') && (
+                                                <IconButton color="error" onClick={() => handleOpenDeleteConfirmModal(group.id, group.groupName, 'job_group')}>
                                                     <DeleteIcon />
                                                 </IconButton>
                                             )}
@@ -87,7 +90,7 @@ export default function JobGroupsSection({ jobGroups, showNotification, refreshD
                 </Table>
             </TableContainer>
             <AddEditJobGroupModal
-                isOpen={isAddModalOpen || isEditModalOpen}
+                isOpen={isModalOpen}
                 onClose={handleCloseModal}
                 editedItem={editedItem}
                 showNotification={showNotification}

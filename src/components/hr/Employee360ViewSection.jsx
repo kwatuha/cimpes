@@ -8,6 +8,7 @@ import {
 import DataCard from './DataCard'; 
 
 // Import all your modals
+import AddEditEmployeeModal from './modals/AddEditEmployeeModal';
 import AddEditPerformanceReviewModal from './modals/AddEditPerformanceReviewModal';
 import AddEditCompensationModal from './modals/AddEditCompensationModal';
 import AddEditTrainingModal from './modals/AddEditTrainingModal';
@@ -24,8 +25,9 @@ import AddEditBenefitsModal from './modals/AddEditBenefitsModal';
 import AddEditAssignedAssetsModal from './modals/AddEditAssignedAssetsModal';
 import AddEditPromotionsModal from './modals/AddEditPromotionsModal';
 import AddEditProjectAssignmentsModal from './modals/AddEditProjectAssignmentsModal';
+// import AddEditEducationModal from './modals/AddEditEducationModal';
 
-// Helper component for styled list items in the personal info cards
+// Helper component for styled list items
 const InfoItem = ({ label, value }) => (
     <Grid item xs={12} sm={6}>
         <Typography variant="body2" color="text.secondary">{label}</Typography>
@@ -33,16 +35,28 @@ const InfoItem = ({ label, value }) => (
     </Grid>
 );
 
-// Card component with a header
-const InfoCard = ({ title, onEdit, children }) => (
+// Enhanced InfoCard to support an "Add New" button
+const InfoCard = ({ title, onEdit, onAdd, children }) => (
     <Paper elevation={2} sx={{ p: 3, borderRadius: '12px', height: '100%' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h6" sx={{ fontWeight: 'bold' }}>{title}</Typography>
-            {onEdit && (
-                <IconButton onClick={onEdit} size="small">
-                    <EditIcon fontSize="small" />
-                </IconButton>
-            )}
+            <Box>
+                {onAdd && (
+                    <Button
+                        variant="contained"
+                        size="small"
+                        startIcon={<AddIcon />}
+                        onClick={onAdd}
+                    >
+                        Add New
+                    </Button>
+                )}
+                {onEdit && (
+                    <IconButton onClick={onEdit} size="small" sx={{ ml: onAdd ? 1 : 0 }}>
+                        <EditIcon fontSize="small" />
+                    </IconButton>
+                )}
+            </Box>
         </Box>
         {children}
     </Paper>
@@ -62,7 +76,7 @@ export default function Employee360ViewSection({
     const [employeeSubTab, setEmployeeSubTab] = useState(0); 
 
     const [modalState, setModalState] = useState({
-        performance: { isOpen: false, editedItem: null },
+        'employee.performance': { isOpen: false, editedItem: null },
         compensation: { isOpen: false, editedItem: null },
         training: { isOpen: false, editedItem: null },
         disciplinary: { isOpen: false, editedItem: null },
@@ -72,13 +86,14 @@ export default function Employee360ViewSection({
         payroll: { isOpen: false, editedItem: null },
         dependants: { isOpen: false, editedItem: null },
         terminations: { isOpen: false, editedItem: null },
-        bankDetails: { isOpen: false, editedItem: null },
+        'bank_details': { isOpen: false, editedItem: null },
         memberships: { isOpen: false, editedItem: null },
         benefits: { isOpen: false, editedItem: null },
-        assignedAssets: { isOpen: false, editedItem: null },
-        promotions: { isOpen: false, editedItem: null },
-        projectAssignments: { isOpen: false, editedItem: null },
+        'assets': { isOpen: false, editedItem: null },
+        'promotion': { isOpen: false, editedItem: null },
+        'project.assignments': { isOpen: false, editedItem: null },
         employee: { isOpen: false, editedItem: null },
+        education: { isOpen: false, editedItem: null },
     });
 
     if (!employee360View || !employee360View.profile) {
@@ -90,9 +105,25 @@ export default function Employee360ViewSection({
     }
 
     const {
-        profile, performanceReviews, compensations, trainings, disciplinaries, contracts, retirements,
-        loans, payrolls, dependants, terminations, bankDetails, memberships, benefits, assignedAssets,
-        promotions, projectAssignments, jobGroups
+        profile,
+        performanceReviews = [],
+        compensations = [],
+        trainings = [],
+        disciplinaries = [],
+        contracts = [],
+        retirements = [],
+        loans = [],
+        payrolls = [],
+        dependants = [],
+        terminations = [],
+        bankDetails = [],
+        memberships = [],
+        benefits = [],
+        assignedAssets = [],
+        promotions = [],
+        projectAssignments = [],
+        jobGroups = [],
+        education = []
     } = employee360View;
     
     // Generic modal handlers
@@ -132,22 +163,18 @@ export default function Employee360ViewSection({
         setActiveTab(newValue);
     };
 
-    const renderSectionHeader = (title, modalType) => (
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>{title}</Typography>
-            {hasPrivilege(`${modalType}.create`) && (
-                <Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => handleOpenAddModal(modalType)}>
-                    Add New
-                </Button>
-            )}
-        </Box>
-    );
-
     const renderDataSection = (data, modalType, title, fields) => (
         <Box>
-            {renderSectionHeader(title, modalType)}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>{title}</Typography>
+                {hasPrivilege(`${modalType}.create`) && (
+                    <Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => handleOpenAddModal(modalType)}>
+                        Add New
+                    </Button>
+                )}
+            </Box>
             {data && data.length > 0 ? (
-                <Stack spacing={2} sx={{mt: 2}}>
+                <Stack spacing={1} sx={{mt: 1}}>
                     {data.map((item) => (
                         <DataCard
                             key={item.id}
@@ -167,18 +194,7 @@ export default function Employee360ViewSection({
             )}
         </Box>
     );
-    
-    const mockEducation = [
-        { degree: 'Master Degree - Bina Nusantara', major: 'Business', gpa: '3.5', period: '2016 - 2018' },
-        { degree: 'Bachelor Degree - Bina Nusantara', major: 'Business', gpa: '3.9', period: '2012 - 2016' },
-    ];
 
-    const mockFamily = [
-        { type: 'Father', name: 'Benjamin Williams' },
-        { type: 'Mother', name: 'Evelyn Potts' },
-        { type: 'Siblings', name: 'James Williams, Emily Williams' },
-    ];
-    
     const renderPersonalInfoTab = () => (
         <Grid container spacing={3}>
             <Grid item xs={12}>
@@ -191,33 +207,23 @@ export default function Employee360ViewSection({
                             <Typography variant="h6" sx={{ fontWeight: 'bold' }}>{profile?.firstName} {profile?.lastName}</Typography>
                             <Typography variant="body2" color="text.secondary">{profile?.staffId}</Typography>
                             <List dense sx={{ width: '100%', maxWidth: 360, mt: 1 }}>
-                                <ListItem disablePadding>
-                                    <ListItemIcon sx={{minWidth: 32}}><GenderIcon fontSize="small" /></ListItemIcon>
-                                    <ListItemText primary={profile?.gender} />
-                                </ListItem>
-                                <ListItem disablePadding>
-                                    <ListItemIcon sx={{minWidth: 32}}><MailIcon fontSize="small" /></ListItemIcon>
-                                    <ListItemText primary={profile?.email} />
-                                </ListItem>
-                                <ListItem disablePadding>
-                                    <ListItemIcon sx={{minWidth: 32}}><PhoneIcon fontSize="small" /></ListItemIcon>
-                                    <ListItemText primary={profile?.phoneNumber} />
-                                </ListItem>
+                                <ListItem disablePadding><ListItemIcon sx={{minWidth: 32}}><GenderIcon fontSize="small" /></ListItemIcon><ListItemText primary={profile?.gender} /></ListItem>
+                                <ListItem disablePadding><ListItemIcon sx={{minWidth: 32}}><MailIcon fontSize="small" /></ListItemIcon><ListItemText primary={profile?.email} /></ListItem>
+                                <ListItem disablePadding><ListItemIcon sx={{minWidth: 32}}><PhoneIcon fontSize="small" /></ListItemIcon><ListItemText primary={profile?.phoneNumber} /></ListItem>
                             </List>
                         </Grid>
-                        <Grid item xs={12} md={8}>
-                            <Grid container spacing={2}>
-                                <InfoItem label="Place of birth" value={profile?.placeOfBirth} />
-                                <InfoItem label="Birth date" value={profile?.dateOfBirth?.slice(0, 10)} />
-                                <InfoItem label="Blood type" value={profile?.bloodType} />
-                                <InfoItem label="Marital Status" value={profile?.maritalStatus} />
-                                <InfoItem label="Religion" value={profile?.religion} />
-                                <InfoItem label="Nationality" value={profile?.nationality} />
-                            </Grid>
+                        <Grid item xs={12} md={8} container spacing={2} alignContent="center">
+                            <InfoItem label="Place of birth" value={profile?.placeOfBirth} />
+                            <InfoItem label="Birth date" value={profile?.dateOfBirth?.slice(0, 10)} />
+                            <InfoItem label="Blood type" value={profile?.bloodType} />
+                            <InfoItem label="Marital Status" value={profile?.maritalStatus} />
+                            <InfoItem label="Religion" value={profile?.religion} />
+                            <InfoItem label="Nationality" value={profile?.nationality} />
                         </Grid>
                     </Grid>
                 </InfoCard>
             </Grid>
+
             <Grid item xs={12} md={6}>
                  <InfoCard title="Address" onEdit={() => { /* Open Address Modal */ }}>
                     <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Citizen ID address</Typography>
@@ -228,40 +234,65 @@ export default function Employee360ViewSection({
             </Grid>
             <Grid item xs={12} md={6}>
                 <InfoCard title="Emergency contact" onEdit={() => { /* Open Emergency Contact Modal */ }}>
-                    <InfoItem label="Name" value={profile?.emergencyContactName} />
-                    <InfoItem label="Relationship" value={profile?.emergencyContactRelationship} />
-                    <InfoItem label="Phone number" value={profile?.emergencyContactPhone} />
+                     <Grid container spacing={2}>
+                        <InfoItem label="Name" value={profile?.emergencyContactName} />
+                        <InfoItem label="Relationship" value={profile?.emergencyContactRelationship} />
+                        <InfoItem label="Phone number" value={profile?.emergencyContactPhone} />
+                    </Grid>
                 </InfoCard>
             </Grid>
+
             <Grid item xs={12} md={6}>
-                <InfoCard title="Education" onEdit={() => { /* Open Education Modal */ }}>
-                    <List disablePadding>
-                        {mockEducation.map((edu, index) => (
-                            <ListItem key={index} disablePadding sx={{ alignItems: 'flex-start' }}>
-                                <ListItemIcon sx={{ mt: '6px', minWidth: '24px' }}>
-                                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'primary.main' }} />
-                                </ListItemIcon>
-                                <ListItemText
-                                    primary={edu.degree}
-                                    secondary={`${edu.major} • GPA: ${edu.gpa} • ${edu.period}`}
+                <InfoCard title="Education" onAdd={() => handleOpenAddModal('education')}>
+                    {education.length > 0 ? (
+                        <Stack spacing={1}>
+                            {education.map((item) => (
+                                <DataCard
+                                    key={item.id}
+                                    item={item}
+                                    fields={[
+                                        { key: 'degree', label: 'Degree' },
+                                        { key: 'institution', label: 'Institution' },
+                                    ]}
+                                    modalType="education"
+                                    hasPrivilege={hasPrivilege}
+                                    handleOpenEditModal={() => handleOpenEditModal(item, 'education')}
+                                    handleOpenDeleteConfirmModal={() => handleOpenDeleteConfirmModal(item.id, item.degree, 'education')}
                                 />
-                            </ListItem>
-                        ))}
-                    </List>
+                            ))}
+                        </Stack>
+                    ) : (
+                        <Typography variant="body2" sx={{ textAlign: 'center', fontStyle: 'italic', p: 3 }}>
+                            No education records found.
+                        </Typography>
+                    )}
                 </InfoCard>
             </Grid>
             <Grid item xs={12} md={6}>
-                <InfoCard title="Family" onEdit={() => handleOpenAddModal('dependants')}>
-                    {mockFamily.map((member, index) => (
-                        <Grid container key={index} spacing={2} sx={{ mb: 1 }}>
-                            <Grid item xs={4}>
-                                <Typography variant="body2" color="text.secondary">{member.type}</Typography>
-                            </Grid>
-                            <Grid item xs={8}>
-                                <Typography variant="body2" sx={{ fontWeight: 'medium' }}>{member.name}</Typography>
-                            </Grid>
-                        </Grid>
-                    ))}
+                <InfoCard title="Family / Dependants" onAdd={() => handleOpenAddModal('dependants')}>
+                    {dependants.length > 0 ? (
+                        <Stack spacing={1}>
+                             {dependants.map((item) => (
+                                <DataCard
+                                    key={item.id}
+                                    item={item}
+                                    fields={[
+                                        { key: 'dependantName', label: 'Name' },
+                                        { key: 'relationship', label: 'Relationship' },
+                                        { key: 'dateOfBirth', label: 'Date of Birth' },
+                                    ]}
+                                    modalType="dependants"
+                                    hasPrivilege={hasPrivilege}
+                                    handleOpenEditModal={() => handleOpenEditModal(item, 'dependants')}
+                                    handleOpenDeleteConfirmModal={() => handleOpenDeleteConfirmModal(item.id, item.dependantName, 'dependants')}
+                                />
+                            ))}
+                        </Stack>
+                    ) : (
+                         <Typography variant="body2" sx={{ textAlign: 'center', fontStyle: 'italic', p: 3 }}>
+                            No dependants found.
+                        </Typography>
+                    )}
                 </InfoCard>
             </Grid>
         </Grid>
@@ -274,7 +305,6 @@ export default function Employee360ViewSection({
 
         return (
             <Box>
-                {/* Nested Sub-Tabs for Employee Details */}
                 <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
                     <Tabs
                         value={employeeSubTab}
@@ -291,8 +321,7 @@ export default function Employee360ViewSection({
                     </Tabs>
                 </Box>
 
-                {/* Content for Employee Details Sub-Tabs */}
-                {employeeSubTab === 0 && renderDataSection(promotions, 'promotions', 'Promotions', [
+                {employeeSubTab === 0 && renderDataSection(promotions, 'promotion', 'Promotions', [
                     { key: 'oldJobGroupId', label: 'Previous Job Group', customRenderer: (value) => getJobGroupName(value) },
                     { key: 'newJobGroupId', label: 'New Job Group', customRenderer: (value) => getJobGroupName(value) },
                     { key: 'promotionDate', label: 'Promotion Date' },
@@ -307,12 +336,12 @@ export default function Employee360ViewSection({
                     { key: 'actionDate', label: 'Action Date' },
                     { key: 'reason', label: 'Reason' },
                 ])}
-                {employeeSubTab === 3 && renderDataSection(assignedAssets, 'assignedAssets', 'Assigned Assets', [
+                {employeeSubTab === 3 && renderDataSection(assignedAssets, 'assets', 'Assigned Assets', [
                     { key: 'assetName', label: 'Asset Name' },
                     { key: 'serialNumber', label: 'Serial No.' },
                     { key: 'assignmentDate', label: 'Assignment Date' },
                 ])}
-                {employeeSubTab === 4 && renderDataSection(projectAssignments, 'projectAssignments', 'Project Assignments', [
+                {employeeSubTab === 4 && renderDataSection(projectAssignments, 'project.assignments', 'Project Assignments', [
                     { key: 'projectId', label: 'Project ID' },
                     { key: 'milestoneName', label: 'Milestone' },
                     { key: 'role', label: 'Role' },
@@ -343,35 +372,18 @@ export default function Employee360ViewSection({
                     </Tabs>
                 </Box>
     
-                {payrollSubTab === 0 && (
-                    renderDataSection(compensations, 'compensation', 'Compensation Details', [
-                        { key: 'baseSalary', label: 'Base Salary' },
-                        { key: 'allowances', label: 'Allowances' },
-                        { key: 'bonuses', label: 'Bonuses' },
-                        { key: 'payFrequency', label: 'Pay Frequency' },
-                    ])
-                )}
-                {payrollSubTab === 1 && (
-                    renderDataSection(payrolls, 'payroll', 'Payroll History', [
-                         { key: 'payPeriod', label: 'Pay Period' },
-                         { key: 'grossSalary', label: 'Gross Salary' },
-                         { key: 'netSalary', label: 'Net Salary' },
-                    ])
-                )}
-                {payrollSubTab === 2 && (
-                    renderDataSection(bankDetails, 'bankDetails', 'Bank Details', [
-                         { key: 'bankName', label: 'Bank Name' },
-                         { key: 'accountNumber', label: 'Account Number' },
-                         { key: 'branchName', label: 'Branch Name' },
-                    ])
-                )}
-                {payrollSubTab === 3 && (
-                     renderDataSection(loans, 'loans', 'Loans', [
-                        { key: 'loanAmount', label: 'Loan Amount' },
-                        { key: 'loanDate', label: 'Loan Date' },
-                        { key: 'status', label: 'Status' },
-                    ])
-                )}
+                {payrollSubTab === 0 && renderDataSection(compensations, 'compensation', 'Compensation Details', [
+                    { key: 'baseSalary', label: 'Base Salary' }, { key: 'allowances', label: 'Allowances' }, { key: 'bonuses', label: 'Bonuses' },
+                ])}
+                {payrollSubTab === 1 && renderDataSection(payrolls, 'payroll', 'Payroll History', [
+                     { key: 'payPeriod', label: 'Pay Period' }, { key: 'grossSalary', label: 'Gross Salary' }, { key: 'netSalary', label: 'Net Salary' },
+                ])}
+                {payrollSubTab === 2 && renderDataSection(bankDetails, 'bank_details', 'Bank Details', [
+                     { key: 'bankName', label: 'Bank Name' }, { key: 'accountNumber', label: 'Account Number' },
+                ])}
+                {payrollSubTab === 3 && renderDataSection(loans, 'loans', 'Loans', [
+                    { key: 'loanAmount', label: 'Loan Amount' }, { key: 'loanDate', label: 'Loan Date' }, { key: 'status', label: 'Status' },
+                ])}
             </Box>
         );
     };
@@ -385,7 +397,6 @@ export default function Employee360ViewSection({
                     <Tab label="Payroll Details" />
                     <Tab label="Documents" />
                     <Tab label="Performance" />
-                    <Tab label="Dependants" />
                 </Tabs>
             </Box>
             
@@ -394,167 +405,32 @@ export default function Employee360ViewSection({
                 {activeTab === 1 && renderEmployeeDetailsTab()}
                 {activeTab === 2 && renderPayrollTab()}
                 {activeTab === 3 && renderDataSection(contracts, 'contracts', 'Contracts', [
-                     { key: 'contractType', label: 'Contract Type' },
-                     { key: 'contractStartDate', label: 'Start Date' },
-                     { key: 'contractEndDate', label: 'End Date' },
+                     { key: 'contractType', label: 'Contract Type' }, { key: 'contractStartDate', label: 'Start Date' }, { key: 'contractEndDate', label: 'End Date' },
                 ])}
-                 {activeTab === 4 && renderDataSection(performanceReviews, 'performance', 'Performance History', [
-                     { key: 'reviewDate', label: 'Review Date' },
-                     { key: 'reviewScore', label: 'Score' },
-                     { key: 'comments', label: 'Comments' },
-                ])}
-                {activeTab === 5 && renderDataSection(dependants, 'dependants', 'Dependants', [
-                     { key: 'dependantName', label: 'Name' },
-                     { key: 'relationship', label: 'Relationship' },
-                     { key: 'dateOfBirth', label: 'Date of Birth' },
+                 {activeTab === 4 && renderDataSection(performanceReviews, 'employee.performance', 'Performance History', [
+                     { key: 'reviewDate', label: 'Review Date' }, { key: 'reviewScore', label: 'Score' }, { key: 'comments', label: 'Comments' },
                 ])}
             </Box>
 
             {/* --- Full list of Modals --- */}
-            <AddEditPerformanceReviewModal
-                isOpen={modalState.performance.isOpen}
-                onClose={() => handleCloseModal('performance')}
-                editedItem={modalState.performance.editedItem}
-                currentEmployeeInView={profile}
-                showNotification={showNotification}
-                refreshData={refreshEmployee360View}
-            />
-            <AddEditCompensationModal
-                isOpen={modalState.compensation.isOpen}
-                onClose={() => handleCloseModal('compensation')}
-                editedItem={modalState.compensation.editedItem}
-                employees={employees}
-                currentEmployeeInView={profile}
-                showNotification={showNotification}
-                refreshData={refreshEmployee360View}
-            />
-            <AddEditTrainingModal
-                isOpen={modalState.training.isOpen}
-                onClose={() => handleCloseModal('training')}
-                editedItem={modalState.training.editedItem}
-                employees={employees}
-                currentEmployeeInView={profile}
-                showNotification={showNotification}
-                refreshData={refreshEmployee360View}
-            />
-            <AddEditDisciplinaryModal
-                isOpen={modalState.disciplinary.isOpen}
-                onClose={() => handleCloseModal('disciplinary')}
-                editedItem={modalState.disciplinary.editedItem}
-                employees={employees}
-                currentEmployeeInView={profile}
-                showNotification={showNotification}
-                refreshData={refreshEmployee360View}
-            />
-            <AddEditContractsModal
-                isOpen={modalState.contracts.isOpen}
-                onClose={() => handleCloseModal('contracts')}
-                editedItem={modalState.contracts.editedItem}
-                employees={employees}
-                currentEmployeeInView={profile}
-                showNotification={showNotification}
-                refreshData={refreshEmployee360View}
-            />
-            <AddEditRetirementsModal
-                isOpen={modalState.retirements.isOpen}
-                onClose={() => handleCloseModal('retirements')}
-                editedItem={modalState.retirements.editedItem}
-                employees={employees}
-                currentEmployeeInView={profile}
-                showNotification={showNotification}
-                refreshData={refreshEmployee360View}
-            />
-            <AddEditLoansModal
-                isOpen={modalState.loans.isOpen}
-                onClose={() => handleCloseModal('loans')}
-                editedItem={modalState.loans.editedItem}
-                employees={employees}
-                currentEmployeeInView={profile}
-                showNotification={showNotification}
-                refreshData={refreshEmployee360View}
-            />
-            <AddEditPayrollModal
-                isOpen={modalState.payroll.isOpen}
-                onClose={() => handleCloseModal('payroll')}
-                editedItem={modalState.payroll.editedItem}
-                employees={employees}
-                currentEmployeeInView={profile}
-                showNotification={showNotification}
-                refreshData={refreshEmployee360View}
-            />
-            <AddEditDependantsModal
-                isOpen={modalState.dependants.isOpen}
-                onClose={() => handleCloseModal('dependants')}
-                editedItem={modalState.dependants.editedItem}
-                employees={employees}
-                currentEmployeeInView={profile}
-                showNotification={showNotification}
-                refreshData={refreshEmployee360View}
-            />
-            <AddEditTerminationsModal
-                isOpen={modalState.terminations.isOpen}
-                onClose={() => handleCloseModal('terminations')}
-                editedItem={modalState.terminations.editedItem}
-                employees={employees}
-                currentEmployeeInView={profile}
-                showNotification={showNotification}
-                refreshData={refreshEmployee360View}
-            />
-            <AddEditBankDetailsModal
-                isOpen={modalState.bankDetails.isOpen}
-                onClose={() => handleCloseModal('bankDetails')}
-                editedItem={modalState.bankDetails.editedItem}
-                employees={employees}
-                currentEmployeeInView={profile}
-                showNotification={showNotification}
-                refreshData={refreshEmployee360View}
-            />
-            <AddEditMembershipsModal
-                isOpen={modalState.memberships.isOpen}
-                onClose={() => handleCloseModal('memberships')}
-                editedItem={modalState.memberships.editedItem}
-                employees={employees}
-                currentEmployeeInView={profile}
-                showNotification={showNotification}
-                refreshData={refreshEmployee360View}
-            />
-            <AddEditBenefitsModal
-                isOpen={modalState.benefits.isOpen}
-                onClose={() => handleCloseModal('benefits')}
-                editedItem={modalState.benefits.editedItem}
-                employees={employees}
-                currentEmployeeInView={profile}
-                showNotification={showNotification}
-                refreshData={refreshEmployee360View}
-            />
-            <AddEditAssignedAssetsModal
-                isOpen={modalState.assignedAssets.isOpen}
-                onClose={() => handleCloseModal('assignedAssets')}
-                editedItem={modalState.assignedAssets.editedItem}
-                employees={employees}
-                currentEmployeeInView={profile}
-                showNotification={showNotification}
-                refreshData={refreshEmployee360View}
-            />
-            <AddEditPromotionsModal
-                isOpen={modalState.promotions.isOpen}
-                onClose={() => handleCloseModal('promotions')}
-                editedItem={modalState.promotions.editedItem}
-                employees={employees}
-                jobGroups={jobGroups}
-                currentEmployeeInView={profile}
-                showNotification={showNotification}
-                refreshData={refreshEmployee360View}
-            />
-            <AddEditProjectAssignmentsModal
-                isOpen={modalState.projectAssignments.isOpen}
-                onClose={() => handleCloseModal('projectAssignments')}
-                editedItem={modalState.projectAssignments.editedItem}
-                employees={employees}
-                currentEmployeeInView={profile}
-                showNotification={showNotification}
-                refreshData={refreshEmployee360View}
-            />
+            <AddEditEmployeeModal isOpen={modalState.employee.isOpen} onClose={() => handleCloseModal('employee')} editedItem={modalState.employee.editedItem} employees={employees} showNotification={showNotification} refreshData={refreshEmployee360View} />
+            <AddEditPerformanceReviewModal isOpen={modalState['employee.performance'].isOpen} onClose={() => handleCloseModal('employee.performance')} editedItem={modalState['employee.performance'].editedItem} currentEmployeeInView={profile} showNotification={showNotification} refreshData={refreshEmployee360View} employees={employees} />
+            <AddEditCompensationModal isOpen={modalState.compensation.isOpen} onClose={() => handleCloseModal('compensation')} editedItem={modalState.compensation.editedItem} employees={employees} currentEmployeeInView={profile} showNotification={showNotification} refreshData={refreshEmployee360View} />
+            <AddEditTrainingModal isOpen={modalState.training.isOpen} onClose={() => handleCloseModal('training')} editedItem={modalState.training.editedItem} employees={employees} currentEmployeeInView={profile} showNotification={showNotification} refreshData={refreshEmployee360View} />
+            <AddEditDisciplinaryModal isOpen={modalState.disciplinary.isOpen} onClose={() => handleCloseModal('disciplinary')} editedItem={modalState.disciplinary.editedItem} employees={employees} currentEmployeeInView={profile} showNotification={showNotification} refreshData={refreshEmployee360View} />
+            <AddEditContractsModal isOpen={modalState.contracts.isOpen} onClose={() => handleCloseModal('contracts')} editedItem={modalState.contracts.editedItem} employees={employees} currentEmployeeInView={profile} showNotification={showNotification} refreshData={refreshEmployee360View} />
+            <AddEditRetirementsModal isOpen={modalState.retirements.isOpen} onClose={() => handleCloseModal('retirements')} editedItem={modalState.retirements.editedItem} employees={employees} currentEmployeeInView={profile} showNotification={showNotification} refreshData={refreshEmployee360View} />
+            <AddEditLoansModal isOpen={modalState.loans.isOpen} onClose={() => handleCloseModal('loans')} editedItem={modalState.loans.editedItem} employees={employees} currentEmployeeInView={profile} showNotification={showNotification} refreshData={refreshEmployee360View} />
+            <AddEditPayrollModal isOpen={modalState.payroll.isOpen} onClose={() => handleCloseModal('payroll')} editedItem={modalState.payroll.editedItem} employees={employees} currentEmployeeInView={profile} showNotification={showNotification} refreshData={refreshEmployee360View} />
+            <AddEditDependantsModal isOpen={modalState.dependants.isOpen} onClose={() => handleCloseModal('dependants')} editedItem={modalState.dependants.editedItem} employees={employees} currentEmployeeInView={profile} showNotification={showNotification} refreshData={refreshEmployee360View} />
+            <AddEditTerminationsModal isOpen={modalState.terminations.isOpen} onClose={() => handleCloseModal('terminations')} editedItem={modalState.terminations.editedItem} employees={employees} currentEmployeeInView={profile} showNotification={showNotification} refreshData={refreshEmployee360View} />
+            <AddEditBankDetailsModal isOpen={modalState.bank_details.isOpen} onClose={() => handleCloseModal('bank_details')} editedItem={modalState.bank_details.editedItem} employees={employees} currentEmployeeInView={profile} showNotification={showNotification} refreshData={refreshEmployee360View} />
+            <AddEditMembershipsModal isOpen={modalState.memberships.isOpen} onClose={() => handleCloseModal('memberships')} editedItem={modalState.memberships.editedItem} employees={employees} currentEmployeeInView={profile} showNotification={showNotification} refreshData={refreshEmployee360View} />
+            <AddEditBenefitsModal isOpen={modalState.benefits.isOpen} onClose={() => handleCloseModal('benefits')} editedItem={modalState.benefits.editedItem} employees={employees} currentEmployeeInView={profile} showNotification={showNotification} refreshData={refreshEmployee360View} />
+            <AddEditAssignedAssetsModal isOpen={modalState.assets.isOpen} onClose={() => handleCloseModal('assets')} editedItem={modalState.assets.editedItem} employees={employees} currentEmployeeInView={profile} showNotification={showNotification} refreshData={refreshEmployee360View} />
+            <AddEditPromotionsModal isOpen={modalState.promotion.isOpen} onClose={() => handleCloseModal('promotion')} editedItem={modalState.promotion.editedItem} employees={employees} jobGroups={jobGroups} currentEmployeeInView={profile} showNotification={showNotification} refreshData={refreshEmployee360View} />
+            <AddEditProjectAssignmentsModal isOpen={modalState['project.assignments'].isOpen} onClose={() => handleCloseModal('project.assignments')} editedItem={modalState['project.assignments'].editedItem} employees={employees} currentEmployeeInView={profile} showNotification={showNotification} refreshData={refreshEmployee360View} />
+            {/* <AddEditEducationModal isOpen={modalState.education.isOpen} onClose={() => handleCloseModal('education')} ... /> */}
         </Box>
     );
 }
