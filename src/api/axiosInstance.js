@@ -7,10 +7,10 @@ import axios from 'axios';
  * for consistent handling of headers (e.g., authentication tokens) and errors.
  */
 
-// const API_BASE_URL = 'http://localhost:3000/api'; // Ensure this matches your Express API base URL
+const API_BASE_URL = 'http://localhost:3000/api'; // Ensure this matches your Express API base URL
 // const API_BASE_URL = 'http://192.168.100.12:6000/api'; // Ensure this matches your Express API base URL
 
-const API_BASE_URL = 'http://192.168.100.12:3000/api'; // Intellibibiz Ensure this matches your Express API base URL
+//const API_BASE_URL = 'http://192.168.100.12:3000/api'; // Intellibibiz Ensure this matches your Express API base URL
 // const API_BASE_URL = 'http://192.168.100.28:3000/api'; // Advocate Ensure this matches your Express API base URL
 
 const axiosInstance = axios.create({

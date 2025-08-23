@@ -10,20 +10,59 @@ export default function AddEditEmployeeModal({
   onClose,
   editedItem,
   employees,
+  jobGroups,
   showNotification,
   refreshData
 }) {
   const [formData, setFormData] = useState({});
+  const [departments, setDepartments] = useState([]);
   const isEditMode = !!editedItem;
 
   useEffect(() => {
-    // Initialize form data based on whether it's an edit or add operation
-    setFormData(isEditMode ? editedItem : {
-      firstName: '', lastName: '', email: '', phoneNumber: '', department: '',
-      title: '', gender: '', dateOfBirth: '', employmentStatus: 'Active',
-      startDate: '', emergencyContactName: '', emergencyContactPhone: '',
-      nationality: '', maritalStatus: '', employmentType: '', managerId: ''
-    });
+    const fetchDepartments = async () => {
+        try {
+            const data = await apiService.metadata.departments.getAllDepartments();
+            setDepartments(data);
+        } catch (error) {
+            showNotification('Could not load departments.', 'error');
+        }
+    };
+
+    if (isOpen) {
+        fetchDepartments();
+        setFormData(isEditMode ? editedItem : {
+            firstName: '',
+            lastName: '',
+            email: '',
+            phoneNumber: '',
+            departmentId: '',
+            jobGroupId: '',
+            gender: '',
+            dateOfBirth: '',
+            placeOfBirth: '',
+            bloodType: '',
+            religion: '',
+            nationalId: '',
+            kraPin: '',
+            employmentStatus: 'Active',
+            startDate: '',
+            emergencyContactName: '',
+            emergencyContactRelationship: '',
+            emergencyContactPhone: '',
+            nationality: '',
+            maritalStatus: 'Single',
+            employmentType: 'Full-time',
+            managerId: '',
+            role: ''
+        });
+    }
+  }, [isOpen, isEditMode, editedItem]);
+
+  // NEW useEffect to update formData when editedItem changes
+  useEffect(() => {
+      if (isEditMode && editedItem) {
+          setFormData(editedItem);
+      }
   }, [isEditMode, editedItem]);
 
   const handleFormChange = (e) => {
@@ -34,13 +73,12 @@ export default function AddEditEmployeeModal({
   const handleSubmit = async (e) => {
     e.preventDefault();
     const action = isEditMode ? 'updateEmployee' : 'addEmployee';
-    const apiFunction = apiService.hr[`${action.charAt(0).toLowerCase() + action.slice(1)}`];
+    const apiFunction = apiService.hr[action];
 
     if (!apiFunction) {
       showNotification(`API function for ${action} not found.`, 'error');
       return;
     }
-
     try {
       const payload = { ...formData, userId: 1 };
       if (isEditMode) {
@@ -49,51 +87,187 @@ export default function AddEditEmployeeModal({
         await apiFunction(payload);
       }
       showNotification(`Employee ${isEditMode ? 'updated' : 'added'} successfully.`, 'success');
-      onClose();
       refreshData();
+      onClose();
     } catch (error) {
       showNotification(error.response?.data?.message || `Failed to ${isEditMode ? 'update' : 'add'} employee.`, 'error');
     }
   };
 
-  const renderEmployeeValue = (selectedId) => {
-    const employee = employees.find(emp => String(emp.staffId) === String(selectedId));
-    return employee ? `${employee.firstName} ${employee.lastName}` : '';
-  };
-
   return (
-    <Dialog open={isOpen} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle sx={{ backgroundColor: 'primary.main', color: 'white' }}>
-        {isEditMode ? 'Edit Employee' : 'Add New Employee'}
-      </DialogTitle>
+    <Dialog open={isOpen} onClose={onClose} fullWidth maxWidth="md">
+      <DialogTitle>{isEditMode ? 'Edit Employee' : 'Add New Employee'}</DialogTitle>
       <DialogContent dividers>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} id="employee-form">
+          <Typography variant="h6" gutterBottom sx={{ mt: 1 }}>Personal Details</Typography>
+          {/* UPDATED: Grid component syntax to v2 (item prop removed) */}
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}><TextField fullWidth margin="normal" name="firstName" label="First Name" type="text" value={formData?.firstName || ''} onChange={handleFormChange} required /></Grid>
-            <Grid item xs={12} sm={6}><TextField fullWidth margin="normal" name="lastName" label="Last Name" type="text" value={formData?.lastName || ''} onChange={handleFormChange} required /></Grid>
-            <Grid item xs={12} sm={6}><TextField fullWidth margin="normal" name="email" label="Email" type="email" value={formData?.email || ''} onChange={handleFormChange} required /></Grid>
-            <Grid item xs={12} sm={6}><TextField fullWidth margin="normal" name="phoneNumber" label="Phone Number" type="tel" value={formData?.phoneNumber || ''} onChange={handleFormChange} /></Grid>
-            <Grid item xs={12} sm={6}><TextField fullWidth margin="normal" name="department" label="Department" type="text" value={formData?.department || ''} onChange={handleFormChange} /></Grid>
-            <Grid item xs={12} sm={6}><TextField fullWidth margin="normal" name="title" label="Title" type="text" value={formData?.title || ''} onChange={handleFormChange} /></Grid>
-            <Grid item xs={12} sm={6}><FormControl fullWidth margin="normal" required sx={{ minWidth: 200 }}><InputLabel>Gender</InputLabel><Select name="gender" value={formData?.gender || ''} onChange={handleFormChange} label="Gender"><MenuItem value=""><em>Select gender...</em></MenuItem><MenuItem value="Male">Male</MenuItem><MenuItem value="Female">Female</MenuItem><MenuItem value="Other">Other</MenuItem></Select></FormControl></Grid>
-            <Grid item xs={12} sm={6}><TextField fullWidth margin="normal" name="dateOfBirth" label="Date of Birth" type="date" value={formData?.dateOfBirth?.slice(0, 10) || ''} onChange={handleFormChange} InputLabelProps={{ shrink: true }} /></Grid>
-            <Grid item xs={12} sm={6}><FormControl fullWidth margin="normal" required sx={{ minWidth: 200 }}><InputLabel>Employment Status</InputLabel><Select name="employmentStatus" value={formData?.employmentStatus || 'Active'} onChange={handleFormChange} label="Employment Status"><MenuItem value="Active">Active</MenuItem><MenuItem value="On Leave">On Leave</MenuItem><MenuItem value="Terminated">Terminated</MenuItem></Select></FormControl></Grid>
-            <Grid item xs={12} sm={6}><TextField fullWidth margin="normal" name="startDate" label="Start Date" type="date" value={formData?.startDate?.slice(0, 10) || ''} onChange={handleFormChange} required InputLabelProps={{ shrink: true }} /></Grid>
-            <Grid item xs={12} sm={6}><TextField fullWidth margin="normal" name="emergencyContactName" label="Emergency Contact Name" type="text" value={formData?.emergencyContactName || ''} onChange={handleFormChange} /></Grid>
-            <Grid item xs={12} sm={6}><TextField fullWidth margin="normal" name="emergencyContactPhone" label="Emergency Contact Phone" type="tel" value={formData?.emergencyContactPhone || ''} onChange={handleFormChange} /></Grid>
-            <Grid item xs={12} sm={6}><TextField fullWidth margin="normal" name="nationality" label="Nationality" type="text" value={formData?.nationality || ''} onChange={handleFormChange} /></Grid>
-            <Grid item xs={12} sm={6}><FormControl fullWidth margin="normal" sx={{ minWidth: 200 }}><InputLabel>Marital Status</InputLabel><Select name="maritalStatus" value={formData?.maritalStatus || ''} onChange={handleFormChange} label="Marital Status"><MenuItem value=""><em>Select marital status...</em></MenuItem><MenuItem value="Single">Single</MenuItem><MenuItem value="Married">Married</MenuItem><MenuItem value="Divorced">Divorced</MenuItem><MenuItem value="Widowed">Widowed</MenuItem></Select></FormControl></Grid>
-            <Grid item xs={12} sm={6}><FormControl fullWidth margin="normal" sx={{ minWidth: 200 }}><InputLabel>Employment Type</InputLabel><Select name="employmentType" value={formData?.employmentType || ''} onChange={handleFormChange} label="Employment Type"><MenuItem value=""><em>Select employment type...</em></MenuItem><MenuItem value="Full-time">Full-time</MenuItem><MenuItem value="Part-time">Part-time</MenuItem><MenuItem value="Contract">Contract</MenuItem><MenuItem value="Internship">Internship</MenuItem></Select></FormControl></Grid>
-            <Grid item xs={12} sm={6}><FormControl fullWidth margin="normal" sx={{ minWidth: 200 }}><InputLabel>Manager/Supervisor</InputLabel><Select name="managerId" value={formData?.managerId || ''} onChange={handleFormChange} label="Manager/Supervisor" renderValue={renderEmployeeValue}><MenuItem value=""><em>Select a manager...</em></MenuItem>{employees.map((emp) => (<MenuItem key={emp.staffId} value={String(emp.staffId)}>{emp.firstName} {emp.lastName}</MenuItem>))}</Select></FormControl></Grid>
+            <Grid xs={12} sm={6} md={4}>
+              <TextField autoFocus name="firstName" label="First Name" fullWidth value={formData.firstName || ''} onChange={handleFormChange} required />
+            </Grid>
+            <Grid xs={12} sm={6} md={4}>
+              <TextField name="lastName" label="Last Name" fullWidth value={formData.lastName || ''} onChange={handleFormChange} required />
+            </Grid>
+            <Grid xs={12} sm={6} md={4}>
+                <FormControl fullWidth required sx={{ minWidth: 200 }}>
+                    <InputLabel>Gender</InputLabel>
+                    <Select name="gender" value={formData.gender || ''} label="Gender" onChange={handleFormChange}>
+                        <MenuItem value="Male">Male</MenuItem>
+                        <MenuItem value="Female">Female</MenuItem>
+                        <MenuItem value="Other">Other</MenuItem>
+                    </Select>
+                </FormControl>
+            </Grid>
+            <Grid xs={12} sm={6} md={4}>
+                <TextField name="dateOfBirth" label="Date of Birth" type="date" fullWidth value={formData.dateOfBirth?.slice(0, 10) || ''} onChange={handleFormChange} InputLabelProps={{ shrink: true }} />
+            </Grid>
+            <Grid xs={12} sm={6} md={4}>
+              <TextField name="placeOfBirth" label="Place of Birth" fullWidth value={formData.placeOfBirth || ''} onChange={handleFormChange} />
+            </Grid>
+            <Grid xs={12} sm={6} md={4}>
+              <TextField name="nationality" label="Nationality" fullWidth value={formData.nationality || ''} onChange={handleFormChange} />
+            </Grid>
+            <Grid xs={12} sm={6} md={4}>
+              <TextField name="nationalId" label="National ID" fullWidth value={formData.nationalId || ''} onChange={handleFormChange} />
+            </Grid>
+            <Grid xs={12} sm={6} md={4}>
+              <TextField name="kraPin" label="KRA PIN" fullWidth value={formData.kraPin || ''} onChange={handleFormChange} />
+            </Grid>
+            <Grid xs={12} sm={6} md={4}>
+              <FormControl fullWidth sx={{ minWidth: 200 }}>
+                <InputLabel>Marital Status</InputLabel>
+                <Select name="maritalStatus" value={formData.maritalStatus || ''} label="Marital Status" onChange={handleFormChange}>
+                  <MenuItem value="Single">Single</MenuItem>
+                  <MenuItem value="Married">Married</MenuItem>
+                  <MenuItem value="Divorced">Divorced</MenuItem>
+                  <MenuItem value="Widowed">Widowed</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+             <Grid xs={12} sm={6} md={4}>
+                <FormControl fullWidth sx={{ minWidth: 200 }}>
+                    <InputLabel>Blood Type</InputLabel>
+                    <Select name="bloodType" value={formData.bloodType || ''} label="Blood Type" onChange={handleFormChange}>
+                        <MenuItem value="A+">A+</MenuItem> <MenuItem value="A-">A-</MenuItem>
+                        <MenuItem value="B+">B+</MenuItem> <MenuItem value="B-">B-</MenuItem>
+                        <MenuItem value="AB+">AB+</MenuItem> <MenuItem value="AB-">AB-</MenuItem>
+                        <MenuItem value="O+">O+</MenuItem> <MenuItem value="O-">O-</MenuItem>
+                    </Select>
+                </FormControl>
+            </Grid>
+            <Grid xs={12} sm={6} md={4}>
+              <TextField name="religion" label="Religion" fullWidth value={formData.religion || ''} onChange={handleFormChange} />
+            </Grid>
           </Grid>
-          <DialogActions>
-            <Button onClick={onClose} color="primary" variant="outlined">Cancel</Button>
-            <Button type="submit" variant="contained" color="success">
-              {isEditMode ? 'Update' : 'Add'}
-            </Button>
-          </DialogActions>
+
+          <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>Contact Information</Typography>
+          <Grid container spacing={2}>
+             <Grid xs={12} sm={6}>
+              <TextField name="email" label="Email" type="email" fullWidth value={formData.email || ''} onChange={handleFormChange} required />
+            </Grid>
+            <Grid xs={12} sm={6}>
+              <TextField name="phoneNumber" label="Phone Number" fullWidth value={formData.phoneNumber || ''} onChange={handleFormChange} />
+            </Grid>
+            <Grid xs={12} sm={6} md={4}>
+              <TextField name="emergencyContactName" label="Emergency Contact Name" fullWidth value={formData.emergencyContactName || ''} onChange={handleFormChange} />
+            </Grid>
+            <Grid xs={12} sm={6} md={4}>
+              <FormControl fullWidth sx={{ minWidth: 200 }}>
+                <InputLabel>Emergency Contact Relationship</InputLabel>
+                <Select name="emergencyContactRelationship" value={formData.emergencyContactRelationship || ''} label="Emergency Contact Relationship" onChange={handleFormChange}>
+                  <MenuItem value="Spouse">Spouse</MenuItem>
+                  <MenuItem value="Parent">Parent</MenuItem>
+                  <MenuItem value="Sibling">Sibling</MenuItem>
+                  <MenuItem value="Child">Child</MenuItem>
+                  <MenuItem value="Friend">Friend</MenuItem>
+                  <MenuItem value="Other">Other</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid xs={12} sm={6} md={4}>
+              <TextField name="emergencyContactPhone" label="Emergency Contact Phone" fullWidth value={formData.emergencyContactPhone || ''} onChange={handleFormChange} />
+            </Grid>
+          </Grid>
+          
+          <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>Employment Details</Typography>
+          <Grid container spacing={2}>
+            <Grid xs={12} sm={6} md={4}>
+              <FormControl fullWidth required sx={{ minWidth: 200 }}>
+                <InputLabel>Department</InputLabel>
+                <Select name="departmentId" value={formData.departmentId || ''} onChange={handleFormChange} label="Department">
+                  {Array.isArray(departments) && departments.map((dept) => (
+                    <MenuItem key={dept.departmentId} value={dept.departmentId}>{dept.name}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid xs={12} sm={6} md={4}>
+              {Array.isArray(jobGroups) && jobGroups.length > 0 ? (
+                <FormControl fullWidth required sx={{ minWidth: 200 }}>
+                  <InputLabel>Job Group / Title</InputLabel>
+                  <Select name="jobGroupId" value={formData.jobGroupId || ''} onChange={handleFormChange} label="Job Group / Title">
+                    {jobGroups.map((group) => (
+                      <MenuItem key={group.id} value={group.id}>
+                        {group.groupName}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              ) : (
+                <TextField
+                  name="jobGroupId"
+                  label="Job Group / Title"
+                  fullWidth
+                  value=""
+                  disabled
+                  helperText="Loading job groups..."
+                />
+              )}
+            </Grid>
+            <Grid xs={12} sm={6} md={4}>
+              <FormControl fullWidth required sx={{ minWidth: 200 }}>
+                  <InputLabel>Employment Type</InputLabel>
+                  <Select name="employmentType" value={formData.employmentType || ''} label="Employment Type" onChange={handleFormChange}>
+                      <MenuItem value="Full-time">Full-time</MenuItem>
+                      <MenuItem value="Part-time">Part-time</MenuItem>
+                      <MenuItem value="Contract">Contract</MenuItem>
+                      <MenuItem value="Intern">Intern</MenuItem>
+                  </Select>
+              </FormControl>
+            </Grid>
+             <Grid xs={12} sm={6} md={4}>
+                <FormControl fullWidth required sx={{ minWidth: 200 }}>
+                    <InputLabel>Employment Status</InputLabel>
+                    <Select name="employmentStatus" value={formData.employmentStatus || ''} label="Employment Status" onChange={handleFormChange}>
+                        <MenuItem value="Active">Active</MenuItem>
+                        <MenuItem value="On Leave">On Leave</MenuItem>
+                        <MenuItem value="Terminated">Terminated</MenuItem>
+                    </Select>
+                </FormControl>
+            </Grid>
+            <Grid xs={12} sm={6} md={4}>
+                <TextField name="startDate" label="Start Date" type="date" fullWidth value={formData.startDate?.slice(0, 10) || ''} onChange={handleFormChange} InputLabelProps={{ shrink: true }} />
+            </Grid>
+            <Grid xs={12} sm={6} md={4}>
+              <FormControl fullWidth sx={{ minWidth: 200 }}>
+                <InputLabel>Manager</InputLabel>
+                <Select name="managerId" value={formData.managerId || ''} label="Manager" onChange={handleFormChange}>
+                  <MenuItem value=""><em>None</em></MenuItem>
+                  {Array.isArray(employees) && employees.map((emp) => (
+                      <MenuItem key={emp.staffId} value={emp.staffId}>{emp.firstName} {emp.lastName}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+          </Grid>
         </form>
       </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} color="primary" variant="outlined">Cancel</Button>
+        <Button type="submit" form="employee-form" variant="contained" color="success">
+          {isEditMode ? 'Update' : 'Save'}
+        </Button>
+      </DialogActions>
     </Dialog>
   );
 }

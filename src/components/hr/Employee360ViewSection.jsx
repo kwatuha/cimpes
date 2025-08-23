@@ -4,7 +4,11 @@ import {
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow
 } from '@mui/material';
 import {
-    Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, MailOutline as MailIcon, PhoneOutlined as PhoneIcon, WcOutlined as GenderIcon
+    Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, MailOutline as MailIcon, PhoneOutlined as PhoneIcon, WcOutlined as GenderIcon,
+    WorkOutline as WorkIcon, SupervisorAccount as ManagerIcon, CakeOutlined as BirthdayIcon, PublicOutlined as NationalityIcon,
+    Diversity2Outlined as MaritalIcon, PersonOutline, BloodtypeOutlined as BloodIcon,
+    ArticleOutlined as NationalIdIcon, CreditCardOutlined as KraPinIcon, CalendarMonthOutlined as StartDateIcon,
+    PlaceOutlined as LocationIcon, AccessTimeOutlined as TimeIcon, DescriptionOutlined as DescriptionIcon
 } from '@mui/icons-material';
 import apiService from '../../api';
 
@@ -30,10 +34,13 @@ import AddEditLeaveApplicationModal from './modals/AddEditLeaveApplicationModal'
 // import AddEditEducationModal from './modals/AddEditEducationModal';
 
 // Helper component for styled list items
-const InfoItem = ({ label, value }) => (
-    <Grid xs={12} sm={6}>
-        <Typography variant="body2" color="text.secondary">{label}</Typography>
-        <Typography variant="subtitle2" sx={{ fontWeight: 'medium' }}>{value || 'N/A'}</Typography>
+const InfoItem = ({ icon, label, value }) => (
+    <Grid item xs={12} sm={6} sx={{ display: 'flex', alignItems: 'center' }}>
+        {icon && <ListItemIcon sx={{ minWidth: 32 }}>{icon}</ListItemIcon>}
+        <Box>
+            <Typography variant="body2" color="text.secondary">{label}</Typography>
+            <Typography variant="subtitle2" sx={{ fontWeight: 'medium' }}>{value || 'N/A'}</Typography>
+        </Box>
     </Grid>
 );
 
@@ -59,7 +66,7 @@ const getDisplayValue = (item, field) => {
     const value = item[field.key];
     if (value === null || value === undefined || value === '') return 'N/A';
 
-    if (field.key.includes('Date') || field.key.includes('Period')) return value.slice(0, 10);
+    if (field.key.includes('Date') || field.key.includes('Period') || field.key.includes('startDate')) return value.slice(0, 10);
     if (['baseSalary', 'allowances', 'bonuses', 'grossSalary', 'netSalary', 'loanAmount'].includes(field.key)) {
       return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
     }
@@ -230,7 +237,7 @@ export default function Employee360ViewSection({
     const renderPersonalInfoTab = () => (
         <Grid container spacing={3}>
             <Grid item xs={12}>
-                <InfoCard title="Basic information" onEdit={() => handleOpenEditModal(profile, 'employee')}>
+                <InfoCard title="Basic Information" onEdit={() => handleOpenEditModal(profile, 'employee')}>
                     <Grid container spacing={3}>
                         <Grid item xs={12} md={4} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                             <Avatar sx={{ width: 120, height: 120, mb: 2, fontSize: '3rem' }}>
@@ -238,20 +245,70 @@ export default function Employee360ViewSection({
                             </Avatar>
                             <Typography variant="h6" sx={{ fontWeight: 'bold' }}>{profile?.firstName} {profile?.lastName}</Typography>
                             <Typography variant="body2" color="text.secondary">{profile?.staffId}</Typography>
-                             <List dense sx={{ width: '100%', maxWidth: 360, mt: 1 }}>
-                                <ListItem disablePadding><ListItemIcon sx={{minWidth: 32}}><GenderIcon fontSize="small" /></ListItemIcon><ListItemText primary={profile?.gender} /></ListItem>
-                                <ListItem disablePadding><ListItemIcon sx={{minWidth: 32}}><MailIcon fontSize="small" /></ListItemIcon><ListItemText primary={profile?.email} /></ListItem>
-                                <ListItem disablePadding><ListItemIcon sx={{minWidth: 32}}><PhoneIcon fontSize="small" /></ListItemIcon><ListItemText primary={profile?.phoneNumber} /></ListItem>
-                            </List>
                         </Grid>
-                        <Grid item xs={12} md={8} container spacing={2} alignContent="center">
-                            <InfoItem label="Place of birth" value={profile?.placeOfBirth} />
-                            <InfoItem label="Birth date" value={profile?.dateOfBirth?.slice(0, 10)} />
-                            <InfoItem label="Blood type" value={profile?.bloodType} />
-                            <InfoItem label="Marital Status" value={profile?.maritalStatus} />
-                            <InfoItem label="Religion" value={profile?.religion} />
-                            <InfoItem label="Nationality" value={profile?.nationality} />
+                        <Grid item xs={12} md={8} container spacing={2}>
+                             <Grid item xs={12} sm={6}>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Contact Information</Typography>
+                                <List dense>
+                                    <ListItem disablePadding>
+                                        <ListItemIcon sx={{minWidth: 32}}><MailIcon fontSize="small" /></ListItemIcon>
+                                        <ListItemText primary={profile?.email || 'N/A'} />
+                                    </ListItem>
+                                    <ListItem disablePadding>
+                                        <ListItemIcon sx={{minWidth: 32}}><PhoneIcon fontSize="small" /></ListItemIcon>
+                                        <ListItemText primary={profile?.phoneNumber || 'N/A'} />
+                                    </ListItem>
+                                </List>
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Personal Details</Typography>
+                                <List dense>
+                                    <ListItem disablePadding>
+                                        <ListItemIcon sx={{minWidth: 32}}><GenderIcon fontSize="small" /></ListItemIcon>
+                                        <ListItemText primary={profile?.gender || 'N/A'} />
+                                    </ListItem>
+                                    <ListItem disablePadding>
+                                        <ListItemIcon sx={{minWidth: 32}}><MaritalIcon fontSize="small" /></ListItemIcon>
+                                        <ListItemText primary={profile?.maritalStatus || 'N/A'} />
+                                    </ListItem>
+                                    <ListItem disablePadding>
+                                        <ListItemIcon sx={{minWidth: 32}}><BloodIcon fontSize="small" /></ListItemIcon>
+                                        <ListItemText primary={profile?.bloodType || 'N/A'} />
+                                    </ListItem>
+                                    <ListItem disablePadding>
+                                        <ListItemIcon sx={{minWidth: 32}}><PersonOutline fontSize="small" /></ListItemIcon>
+                                        <ListItemText primary={profile?.religion || 'N/A'} />
+                                    </ListItem>
+                                    <ListItem disablePadding>
+                                        <ListItemIcon sx={{minWidth: 32}}><NationalityIcon fontSize="small" /></ListItemIcon>
+                                        <ListItemText primary={profile?.nationality || 'N/A'} />
+                                    </ListItem>
+                                    <ListItem disablePadding>
+                                        <ListItemIcon sx={{minWidth: 32}}><LocationIcon fontSize="small" /></ListItemIcon>
+                                        <ListItemText primary={profile?.placeOfBirth || 'N/A'} />
+                                    </ListItem>
+                                </List>
+                            </Grid>
                         </Grid>
+                    </Grid>
+                </InfoCard>
+            </Grid>
+            <Grid item xs={12} md={6}>
+                <InfoCard title="Employment Details" onEdit={() => handleOpenEditModal(profile, 'employee')}>
+                    <Grid container spacing={2}>
+                        <InfoItem icon={<WorkIcon fontSize="small" />} label="Job Group" value={getJobGroupName(profile?.jobGroupId)} />
+                        <InfoItem icon={<ManagerIcon fontSize="small" />} label="Manager" value={getManagerName(profile?.managerId)} />
+                        <InfoItem icon={<StartDateIcon fontSize="small" />} label="Start Date" value={profile?.startDate?.slice(0, 10)} />
+                        <InfoItem icon={<WorkIcon fontSize="small" />} label="Employment Type" value={profile?.employmentType} />
+                        <InfoItem icon={<WorkIcon fontSize="small" />} label="Employment Status" value={profile?.employmentStatus} />
+                    </Grid>
+                </InfoCard>
+            </Grid>
+            <Grid item xs={12} md={6}>
+                <InfoCard title="Official Documents" onEdit={() => handleOpenEditModal(profile, 'employee')}>
+                    <Grid container spacing={2}>
+                        <InfoItem icon={<NationalIdIcon fontSize="small" />} label="National ID" value={profile?.nationalId} />
+                        <InfoItem icon={<KraPinIcon fontSize="small" />} label="KRA PIN" value={profile?.kraPin} />
                     </Grid>
                 </InfoCard>
             </Grid>
@@ -350,7 +407,6 @@ export default function Employee360ViewSection({
                             ))}
                         </Grid>
                         
-                        {/* UPDATED: The 'status' field now has a customRenderer for the badge */}
                         {renderDataSection(leaveApplications, 'leave.apply', 'Leave Application History', [ 
                             { key: 'leaveTypeName', label: 'Leave Type' }, 
                             { key: 'startDate', label: 'Start Date' }, 
@@ -393,7 +449,7 @@ export default function Employee360ViewSection({
                 )}
             </Box>
 
-            <AddEditEmployeeModal isOpen={modalState.employee.isOpen} onClose={() => handleCloseModal('employee')} editedItem={modalState.employee.editedItem} employees={employees} showNotification={showNotification} refreshData={refreshEmployee360View} />
+            <AddEditEmployeeModal isOpen={modalState.employee.isOpen} onClose={() => handleCloseModal('employee')} editedItem={modalState.employee.editedItem} employees={employees} jobGroups={jobGroups} showNotification={showNotification} refreshData={refreshEmployee360View} />
             <AddEditPerformanceReviewModal isOpen={modalState['employee.performance'].isOpen} onClose={() => handleCloseModal('employee.performance')} editedItem={modalState['employee.performance'].editedItem} currentEmployeeInView={profile} showNotification={showNotification} refreshData={refreshEmployee360View} employees={employees} />
             <AddEditCompensationModal isOpen={modalState.compensation.isOpen} onClose={() => handleCloseModal('compensation')} editedItem={modalState.compensation.editedItem} employees={employees} currentEmployeeInView={profile} showNotification={showNotification} refreshData={refreshEmployee360View} />
             <AddEditTrainingModal isOpen={modalState.training.isOpen} onClose={() => handleCloseModal('training')} editedItem={modalState.training.editedItem} employees={employees} currentEmployeeInView={profile} showNotification={showNotification} refreshData={refreshEmployee360View} />

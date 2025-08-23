@@ -11,6 +11,12 @@ const hrService = {
   updateEmployee: (id, data) => axiosInstance.put(`/hr/employees/${id}`, data).then(processResponse),
   deleteEmployee: (id) => axiosInstance.delete(`/hr/employees/${id}`).then(processResponse),
   getEmployee360View: (id) => axiosInstance.get(`/hr/employees/${id}/360`).then(processResponse),
+  
+  // NEW: Employee Export functions
+  exportEmployeesToExcel: (headers) => 
+    axiosInstance.post('/hr/export/employees-excel', { headers }, { responseType: 'blob' }).then(processResponse),
+  exportEmployeesToPdf: (tableHtml) => 
+    axiosInstance.post('/hr/export/employees-pdf', { tableHtml }, { responseType: 'blob' }).then(processResponse),
 
   // --- Performance Reviews ---
   addPerformanceReview: (data) => axiosInstance.post('/hr/employees/performance', data).then(processResponse),
@@ -95,15 +101,17 @@ const hrService = {
   addProjectAssignment: (data) => axiosInstance.post('/hr/project-assignments', data).then(processResponse),
   updateProjectAssignment: (id, data) => axiosInstance.put(`/hr/project-assignments/${id}`, data).then(processResponse),
   deleteProjectAssignment: (id) => axiosInstance.delete(`/hr/project-assignments/${id}`).then(processResponse),
-// NEW: Function to get leave balance for a specific employee and year
+  
+  // NEW: Function to get leave balance for a specific employee and year
   getLeaveBalance: (employeeId, year) => axiosInstance.get(`/hr/employees/${employeeId}/leave-balance?year=${year}`).then(processResponse),
-// --- Public Holidays ---
+  
+  // --- Public Holidays ---
   getPublicHolidays: () => axiosInstance.get('/hr/public-holidays').then(processResponse),
   addPublicHoliday: (data) => axiosInstance.post('/hr/public-holidays', data).then(processResponse),
   updatePublicHoliday: (id, data) => axiosInstance.put(`/hr/public-holidays/${id}`, data).then(processResponse),
   deletePublicHoliday: (id) => axiosInstance.delete(`/hr/public-holidays/${id}`).then(processResponse),
- calculateWorkingDays: (startDate, endDate) => axiosInstance.get(`/hr/calculate-working-days?startDate=${startDate}&endDate=${endDate}`).then(processResponse),
- 
+  
+  calculateWorkingDays: (startDate, endDate) => axiosInstance.get(`/hr/calculate-working-days?startDate=${startDate}&endDate=${endDate}`).then(processResponse),
 };
 
 export default hrService;

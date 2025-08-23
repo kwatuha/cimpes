@@ -65,7 +65,6 @@ export default function HrModule() {
     setIsDeleteConfirmModalOpen(true);
   };
 
-  // UPDATED: Smarter handleDelete function to handle special cases
   const handleDelete = async () => {
     if (!itemToDelete) return;
 
@@ -75,9 +74,7 @@ export default function HrModule() {
         'job_group': 'deleteJobGroup',
         'leave_type': 'deleteLeaveType'
     };
-
     let apiFunctionName = functionNameMap[itemToDelete.type];
-
     if (!apiFunctionName) {
         const formattedType = itemToDelete.type.replace(/\./g, '_').split('_').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join('');
         apiFunctionName = `delete${formattedType}`;
@@ -173,7 +170,7 @@ export default function HrModule() {
   }, [currentPage]);
 
   const handleUpdateLeaveStatus = async (status) => {
-    if (!hasPrivilege('leave.approve')) { showNotification('Permission denied.', 'error'); return; }
+    if (!hasPrivilege('leave.approve')) { showNotification('Permission denied to approve or reject leave.', 'error'); return; }
     setLoading(true);
     try {
       const payload = { status, userId: CURRENT_USER_ID };
@@ -188,7 +185,7 @@ export default function HrModule() {
 
   const handleRecordReturn = async (e) => {
     e.preventDefault();
-    if (!hasPrivilege('leave.complete')) { showNotification('Permission denied.', 'error'); return; }
+    if (!hasPrivilege('leave.complete')) { showNotification('Permission denied to record actual return.', 'error'); return; }
     setLoading(true);
     try { await apiService.hr.recordActualReturn(selectedApplication.id, { actualReturnDate, userId: CURRENT_USER_ID }); showNotification('Actual return date recorded successfully.', 'success'); setIsReturnModalOpen(false); fetchData('leaveApplications'); }
     catch (error) { showNotification(error.response?.data?.message || 'Failed to record actual return date.', 'error'); }
@@ -196,7 +193,7 @@ export default function HrModule() {
   };
   
   const handleAttendance = async (staffId) => {
-    if (!hasPrivilege('attendance.create')) { showNotification('Permission denied.', 'error'); return; }
+    if (!hasPrivilege('attendance.create')) { showNotification('Permission denied to record attendance.', 'error'); return; }
     if (!staffId) { showNotification('Please select a staff member.', 'warning'); return; }
     setLoading(true);
     try {
@@ -213,8 +210,25 @@ export default function HrModule() {
     } catch (error) { showNotification(error.response?.data?.message || 'Failed to record attendance.', 'error'); }
     finally { setLoading(false); }
   };
+  
+  const handleOpenAddEmployeeModal = (item = null) => {
+    if (jobGroups.length === 0) {
+      showNotification("Please wait, loading job groups...", 'info');
+      return;
+    }
+    setEditedItem(item);
+    setIsEmployeeModalOpen(true);
+  };
+  
+  const handleOpenEditEmployeeModal = (item) => {
+    if (jobGroups.length === 0) {
+      showNotification("Please wait, loading job groups...", 'info');
+      return;
+    }
+    setEditedItem(item);
+    setIsEmployeeModalOpen(true);
+  };
 
-  const handleOpenAddEmployeeModal = (item = null) => { setEditedItem(item); setIsEmployeeModalOpen(true); };
   const handleCloseEmployeeModal = () => setIsEmployeeModalOpen(false);
   const handleOpenAddLeaveTypeModal = (item = null) => { setEditedItem(item); setIsLeaveTypeModalOpen(true); };
   const handleCloseLeaveTypeModal = () => setIsLeaveTypeModalOpen(false);
@@ -234,7 +248,7 @@ export default function HrModule() {
     }
     switch (currentPage) {
       case 'employees':
-        return <EmployeeSection {...{ employees, showNotification, refreshData: () => fetchData('employees'), fetchEmployee360View, handleOpenDeleteConfirmModal, handleOpenAddEmployeeModal, handleOpenEditEmployeeModal: handleOpenAddEmployeeModal }} />;
+        return <EmployeeSection {...{ employees, showNotification, refreshData: () => fetchData('employees'), fetchEmployee360View, handleOpenDeleteConfirmModal, handleOpenAddEmployeeModal, handleOpenEditEmployeeModal }} />;
       case 'employee360':
         return <Employee360ViewSection {...{ employee360View, employees, leaveTypes, jobGroups, leaveBalances, hasPrivilege, showNotification, refreshEmployee360View: () => fetchEmployee360View(currentEmployeeInView.staffId), handleOpenDeleteConfirmModal }} />;
       case 'leaveApplications':
@@ -276,7 +290,7 @@ export default function HrModule() {
   return (
     <Box sx={{ p: 3, background: 'background.default', minHeight: '100vh' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1" sx={{ color: 'primary.main', fontWeight: 'bold' }}>HR Module</Typography>
+        <Typography variant="h4" component="h1" sx={{ color: 'primary.main', fontWeight: 'bold' }}>H</Typography>
       </Box>
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 4 }}>
         <Stack direction="row" spacing={2} role="tablist">
@@ -291,7 +305,9 @@ export default function HrModule() {
       <ConfirmDeleteModal isOpen={isDeleteConfirmModalOpen} onClose={() => setIsDeleteConfirmModalOpen(false)} itemToDelete={itemToDelete} onConfirm={handleDelete} />
       <ApproveLeaveModal isOpen={isApprovalModalOpen} onClose={() => setIsApprovalModalOpen(false)} selectedApplication={selectedApplication} approvedDates={approvedDates} setApprovedDates={setApprovedDates} onApprove={handleUpdateLeaveStatus} leaveBalances={leaveBalances} />
       <RecordReturnModal isOpen={isReturnModalOpen} onClose={() => setIsReturnModalOpen(false)} selectedApplication={selectedApplication} actualReturnDate={actualReturnDate} setActualReturnDate={setActualReturnDate} onRecordReturn={handleRecordReturn} />
-      <AddEditEmployeeModal isOpen={isEmployeeModalOpen} onClose={handleCloseEmployeeModal} editedItem={editedItem} employees={employees} showNotification={showNotification} refreshData={() => fetchData('employees')} />
+      
+      <AddEditEmployeeModal isOpen={isEmployeeModalOpen} onClose={handleCloseEmployeeModal} editedItem={editedItem} employees={employees} jobGroups={jobGroups} showNotification={showNotification} refreshData={() => fetchData('employees')} />
+      
       <AddEditLeaveTypeModal isOpen={isLeaveTypeModalOpen} onClose={handleCloseLeaveTypeModal} editedItem={editedItem} showNotification={showNotification} refreshData={() => fetchData('administration')} />
       <AddEditLeaveApplicationModal isOpen={isLeaveApplicationModalOpen} onClose={handleCloseLeaveApplicationModal} editedItem={editedItem} employees={employees} leaveTypes={leaveTypes} leaveBalances={leaveBalances} showNotification={showNotification} refreshData={() => fetchData('leaveApplications')} />
       <AddEditJobGroupModal isOpen={isJobGroupModalOpen} onClose={handleCloseJobGroupModal} editedItem={editedItem} showNotification={showNotification} refreshData={() => fetchData('administration')} />
