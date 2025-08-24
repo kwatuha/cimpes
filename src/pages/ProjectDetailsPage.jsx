@@ -16,7 +16,7 @@ import {
   PhotoCamera as PhotoCameraIcon,
   Visibility as VisibilityIcon,
   Paid as PaidIcon,
-  ExpandMore as ExpandMoreIcon
+  ExpandMore as ExpandMoreIcon, Close as CloseIcon
 } from '@mui/icons-material';
 import apiService from '../api';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -71,7 +71,6 @@ function ProjectDetailsPage() {
   const [error, setError] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
-  // Corrected: use local state for the modal
   const [openMilestoneDialog, setOpenMilestoneDialog] = useState(false);
   const [currentMilestone, setCurrentMilestone] = useState(null);
   
@@ -108,7 +107,6 @@ function ProjectDetailsPage() {
   
   const [openPaymentModal, setOpenPaymentModal] = useState(false);
   
-  // NEW: State for the document uploader modal
   const [openDocumentUploader, setOpenDocumentUploader] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState(null);
 
@@ -193,18 +191,15 @@ function ProjectDetailsPage() {
     fetchProjectDetails();
   }, [fetchProjectDetails]);
 
-  // NEW: Effect to process data for payment justification
   useEffect(() => {
     if (!milestones.length && !milestoneActivities.length) {
         return;
     }
 
-    // Identify accomplished activities and milestones
     const accomplishedActivities = milestoneActivities.filter(a => a.activityStatus === 'completed');
     const accomplishedMilestoneIds = new Set(accomplishedActivities.map(a => a.milestoneId));
     const accomplishedMilestones = milestones.filter(m => accomplishedMilestoneIds.has(m.milestoneId));
 
-    // Calculate total budget for accomplished activities
     const totalAccomplishedBudget = accomplishedActivities.reduce((sum, activity) => sum + (parseFloat(activity.budgetAllocated) || 0), 0);
 
     setPaymentJustification({
@@ -327,17 +322,15 @@ function ProjectDetailsPage() {
 
   const handlePaymentRequestSubmit = async (projectId, formData) => {
     try {
-        // Assume this API call creates the request and returns the new requestId
         const newRequest = await apiService.paymentRequests.createRequest(projectId, formData); 
         
         setSnackbar({ open: true, message: 'Payment request submitted successfully!', severity: 'success' });
         
-        // After successful creation, close the current modal and open the document uploader for the new request
         setOpenPaymentModal(false);
         setSelectedRequestId(newRequest.requestId);
         setOpenDocumentUploader(true);
 
-        fetchProjectDetails(); // Re-fetch data to show the new request
+        fetchProjectDetails();
     } catch (err) {
         setSnackbar({ open: true, message: err.message || 'Failed to submit payment request.', severity: 'error' });
     }
@@ -357,26 +350,53 @@ function ProjectDetailsPage() {
       setActivityFormErrors({});
   };
   
+  // FIX: Refactored with extensive logging for debugging
   const handleOpenEditActivityDialog = async (activity) => {
-      setOpenActivityDialog(true);
-      setCurrentActivity(activity);
-      setSelectedWorkplanName(projectWorkPlans.find(wp => wp.workplanId === activity.workplanId)?.workplanName || '');
+    setSnackbar({ open: true, message: 'Loading activity details...', severity: 'info' });
+    
+    // Log the initial activity object to check what's being passed in
+    console.log("🐛 Initial Activity Object for Edit:", activity);
+    console.log("🐛 Activity ID:", activity.activityId);
 
-      let currentMilestoneIds = [];
-      try {
+    try {
+        // Log the start of the API call
+        console.log(`➡️ Fetching milestone links for activity ID: ${activity.activityId}`);
         const milestoneActivitiesData = await apiService.strategy.milestoneActivities.getActivitiesByActivityId(activity.activityId);
-        currentMilestoneIds = milestoneActivitiesData.map(ma => ma.milestoneId);
-      } catch (err) {
-        console.error("Error fetching milestone activities:", err);
-      }
-      
-      setActivityFormData({
-          ...activity,
-          startDate: activity.startDate ? new Date(activity.startDate).toISOString().split('T')[0] : '',
-          endDate: activity.endDate ? new Date(activity.endDate).toISOString().split('T')[0] : '',
-          milestoneIds: currentMilestoneIds,
-      });
-      setActivityFormErrors({});
+        
+        // Log the raw data received from the API
+        console.log("✅ Raw API response (milestoneActivitiesData):", milestoneActivitiesData);
+
+        const currentMilestoneIds = milestoneActivitiesData.map(ma => ma.milestoneId);
+        
+        // Log the extracted milestone IDs
+        console.log("🔗 Extracted Milestone IDs:", currentMilestoneIds);
+
+        const workplanName = projectWorkPlans.find(wp => wp.workplanId === activity.workplanId)?.workplanName || '';
+
+        const newFormData = {
+            ...activity,
+            startDate: activity.startDate ? new Date(activity.startDate).toISOString().split('T')[0] : '',
+            endDate: activity.endDate ? new Date(activity.endDate).toISOString().split('T')[0] : '',
+            milestoneIds: currentMilestoneIds,
+        };
+
+        // Log the final formData object before setting state
+        console.log("🎉 Final formData prepared for modal:", newFormData);
+
+        setCurrentActivity(activity);
+        setSelectedWorkplanName(workplanName);
+        setActivityFormData(newFormData);
+        setActivityFormErrors({});
+        setOpenActivityDialog(true);
+        setSnackbar({ open: false });
+        console.log("🟢 Edit Activity modal is now open.");
+        
+    } catch (err) {
+        // Log the full error to the console for debugging
+        console.error("❌ Error in handleOpenEditActivityDialog:", err);
+        setSnackbar({ open: true, message: 'Failed to load activity for editing. Please try again.', severity: 'error' });
+        setOpenActivityDialog(false);
+    }
   };
   
   const handleCloseActivityDialog = () => {
@@ -400,7 +420,6 @@ function ProjectDetailsPage() {
   };
   
   const handleActivitySubmit = async () => {
-      // Validation would go here
       try {
           let activityIdToUse;
           
@@ -415,18 +434,14 @@ function ProjectDetailsPage() {
           }
 
           if (activityIdToUse) {
-              // Fetch all existing links for this activity
               const existingMilestoneLinks = await apiService.strategy.milestoneActivities.getActivitiesByActivityId(activityIdToUse);
               const existingMilestoneIds = new Set(existingMilestoneLinks.map(link => link.milestoneId));
               const newMilestoneIds = new Set(activityFormData.milestoneIds);
 
-              // Find milestones to link (the ones in the form that don't already exist)
               const milestonesToLink = Array.from(newMilestoneIds).filter(id => !existingMilestoneIds.has(id));
               
-              // Find milestones to unlink (the ones in the database that are no longer in the form)
               const milestonesToUnlink = Array.from(existingMilestoneIds).filter(id => !newMilestoneIds.has(id));
 
-              // Link new milestones
               await Promise.all(milestonesToLink.map(milestoneId => 
                   apiService.strategy.milestoneActivities.createMilestoneActivity({
                       milestoneId: milestoneId,
@@ -434,7 +449,6 @@ function ProjectDetailsPage() {
                   })
               ));
 
-              // Unlink old milestones
               await Promise.all(milestonesToUnlink.map(milestoneId =>
                   apiService.strategy.milestoneActivities.deleteMilestoneActivity(milestoneId, activityIdToUse)
               ));
@@ -459,7 +473,6 @@ function ProjectDetailsPage() {
       }
   };
   
-  // NEW: Handlers for the document uploader modal
   const handleOpenDocumentUploader = (requestId) => {
     setSelectedRequestId(requestId);
     setOpenDocumentUploader(true);
@@ -468,13 +481,12 @@ function ProjectDetailsPage() {
   const handleCloseDocumentUploader = () => {
     setOpenDocumentUploader(false);
     setSelectedRequestId(null);
-    fetchProjectDetails(); // Re-fetch to show new documents
+    fetchProjectDetails();
   };
 
   const canApplyTemplate = !!projectCategory && checkUserPrivilege(user, 'project.apply_template');
   const canReviewSubmissions = checkUserPrivilege(user, 'project_manager.review');
   
-  // 🐛 FIX: Add a debug log to verify projectId
   console.log("ProjectDetailsPage projectId:", projectId);
 
   if (loading) {
@@ -631,7 +643,6 @@ function ProjectDetailsPage() {
             <Alert severity="info">No completed milestones with activities found yet.</Alert>
           )}
         </Paper>
-        {/* Button to initiate payment request based on the accomplished work */}
         <Box sx={{ textAlign: 'right' }}>
             <Button
                 variant="contained"
@@ -828,7 +839,6 @@ function ProjectDetailsPage() {
                     </Typography>
                     <LinearProgress variant="determinate" value={milestone.progress || 0} sx={{ height: 6, borderRadius: 3 }} />
                     
-                    {/* Activities section for the milestone */}
                     <Box sx={{ mt: 2, pl: 2, borderLeft: '2px solid', borderColor: theme.palette.secondary.main }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                         <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Activities</Typography>
@@ -870,7 +880,7 @@ function ProjectDetailsPage() {
         )}
       </Box>
 
-      {/* Modals for Activities, Milestones, and Monitoring */}
+      {/* Modals for Milestones and Monitoring */}
       <MilestoneAttachments
         open={openAttachmentsModal}
         onClose={() => setOpenAttachmentsModal(false)}
@@ -898,22 +908,51 @@ function ProjectDetailsPage() {
         projectId={projectId}
         onSave={handleMilestoneSubmit}
       />
-      <ActivityForm
+
+      {/* FIX: The ActivityForm is now properly wrapped in a Dialog */}
+      <Dialog
           open={openActivityDialog}
           onClose={handleCloseActivityDialog}
-          onSubmit={handleActivitySubmit}
-          initialData={activityFormData}
-          milestones={milestones}
-          staff={staff}
-          formErrors={activityFormErrors}
-          setFormErrors={setActivityFormErrors}
-          selectedWorkplanName={selectedWorkplanName}
-          isEditing={!!currentActivity}
-          onChange={handleActivityFormChange}
-          onMilestoneSelectionChange={handleMilestoneSelectionChange}
-          workPlans={projectWorkPlans}
-      />
-
+          fullWidth
+          maxWidth="md"
+      >
+          <DialogTitle>
+              {currentActivity ? 'Edit Activity' : 'Add New Activity'}
+              <IconButton
+                  aria-label="close"
+                  onClick={handleCloseActivityDialog}
+                  sx={{ position: 'absolute', right: 8, top: 8 }}
+              >
+                  <CloseIcon />
+              </IconButton>
+          </DialogTitle>
+          <DialogContent dividers>
+              <ActivityForm
+                  // Pass all the necessary props to the form component
+                  initialData={activityFormData}
+                  milestones={milestones}
+                  staff={staff}
+                  formErrors={activityFormErrors}
+                  setFormErrors={setActivityFormErrors}
+                  selectedWorkplanName={selectedWorkplanName}
+                  isEditing={!!currentActivity}
+                  onChange={handleActivityFormChange}
+                  onMilestoneSelectionChange={handleMilestoneSelectionChange}
+                  workPlans={projectWorkPlans}
+                  // The following props are now managed by the Dialog
+                  open={openActivityDialog}
+                  onClose={handleCloseActivityDialog}
+                  onSubmit={handleActivitySubmit}
+              />
+          </DialogContent>
+          <DialogActions>
+              <Button onClick={handleCloseActivityDialog}>Cancel</Button>
+              <Button onClick={handleActivitySubmit} variant="contained" color="primary">
+                  {currentActivity ? 'Save Changes' : 'Create Activity'}
+              </Button>
+          </DialogActions>
+      </Dialog>
+      
       <PaymentRequestForm
         open={openPaymentModal}
         onClose={() => setOpenPaymentModal(false)}
@@ -924,7 +963,6 @@ function ProjectDetailsPage() {
         totalJustifiedAmount={paymentJustification.totalBudget}
       />
       
-      {/* NEW: The document uploader modal */}
       <PaymentRequestDocumentUploader
         open={openDocumentUploader}
         onClose={handleCloseDocumentUploader}

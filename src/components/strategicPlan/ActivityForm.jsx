@@ -45,11 +45,18 @@ const ActivityForm = memo(({
   const [formData, setFormData] = useState(initialData);
   const [loadingWorkplanActivities, setLoadingWorkplanActivities] = useState(false);
   const [workplanActivities, setWorkplanActivities] = useState([]);
+  
+  // FIX: This state is no longer needed. The value is derived from formData.milestoneIds.
+  // const [selectedMilestones, setSelectedMilestones] = useState([]);
+  
+  // The value for the Autocomplete should be derived directly from `formData.milestoneIds`
+  const selectedMilestones = formData.milestoneIds?.map(id => milestones.find(m => m.milestoneId === id)).filter(Boolean) || [];
 
   useEffect(() => {
+    // FIX: A single useEffect to sync formData with props
     setFormData(initialData);
   }, [initialData]);
-
+  
   const handleLocalChange = useCallback((e) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({
@@ -66,18 +73,11 @@ const ActivityForm = memo(({
     }));
     onChange({ target: { name, value } });
   }, [onChange]);
-
-  const [selectedMilestones, setSelectedMilestones] = useState([]);
-  
-  useEffect(() => {
-    if (initialData.milestoneIds && milestones) {
-      const selected = initialData.milestoneIds.map(id => milestones.find(m => m.milestoneId === id)).filter(Boolean);
-      setSelectedMilestones(selected);
-    }
-  }, [initialData.milestoneIds, milestones]);
   
   const handleMilestoneSelection = useCallback((event, newValue) => {
-    setSelectedMilestones(newValue);
+    // FIX: Update the formData directly
+    const milestoneIds = newValue.map(m => m.milestoneId);
+    setFormData(prev => ({ ...prev, milestoneIds }));
     onMilestoneSelectionChange(event, newValue);
   }, [onMilestoneSelectionChange]);
   
@@ -185,7 +185,7 @@ const ActivityForm = memo(({
             options={relevantMilestones}
             getOptionLabel={(option) => option.milestoneName || ''}
             isOptionEqualToValue={(option, value) => option.milestoneId === value.milestoneId}
-            value={selectedMilestones}
+            value={selectedMilestones} // FIX: Use the derived value
             onChange={handleMilestoneSelection}
             disabled={!formData.projectId}
             renderInput={(params) => (
