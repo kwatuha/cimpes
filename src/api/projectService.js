@@ -187,6 +187,16 @@ const projectService = {
       const response = await axiosInstance.put(`/projects/documents/cover/${documentId}`);
       return response.data;
     },
+    // NEW: API call to reorder photos
+    reorderPhotos: async (photos) => {
+      const response = await axiosInstance.put(`/projects/documents/reorder`, { photos });
+      return response.data;
+    },
+    // NEW: API call to resize a photo
+    resizePhoto: async (documentId, sizeData) => {
+      const response = await axiosInstance.put(`/projects/documents/resize/${documentId}`, sizeData);
+      return response.data;
+    },
   },
   
   // --- NEW: Project Monitoring API Calls ---
@@ -265,7 +275,7 @@ const projectService = {
       return response.data;
     },
     deleteTaskAssignee: async (taskAssigneeId) => {
-      const response = await axiosInstance.delete(`/task_assignees/${taskAssigneeId}`);
+      const response = await axiosInstance.delete(`/tasks/${taskAssigneeId}`);
       return response.data;
     },
   },
