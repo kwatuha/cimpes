@@ -6,19 +6,16 @@ import {
   Accordion, AccordionSummary, AccordionDetails,
   ListItemIcon,
   Menu, MenuItem,
-  ImageList, ImageListItem, ImageListItemBar,
   Snackbar
 } from '@mui/material';
 import {
   Close as CloseIcon, Check as CheckIcon, Clear as ClearIcon,
-  Visibility as VisibilityIcon, Paid as PaidIcon, PhotoCamera as PhotoCameraIcon,
   ExpandMore as ExpandMoreIcon,
   AttachFile as AttachFileIcon,
   InsertDriveFile as DocumentIcon,
   Photo as PhotoIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Shuffle as ShuffleIcon,
   AspectRatio as AspectRatioIcon,
 } from '@mui/icons-material';
 import {
@@ -32,6 +29,8 @@ import PropTypes from 'prop-types';
 const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paymentJustification, handleOpenDocumentUploader }) => {
   const { user, hasPrivilege } = useAuth();
   const serverUrl = import.meta.env.VITE_FILE_SERVER_BASE_URL || 'http://localhost:3000';
+  
+  const numericProjectId = parseInt(projectId, 10);
 
   const [paymentRequests, setPaymentRequests] = useState([]);
   const [projectPhotos, setProjectPhotos] = useState([]);
@@ -44,17 +43,12 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
   
   const [paymentRequestDetails, setPaymentRequestDetails] = useState({});
 
-  // State for edit and delete modals
   const [deleteConfirmationModal, setDeleteConfirmationModal] = useState({ open: false, documentId: null });
   const [editDocumentModal, setEditDocumentModal] = useState({ open: false, document: null, newDescription: '' });
-  // State for confirming resize action
+  const [fileToReplace, setFileToReplace] = useState(null);
   const [resizeConfirmationModal, setResizeConfirmationModal] = useState({ open: false, document: null, width: '', height: '' });
-  // State for context menu
   const [contextMenu, setContextMenu] = useState(null);
   
-  // State to track if resizing is active (no longer used for drag-to-resize)
-  const [resizeMode, setResizeMode] = useState(false);
-  const [resizingPhoto, setResizingPhoto] = useState(null);
   const photoRefs = useRef({});
 
   const fetchData = useCallback(async () => {
@@ -73,7 +67,6 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
         return;
       }
 
-      // Fetch all users to map IDs to names
       try {
         const allUsers = await apiService.users.getUsers();
         fetchedUsers = allUsers.reduce((map, u) => {
@@ -85,14 +78,13 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
       }
 
       try {
-        fetchedRequests = await apiService.paymentRequests.getRequestsForProject(projectId);
+        fetchedRequests = await apiService.paymentRequests.getRequestsForProject(numericProjectId);
       } catch (err) {
         console.error('Error fetching payment requests:', err);
       }
       
       try {
-        // Fetch all documents for the project
-        fetchedDocuments = await apiService.documents.getDocumentsForProject(projectId);
+        fetchedDocuments = await apiService.documents.getDocumentsForProject(numericProjectId);
         console.log("Fetched documents for project:", fetchedDocuments);
       } catch (err) {
         console.error('Error fetching project documents:', err);
@@ -135,7 +127,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
     } finally {
       setLoading(false);
     }
-  }, [projectId, hasPrivilege, apiService]);
+  }, [numericProjectId, hasPrivilege]);
 
   useEffect(() => {
     if (open) {
@@ -175,13 +167,21 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
   };
 
   const handleEditDocument = async () => {
-    if (!editDocumentModal.document || !editDocumentModal.newDescription) return;
+    if (!editDocumentModal.document) return;
 
     setSubmitting(true);
     try {
-      await apiService.documents.updateDocument(editDocumentModal.document.id, { description: editDocumentModal.newDescription });
+      if (fileToReplace) {
+          const formData = new FormData();
+          formData.append('document', fileToReplace);
+          formData.append('description', editDocumentModal.newDescription);
+          await apiService.documents.replaceDocument(editDocumentModal.document.id, formData);
+      } else {
+          await apiService.documents.updateDocument(editDocumentModal.document.id, { description: editDocumentModal.newDescription });
+      }
       setSnackbar({ open: true, message: `Document updated successfully.`, severity: 'success' });
       setEditDocumentModal({ open: false, document: null, newDescription: '' });
+      setFileToReplace(null);
       fetchData();
     } catch (err) {
       setSnackbar({ open: true, message: 'Failed to update document.', severity: 'error' });
@@ -191,7 +191,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
   };
   
   const handlePhotoReorder = async (result) => {
-    if (!result.destination || resizeMode) return;
+    if (!result.destination || submitting) return;
 
     const { source, destination } = result;
 
@@ -256,7 +256,6 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
     }
   };
 
-  // Handlers for context menu
   const handleContextMenu = (event, photo) => {
     event.preventDefault();
     setContextMenu(
@@ -274,82 +273,19 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
     setContextMenu(null);
   };
   
-  const handleResizeMouseDown = useCallback((e, photo) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setResizingPhoto(photo);
-    setResizeMode(true);
-    const photoElement = photoRefs.current[photo.id];
-    if (photoElement) {
-        resizingStateRef.current = {
-            isResizing: true,
-            photo,
-            startPos: { x: e.clientX, y: e.clientY },
-            dimensions: {
-                width: photoElement.clientWidth,
-                height: photoElement.clientHeight
-            },
-        };
-        photoElement.style.position = 'relative';
-        photoElement.style.border = `2px solid primary.main`;
+  const handleSetCoverPhoto = async (documentId) => {
+    handleContextMenuClose();
+    setSubmitting(true);
+    try {
+        await apiService.documents.setProjectCoverPhoto(documentId);
+        setSnackbar({ open: true, message: 'Photo set as project cover successfully.', severity: 'success' });
+        fetchData();
+    } catch (err) {
+        setSnackbar({ open: true, message: 'Failed to set photo as project cover.', severity: 'error' });
+    } finally {
+        setSubmitting(false);
     }
-  }, []);
-
-  const handleResizeMouseMove = useCallback((e) => {
-    if (!resizingStateRef.current.isResizing) return;
-
-    const { photo, startPos, dimensions } = resizingStateRef.current;
-    const ref = photoRefs.current[photo.id];
-    if (!ref) return;
-
-    const dx = e.clientX - startPos.x;
-    const dy = e.clientY - startPos.y;
-
-    const newWidth = Math.max(100, dimensions.width + dx);
-    const newHeight = Math.max(100, dimensions.height + dy);
-
-    ref.style.width = `${newWidth}px`;
-    ref.style.height = `${newHeight}px`;
-
-  }, []);
-
-  const handleResizeMouseUp = useCallback(() => {
-    if (!resizingStateRef.current.isResizing) return;
-
-    const { photo } = resizingStateRef.current;
-    const ref = photoRefs.current[photo.id];
-    if (!ref) return;
-    
-    const newWidth = ref.clientWidth;
-    const newHeight = ref.clientHeight;
-    
-    resizingStateRef.current = {
-        isResizing: false,
-    };
-    
-    setResizeMode(false);
-    setResizeConfirmationModal({
-        open: true,
-        document: photo,
-        width: newWidth,
-        height: newHeight,
-    });
-    setResizingPhoto(null);
-  }, []);
-
-  useEffect(() => {
-    if (resizeMode) {
-        window.addEventListener('mousemove', handleResizeMouseMove);
-        window.addEventListener('mouseup', handleResizeMouseUp);
-    } else {
-        window.removeEventListener('mousemove', handleResizeMouseMove);
-        window.removeEventListener('mouseup', handleResizeMouseUp);
-    }
-    return () => {
-        window.removeEventListener('mousemove', handleResizeMouseMove);
-        window.removeEventListener('mouseup', handleResizeMouseUp);
-    };
-  }, [resizeMode, handleResizeMouseMove, handleResizeMouseUp]);
+  };
 
 
   if (!open) {
@@ -521,14 +457,14 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
                               {paymentRequestDetails[req.requestId]?.documents
                                 .filter(doc => doc.documentType === 'photo_payment')
                                 .map((doc, index) => (
-                                  <Draggable key={doc.id} draggableId={doc.id.toString()} index={index} isDragDisabled={resizingPhoto !== null}>
+                                  <Draggable key={doc.id} draggableId={doc.id.toString()} index={index} isDragDisabled={submitting}>
                                     {(provided) => (
                                       <Grid item xs={12} sm={6} md={4} key={doc.id}
                                         ref={provided.innerRef}
                                         {...provided.draggableProps}
                                         {...provided.dragHandleProps}
                                       >
-                                        <Paper elevation={2} sx={{ position: 'relative', overflow: 'hidden', border: resizingPhoto?.id === doc.id ? '2px solid' : 'none', borderColor: 'primary.main' }} onContextMenu={(e) => handleContextMenu(e, doc)}>
+                                        <Paper elevation={2} sx={{ position: 'relative', overflow: 'hidden', border: 'none' }} onContextMenu={(e) => handleContextMenu(e, doc)}>
                                             <Box
                                                 ref={el => photoRefs.current[doc.id] = el}
                                                 sx={{
@@ -543,6 +479,15 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
                                                     alt={doc.description || 'Payment Photo'}
                                                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                                 />
+                                                {/* FIX: Add conditional chip for cover photo */}
+                                                {doc.isProjectCover === 1 && (
+                                                    <Chip
+                                                        label="Cover Photo"
+                                                        color="primary"
+                                                        size="small"
+                                                        sx={{ position: 'absolute', top: 8, left: 8 }}
+                                                    />
+                                                )}
                                             </Box>
                                             <Box sx={{ p: 1 }}>
                                                 <Typography variant="body2" noWrap>{doc.description || 'No description'}</Typography>
@@ -590,7 +535,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
                         <div {...provided.droppableProps} ref={provided.innerRef}>
                             <Timeline position="alternate">
                                 {projectPhotos.map((photo, index) => (
-                                    <Draggable key={photo.id} draggableId={photo.id.toString()} index={index} isDragDisabled={resizingPhoto !== null}>
+                                    <Draggable key={photo.id} draggableId={photo.id.toString()} index={index} isDragDisabled={submitting}>
                                         {(provided) => (
                                             <TimelineItem
                                                 ref={provided.innerRef}
@@ -604,7 +549,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
                                                     {index < projectPhotos.length - 1 && <TimelineConnector />}
                                                 </TimelineSeparator>
                                                 <TimelineContent>
-                                                    <Paper elevation={3} sx={{ p: 2 }} onContextMenu={(e) => handleContextMenu(e, photo)}>
+                                                    <Paper elevation={3} sx={{ p: 2, position: 'relative' }} onContextMenu={(e) => handleContextMenu(e, photo)}>
                                                         <Typography variant="h6" component="span">
                                                             {photo.description || photo.documentType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                                                         </Typography>
@@ -618,8 +563,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
                                                                 overflow: 'hidden',
                                                                 width: '100%',
                                                                 height: 'auto',
-                                                                border: resizingPhoto?.id === photo.id ? '2px solid' : 'none',
-                                                                borderColor: 'primary.main',
+                                                                border: 'none',
                                                             }}
                                                         >
                                                             <img
@@ -627,6 +571,15 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
                                                                 alt={photo.description}
                                                                 style={{ width: '100%', height: 'auto', borderRadius: '8px', marginTop: '8px' }}
                                                             />
+                                                            {/* FIX: Add conditional chip for cover photo */}
+                                                            {photo.isProjectCover === 1 && (
+                                                                <Chip
+                                                                    label="Cover Photo"
+                                                                    color="primary"
+                                                                    size="small"
+                                                                    sx={{ position: 'absolute', top: 8, left: 8 }}
+                                                                />
+                                                            )}
                                                         </Box>
                                                         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
                                                             Uploaded by: {users[photo.userId] || `User ID: ${photo.userId}`} on {new Date(photo.createdAt).toLocaleDateString()}
@@ -676,6 +629,13 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
       >
         <DialogTitle>Edit Document</DialogTitle>
         <DialogContent>
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>Replace Document:</Typography>
+            <input
+              type="file"
+              onChange={(e) => setFileToReplace(e.target.files[0])}
+            />
+          </Box>
           <TextField
             fullWidth
             margin="dense"
@@ -688,7 +648,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditDocumentModal({ open: false, document: null, newDescription: '' })}>Cancel</Button>
-          <Button onClick={handleEditDocument} color="primary" variant="contained" disabled={submitting || !editDocumentModal.newDescription}>
+          <Button onClick={handleEditDocument} color="primary" variant="contained" disabled={submitting || (!editDocumentModal.newDescription && !fileToReplace)}>
             {submitting ? <CircularProgress size={24} /> : 'Save'}
           </Button>
         </DialogActions>
@@ -734,10 +694,15 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
             Edit Description
           </MenuItem>
         )}
+        {hasPrivilege('project.set_cover_photo') && (
+          <MenuItem onClick={() => handleSetCoverPhoto(contextMenu.document.id)}>
+            <ListItemIcon><PhotoIcon fontSize="small" /></ListItemIcon>
+            Set as Cover Photo
+          </MenuItem>
+        )}
         {hasPrivilege('document.update') && (
           <MenuItem onClick={() => {
-            setResizingPhoto(contextMenu.document);
-            setResizeMode(true);
+            setResizeConfirmationModal({ open: true, document: contextMenu.document, width: '', height: '' });
             handleContextMenuClose();
           }}>
             <ListItemIcon><AspectRatioIcon fontSize="small" /></ListItemIcon>
