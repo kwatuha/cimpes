@@ -16,15 +16,19 @@ import { CloudUpload as CloudUploadIcon, Add as AddIcon, InsertDriveFile as Docu
  * - {array} options - Array of objects for the dropdown selector { value, label }.
  * - {string} optionsLabel - Label for the dropdown selector.
  * - {string} apiCallKey - The key to append to the FormData for the selected option.
+ * - {object} description - Optional configuration for a description text field.
  * @param {function} submitFunction - The API service function to call for the upload. It should accept a FormData object.
  * @param {object} additionalFormData - An object of additional key-value pairs to append to the FormData.
  */
 function GenericFileUploadModal({ open, onClose, title, uploadConfig, submitFunction, additionalFormData }) {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [selectedOption, setSelectedOption] = useState('');
+  const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  // NEW: State to control the accepted file types for the file input
+  const [acceptedFileTypes, setAcceptedFileTypes] = useState('');
 
   const fileInputRef = useRef(null);
 
@@ -37,8 +41,20 @@ function GenericFileUploadModal({ open, onClose, title, uploadConfig, submitFunc
   };
 
   const handleOptionChange = useCallback((e) => {
-    setSelectedOption(e.target.value);
+    const selectedValue = e.target.value;
+    setSelectedOption(selectedValue);
+    // NEW: Update accepted file types based on the selected option
+    if (selectedValue.startsWith('photo')) {
+      setAcceptedFileTypes('image/*');
+    } else {
+      setAcceptedFileTypes(''); // Allow all file types for other documents
+    }
   }, []);
+  
+  const handleDescriptionChange = useCallback((e) => {
+    setDescription(e.target.value);
+  }, []);
+
 
   const handleUploadSubmit = async () => {
     if (selectedFiles.length === 0) {
@@ -47,6 +63,12 @@ function GenericFileUploadModal({ open, onClose, title, uploadConfig, submitFunc
     }
     if (uploadConfig.options && !selectedOption) {
       setError(`Please select a ${uploadConfig.optionsLabel}.`);
+      return;
+    }
+
+    // NEW: Add validation to check if selected files match the accepted type
+    if (acceptedFileTypes === 'image/*' && !selectedFiles.every(file => file.type.startsWith('image/'))) {
+      setError('Please upload only image files for this document type.');
       return;
     }
 
@@ -69,6 +91,11 @@ function GenericFileUploadModal({ open, onClose, title, uploadConfig, submitFunc
         // 🐛 FIX: Ensure the key 'documentType' is correctly mapped from uploadConfig.apiCallKey
         formData.append(uploadConfig.apiCallKey, selectedOption);
       }
+      
+      // NEW: Append the description if configured
+      if (uploadConfig.description && description) {
+        formData.append('description', description);
+      }
 
       // Append the files under the key 'documents'
       // 🐛 FIX: This is the critical part that ensures multer receives the file array
@@ -87,6 +114,7 @@ function GenericFileUploadModal({ open, onClose, title, uploadConfig, submitFunc
       setSuccess(true);
       setSelectedFiles([]);
       setSelectedOption('');
+      setDescription('');
       setTimeout(() => onClose(), 1500);
     } catch (err) {
       console.error('Error uploading document:', err);
@@ -117,6 +145,8 @@ function GenericFileUploadModal({ open, onClose, title, uploadConfig, submitFunc
             onChange={handleFileChange}
             style={{ display: 'none' }}
             multiple
+            // NEW: Dynamically set the accepted file types
+            accept={acceptedFileTypes}
           />
           <Button
             variant="outlined"
@@ -156,6 +186,19 @@ function GenericFileUploadModal({ open, onClose, title, uploadConfig, submitFunc
             </Select>
           </FormControl>
         )}
+        
+        {uploadConfig.description && (
+            <TextField
+                fullWidth
+                margin="dense"
+                label={uploadConfig.description.label}
+                placeholder={uploadConfig.description.placeholder}
+                value={description}
+                onChange={handleDescriptionChange}
+                multiline
+                rows={3}
+            />
+        )}
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
@@ -178,6 +221,10 @@ GenericFileUploadModal.propTypes = {
     })),
     optionsLabel: PropTypes.string,
     apiCallKey: PropTypes.string,
+    description: PropTypes.shape({
+        label: PropTypes.string,
+        placeholder: PropTypes.string,
+    }),
   }),
   submitFunction: PropTypes.func.isRequired,
   additionalFormData: PropTypes.object,

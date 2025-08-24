@@ -2,17 +2,24 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box, Typography, Button, Paper, Stack, Grid, CircularProgress, Alert,
   List, ListItem, ListItemText, ListItemSecondaryAction, IconButton,
-  Dialog, DialogTitle, DialogContent, DialogActions, Chip,
+  Dialog, DialogTitle, DialogContent, DialogActions, Chip, TextField,
   Accordion, AccordionSummary, AccordionDetails,
-  ListItemIcon // ⬅️ Correctly imported from @mui/material
+  ListItemIcon,
+  ImageList, ImageListItem, ImageListItemBar,
 } from '@mui/material';
 import {
   Close as CloseIcon, Check as CheckIcon, Clear as ClearIcon,
   Visibility as VisibilityIcon, Paid as PaidIcon, PhotoCamera as PhotoCameraIcon,
   ExpandMore as ExpandMoreIcon,
   AttachFile as AttachFileIcon,
-  InsertDriveFile as DocumentIcon // ⬅️ Correctly imported from @mui/icons-material
+  InsertDriveFile as DocumentIcon,
+  Photo as PhotoIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
+import {
+  Timeline, TimelineItem, TimelineSeparator, TimelineConnector, TimelineContent, TimelineDot
+} from '@mui/lab';
 import apiService from '../api';
 import { useAuth } from '../context/AuthContext';
 import PropTypes from 'prop-types';
@@ -22,9 +29,8 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
   const serverUrl = import.meta.env.VITE_FILE_SERVER_BASE_URL || 'http://localhost:3000';
 
   const [paymentRequests, setPaymentRequests] = useState([]);
-  const [contractorPhotos, setContractorPhotos] = useState([]);
+  const [projectPhotos, setProjectPhotos] = useState([]);
   const [contractors, setContractors] = useState({});
-  // NEW: State to hold a map of userId to userName
   const [users, setUsers] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -33,14 +39,18 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
   
   const [paymentRequestDetails, setPaymentRequestDetails] = useState({});
 
+  // NEW: State for edit and delete modals
+  const [deleteConfirmationModal, setDeleteConfirmationModal] = useState({ open: false, documentId: null });
+  const [editDocumentModal, setEditDocumentModal] = useState({ open: false, document: null, newDescription: '' });
+
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     let fetchedRequests = [];
-    let fetchedPhotos = [];
+    let fetchedDocuments = [];
     let fetchedContractors = {};
     const detailsMap = {};
-    // NEW: Variable to hold fetched users
     let fetchedUsers = {};
 
     try {
@@ -53,9 +63,6 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
       // Fetch all users to map IDs to names
       try {
         const allUsers = await apiService.users.getUsers();
-        // 🐛 DEBUGGING: Log the fetched users array to inspect its structure
-        console.log("Fetched users:", allUsers);
-        
         fetchedUsers = allUsers.reduce((map, u) => {
           map[u.userId] = `${u.firstName} ${u.lastName}`;
           return map;
@@ -69,22 +76,26 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
       } catch (err) {
         console.error('Error fetching payment requests:', err);
       }
+      
+      try {
+        // NEW: Fetch all documents for the project
+        fetchedDocuments = await apiService.documents.getDocumentsForProject(projectId);
+        console.log("Fetched documents for project:", fetchedDocuments);
+      } catch (err) {
+        console.error('Error fetching project documents:', err);
+      }
 
       await Promise.all(fetchedRequests.map(async (request) => {
         try {
-          const detailedRequest = await apiService.paymentRequests.getRequestById(request.requestId);
-          detailsMap[request.requestId] = detailedRequest;
+          // Note: We no longer need to fetch specific docs here as they are all in the 'documents' list now
+          detailsMap[request.requestId] = {
+            documents: fetchedDocuments.filter(doc => doc.requestId === request.requestId)
+          };
         } catch (err) {
           console.error(`Error fetching details for request ${request.requestId}:`, err);
           detailsMap[request.requestId] = { documents: [] };
         }
       }));
-
-      try {
-        fetchedPhotos = await apiService.contractorPhotos.getPhotosForProject(projectId);
-      } catch (err) {
-        console.error('Error fetching contractor photos:', err);
-      }
 
       try {
         const allContractors = await apiService.contractors.getAllContractors();
@@ -98,9 +109,14 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
       
       setPaymentRequests(fetchedRequests);
       setPaymentRequestDetails(detailsMap);
-      setContractorPhotos(fetchedPhotos);
+      // NEW: Filter and set project photos based on documentCategory and documentType
+      const projectPhotos = fetchedDocuments
+        .filter(doc => doc.documentCategory === 'milestone' && doc.documentType.startsWith('photo'))
+        .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)); // Sort by date
+      setProjectPhotos(projectPhotos);
+      
       setContractors(fetchedContractors);
-      setUsers(fetchedUsers); // NEW: Set the fetched users state
+      setUsers(fetchedUsers);
 
     } catch (err) {
       console.error('Outer catch block - Error fetching review data:', err);
@@ -132,19 +148,45 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
   };
 
   const handleUpdatePhotoStatus = async (photoId, newStatus) => {
-    if (!hasPrivilege('contractor_photos.update_status')) return;
+    // Note: This function will need to be updated to handle the new document schema
+    // and the specific API endpoint for updating a document's status.
+    // This is a placeholder for now.
+    console.warn("Update Photo Status functionality needs to be implemented for the new document schema.");
+  };
+  
+  // NEW: Handlers for edit/delete document functionality
+  const handleDeleteDocument = async () => {
+    if (!deleteConfirmationModal.documentId) return;
 
     setSubmitting(true);
     try {
-      await apiService.contractorPhotos.updateStatus(photoId, { status: newStatus });
-      setSnackbar({ open: true, message: `Photo ${newStatus.toLowerCase()} successfully.`, severity: 'success' });
+      await apiService.documents.deleteDocument(deleteConfirmationModal.documentId);
+      setSnackbar({ open: true, message: `Document deleted successfully.`, severity: 'success' });
+      setDeleteConfirmationModal({ open: false, documentId: null });
       fetchData();
     } catch (err) {
-      setSnackbar({ open: true, message: 'Failed to update photo status.', severity: 'error' });
+      setSnackbar({ open: true, message: 'Failed to delete document.', severity: 'error' });
     } finally {
       setSubmitting(false);
     }
   };
+
+  const handleEditDocument = async () => {
+    if (!editDocumentModal.document || !editDocumentModal.newDescription) return;
+
+    setSubmitting(true);
+    try {
+      await apiService.documents.updateDocument(editDocumentModal.document.id, { description: editDocumentModal.newDescription });
+      setSnackbar({ open: true, message: `Document updated successfully.`, severity: 'success' });
+      setEditDocumentModal({ open: false, document: null, newDescription: '' });
+      fetchData();
+    } catch (err) {
+      setSnackbar({ open: true, message: 'Failed to update document.', severity: 'error' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
 
   if (!open) {
     return null;
@@ -235,49 +277,17 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
               {paymentRequests.map((req) => (
                 <ListItem key={req.requestId} divider>
                   <Box sx={{ width: '100%' }}>
-                    <ListItemText
-                      primary={`KES ${parseFloat(req.amount).toFixed(2)}`}
-                      secondary={req.description}
-                    />
-                    
-                    <Box sx={{ mt: 2, pl: 2, borderLeft: '2px solid', borderColor: 'divider' }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Documents</Typography>
-                      {paymentRequestDetails[req.requestId]?.documents?.length > 0 ? (
-                        <List dense disablePadding>
-                          {paymentRequestDetails[req.requestId].documents.map((doc) => (
-                            <ListItem key={doc.id} disablePadding sx={{ py: 0.5 }}>
-                              <ListItemIcon sx={{ minWidth: 32 }}><DocumentIcon fontSize="small" /></ListItemIcon>
-                              <ListItemText
-                                primary={doc.documentType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                                // UPDATED: Display user's name instead of ID
-                                secondary={`Uploaded by: ${users[doc.uploadedByUserId] || `User ID: ${doc.uploadedByUserId}`}`}
-                              />
-                              <Button
-                                size="small"
-                                variant="outlined"
-                                href={`${serverUrl}/${doc.documentPath}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                View
-                              </Button>
-                            </ListItem>
-                          ))}
-                        </List>
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">No documents attached.</Typography>
-                      )}
-                    </Box>
-                  </Box>
-
-                  <ListItemSecondaryAction>
-                    <Stack direction="row" spacing={1}>
-                      {hasPrivilege('payment_requests.upload_document') && (
-                          <IconButton onClick={() => handleOpenDocumentUploader(req.requestId)}>
-                              <AttachFileIcon color="primary" />
-                          </IconButton>
-                      )}
+                    <Stack direction="row" alignItems="center" spacing={2}>
+                      <ListItemText
+                        primary={`KES ${parseFloat(req.amount).toFixed(2)}`}
+                        secondary={req.description}
+                      />
                       <Chip label={req.status} color={req.status === 'Approved' ? 'success' : (req.status === 'Rejected' ? 'error' : 'default')} />
+                      {hasPrivilege('payment_requests.upload_document') && (
+                        <IconButton onClick={() => handleOpenDocumentUploader(req.requestId)}>
+                          <AttachFileIcon color="primary" />
+                        </IconButton>
+                      )}
                       {req.status === 'Pending Review' && hasPrivilege('project_payments.update') && (
                         <>
                           <IconButton onClick={() => handleUpdatePaymentStatus(req.requestId, 'Approved')} disabled={submitting}>
@@ -289,7 +299,100 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
                         </>
                       )}
                     </Stack>
-                  </ListItemSecondaryAction>
+                    
+                    <Box sx={{ mt: 2, pl: 2, borderLeft: '2px solid', borderColor: 'divider' }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Documents</Typography>
+                      {paymentRequestDetails[req.requestId]?.documents?.length > 0 ? (
+                        <List dense disablePadding>
+                          {paymentRequestDetails[req.requestId].documents
+                            .filter(doc => doc.documentType !== 'photo_payment')
+                            .map((doc) => (
+                            <ListItem key={doc.id} disablePadding sx={{ py: 0.5 }}>
+                              <ListItemIcon sx={{ minWidth: 32 }}><DocumentIcon fontSize="small" /></ListItemIcon>
+                              <ListItemText
+                                primary={doc.documentType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                                secondary={`Uploaded by: ${users[doc.userId] || `User ID: ${doc.userId}`} on ${new Date(doc.createdAt).toLocaleDateString()}`}
+                              />
+                              <Stack direction="row" spacing={1} alignItems="center" sx={{ ml: 'auto' }}>
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  href={`${serverUrl}/${doc.documentPath}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  View
+                                </Button>
+                                {hasPrivilege('document.update') && (
+                                  <IconButton onClick={() => setEditDocumentModal({ open: true, document: doc, newDescription: doc.description || '' })}>
+                                    <EditIcon color="action" fontSize="small" />
+                                  </IconButton>
+                                )}
+                                {hasPrivilege('document.delete') && (
+                                  <IconButton onClick={() => setDeleteConfirmationModal({ open: true, documentId: doc.id })}>
+                                    <DeleteIcon color="error" fontSize="small" />
+                                  </IconButton>
+                                )}
+                              </Stack>
+                            </ListItem>
+                          ))}
+                        </List>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">No documents attached.</Typography>
+                      )}
+                    </Box>
+                    
+                    {/* NEW: Section for displaying payment photos */}
+                    <Box sx={{ mt: 2, pl: 2, borderLeft: '2px solid', borderColor: 'divider' }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Payment Photos</Typography>
+                      <Grid container spacing={2} sx={{ mt: 1 }}>
+                        {paymentRequestDetails[req.requestId]?.documents
+                          .filter(doc => doc.documentType === 'photo_payment')
+                          .map((doc) => (
+                            <Grid item xs={12} sm={6} md={4} key={doc.id}>
+                              <Paper elevation={2} sx={{ position: 'relative', overflow: 'hidden' }}>
+                                <img
+                                  src={`${serverUrl}/${doc.documentPath}`}
+                                  alt={doc.description || 'Payment Photo'}
+                                  style={{ width: '100%', height: 200, objectFit: 'cover' }}
+                                />
+                                <Box sx={{ p: 1 }}>
+                                  <Typography variant="body2" noWrap>{doc.description || 'No description'}</Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    Uploaded by: {users[doc.userId] || `User ID: ${doc.userId}`} on {new Date(doc.createdAt).toLocaleDateString()}
+                                  </Typography>
+                                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+                                    <Button
+                                      size="small"
+                                      variant="outlined"
+                                      href={`${serverUrl}/${doc.documentPath}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                    >
+                                      View
+                                    </Button>
+                                    {hasPrivilege('document.update') && (
+                                      <IconButton onClick={() => setEditDocumentModal({ open: true, document: doc, newDescription: doc.description || '' })}>
+                                        <EditIcon color="action" fontSize="small" />
+                                      </IconButton>
+                                    )}
+                                    {hasPrivilege('document.delete') && (
+                                      <IconButton onClick={() => setDeleteConfirmationModal({ open: true, documentId: doc.id })}>
+                                        <DeleteIcon color="error" fontSize="small" />
+                                      </IconButton>
+                                    )}
+                                  </Stack>
+                                </Box>
+                              </Paper>
+                            </Grid>
+                          ))}
+                      </Grid>
+                      {paymentRequestDetails[req.requestId]?.documents
+                        .filter(doc => doc.documentType === 'photo_payment').length === 0 && (
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>No payment photos attached.</Typography>
+                        )}
+                    </Box>
+                  </Box>
                 </ListItem>
               ))}
             </List>
@@ -300,47 +403,99 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
 
         <Typography variant="h6" color="primary.main" gutterBottom>Progress Photos</Typography>
         <Paper variant="outlined" sx={{ p: 2 }}>
-          {contractorPhotos.length > 0 ? (
-            <Grid container spacing={2}>
-              {contractorPhotos.map((photo) => (
-                <Grid item key={photo.photoId} xs={12} sm={6} md={4}>
-                  <Box sx={{ position: 'relative', border: '1px solid #ccc', borderRadius: '8px', overflow: 'hidden' }}>
-                    {photo.filePath && (
-                        <img 
-                          src={`${serverUrl}/${photo.filePath}`}
-                          alt={photo.caption} 
-                          style={{ width: '100%', height: 200, objectFit: 'cover' }} 
-                        />
-                    )}
-                    <Box sx={{ p: 1 }}>
-                      <Typography variant="body2">{photo.caption}</Typography>
-                      <Typography variant="caption" color="text.secondary">By {contractors[photo.contractorId] || 'Unknown'}</Typography>
+          {projectPhotos.length > 0 ? (
+            <Timeline position="alternate">
+              {projectPhotos.map((photo, index) => (
+                <TimelineItem key={photo.id}>
+                  <TimelineSeparator>
+                    <TimelineDot color="primary">
+                      <PhotoIcon />
+                    </TimelineDot>
+                    {index < projectPhotos.length - 1 && <TimelineConnector />}
+                  </TimelineSeparator>
+                  <TimelineContent>
+                    <Paper elevation={3} sx={{ p: 2 }}>
+                      <Typography variant="h6" component="span">
+                        {photo.description || photo.documentType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {new Date(photo.createdAt).toLocaleDateString()}
+                      </Typography>
+                      <img 
+                        src={`${serverUrl}/${photo.documentPath}`} 
+                        alt={photo.description}
+                        style={{ width: '100%', height: 'auto', borderRadius: '8px', marginTop: '8px' }}
+                      />
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                        Uploaded by: {users[photo.userId] || `User ID: ${photo.userId}`} on {new Date(photo.createdAt).toLocaleDateString()}
+                      </Typography>
                       <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
-                        <Chip label={photo.status} color={photo.status === 'Approved' ? 'success' : (photo.status === 'Rejected' ? 'error' : 'default')} size="small" />
-                        {photo.status === 'Pending Review' && hasPrivilege('contractor_photos.update_status') && (
-                          <>
-                            <IconButton onClick={() => handleUpdatePhotoStatus(photo.photoId, 'Approved')} disabled={submitting}>
-                              <CheckIcon color="success" />
-                            </IconButton>
-                            <IconButton onClick={() => handleUpdatePhotoStatus(photo.photoId, 'Rejected')} disabled={submitting}>
-                              <ClearIcon color="error" />
-                            </IconButton>
-                          </>
+                        {hasPrivilege('document.update') && (
+                          <IconButton onClick={() => setEditDocumentModal({ open: true, document: photo, newDescription: photo.description || '' })}>
+                            <EditIcon color="action" fontSize="small" />
+                          </IconButton>
+                        )}
+                        {hasPrivilege('document.delete') && (
+                          <IconButton onClick={() => setDeleteConfirmationModal({ open: true, documentId: photo.id })}>
+                            <DeleteIcon color="error" fontSize="small" />
+                          </IconButton>
                         )}
                       </Stack>
-                    </Box>
-                  </Box>
-                </Grid>
+                    </Paper>
+                  </TimelineContent>
+                </TimelineItem>
               ))}
-            </Grid>
+            </Timeline>
           ) : (
-            <Alert severity="info">No photos submitted by contractors for this project.</Alert>
+            <Alert severity="info">No photos submitted for this project.</Alert>
           )}
         </Paper>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} variant="contained">Close</Button>
       </DialogActions>
+
+      {/* NEW: Confirmation Modal for Deleting a Document */}
+      <Dialog
+        open={deleteConfirmationModal.open}
+        onClose={() => setDeleteConfirmationModal({ open: false, documentId: null })}
+      >
+        <DialogTitle>Confirm Deletion</DialogTitle>
+        <DialogContent>
+          <Typography>Are you sure you want to delete this document? This action is permanent.</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteConfirmationModal({ open: false, documentId: null })}>Cancel</Button>
+          <Button onClick={handleDeleteDocument} color="error" variant="contained" disabled={submitting}>
+            {submitting ? <CircularProgress size={24} /> : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      
+      {/* NEW: Modal for Editing a Document's Description */}
+      <Dialog
+        open={editDocumentModal.open}
+        onClose={() => setEditDocumentModal({ open: false, document: null, newDescription: '' })}
+      >
+        <DialogTitle>Edit Document</DialogTitle>
+        <DialogContent>
+          <TextField
+            fullWidth
+            margin="dense"
+            label="Description"
+            multiline
+            rows={4}
+            value={editDocumentModal.newDescription}
+            onChange={(e) => setEditDocumentModal(prev => ({ ...prev, newDescription: e.target.value }))}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditDocumentModal({ open: false, document: null, newDescription: '' })}>Cancel</Button>
+          <Button onClick={handleEditDocument} color="primary" variant="contained" disabled={submitting}>
+            {submitting ? <CircularProgress size={24} /> : 'Save'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Dialog>
   );
 };

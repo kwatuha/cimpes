@@ -153,58 +153,38 @@ const projectService = {
     },
   },
   
-  // --- Milestone Attachments API Calls (kemri_milestone_attachments) ---
-  milestoneAttachments: {
-    getAttachmentsByMilestone: async (milestoneId) => {
-      const response = await axiosInstance.get(`/milestones/${milestoneId}/attachments`);
-      return response.data;
-    },
-    createAttachment: async (milestoneId, attachmentData) => {
-      const response = await axiosInstance.post(`/milestones/${milestoneId}/attachments`, attachmentData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      return response.data;
-    },
-    updateAttachment: async (milestoneId, attachmentId, attachmentData) => {
-      const response = await axiosInstance.put(`/milestones/${milestoneId}/attachments/${attachmentId}`, attachmentData);
-      return response.data;
-    },
-    deleteAttachment: async (attachmentId) => {
-      const response = await axiosInstance.delete(`/milestones/attachments/${attachmentId}`);
-      return response.data;
-    },
-  },
-  
-  // --- NEW: Project Maps API Calls ---
+  // --- Project Maps API Calls ---
   projectMaps: {
       importMapData: async (payload) => {
           const response = await axiosInstance.post(`/projects/project_maps/import`, payload);
           return response.data;
       },
   },
-
-  // --- NEW: Project Photos API Calls ---
-  projectPhotos: {
-    getPhotosByProject: async (projectId) => {
-      const response = await axiosInstance.get(`/projects/${projectId}/photos`);
+  
+  // --- NEW: Consolidated Documents API Calls ---
+  documents: {
+    getDocumentsForProject: async (projectId) => {
+      const response = await axiosInstance.get(`/projects/documents/project/${projectId}`);
       return response.data;
     },
-    uploadPhoto: async (projectId, fileData) => {
-      const response = await axiosInstance.post(`/projects/${projectId}/photos`, fileData, {
+    uploadDocument: async (documentData) => {
+      const response = await axiosInstance.post(`/projects/documents`, documentData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
       return response.data;
     },
-    setDefaultPhoto: async (photoId) => {
-      const response = await axiosInstance.put(`/project_photos/${photoId}/default`);
+    updateDocument: async (documentId, documentData) => {
+      const response = await axiosInstance.put(`/projects/documents/${documentId}`, documentData);
       return response.data;
     },
-    deletePhoto: async (photoId) => {
-      const response = await axiosInstance.delete(`/project_photos/${photoId}`);
+    deleteDocument: async (documentId) => {
+      const response = await axiosInstance.delete(`/projects/documents/${documentId}`);
+      return response.data;
+    },
+    setProjectCoverPhoto: async (documentId) => {
+      const response = await axiosInstance.put(`/projects/documents/cover/${documentId}`);
       return response.data;
     },
   },
@@ -261,8 +241,6 @@ const projectService = {
         return response.data;
     },
   },
-
-  // ⬅️ NOTE: The paymentRequests object was removed from here.
 
   // --- Task Assignees API Calls (kemri_task_assignees) ---
   taskAssignees: {

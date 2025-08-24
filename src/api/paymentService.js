@@ -64,42 +64,7 @@ const paymentService = {
     return response.data;
   },
 
-  // --- Payment Request Document API Calls (kemri_payment_request_documents) ---
-  /**
-   * Fetches documents for a specific payment request.
-   * @param {number} requestId - The ID of the payment request.
-   * @returns {Promise<Array>} A promise that resolves to an array of documents.
-   */
-  getDocumentsForRequest: async (requestId) => {
-    const response = await axiosInstance.get(`/payment-requests/request/${requestId}/documents`);
-    return response.data;
-  },
-  
-  /**
-   * Uploads one or more documents for an existing payment request.
-   * @param {number} requestId - The ID of the payment request.
-   * @param {FormData} formData - A FormData object containing the files and document type.
-   * @returns {Promise<object>} A promise that resolves to a success message.
-   */
-  uploadDocuments: async (requestId, formData) => {
-    // 🐛 FIX: Re-add the manual headers to ensure the Content-Type is set correctly.
-    const response = await axiosInstance.post(`/payment-requests/documents/${requestId}`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    return response.data;
-  },
-  
-  /**
-   * Deletes a specific document record.
-   * @param {number} documentId - The ID of the document to delete.
-   * @returns {Promise<object>} A promise that resolves to a success message.
-   */
-  deleteDocument: async (documentId) => {
-    const response = await axiosInstance.delete(`/payment-requests/documents/${documentId}`);
-    return response.data;
-  },
+  // ⬅️ NOTE: All document-related API calls have been moved to projectService.js
 
   // --- Payment Transaction API Calls (kemri_payment_transactions) ---
   createPaymentTransaction: async (transactionData) => {
