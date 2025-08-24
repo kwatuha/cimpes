@@ -350,25 +350,20 @@ function ProjectDetailsPage() {
       setActivityFormErrors({});
   };
   
-  // FIX: Refactored with extensive logging for debugging
   const handleOpenEditActivityDialog = async (activity) => {
     setSnackbar({ open: true, message: 'Loading activity details...', severity: 'info' });
     
-    // Log the initial activity object to check what's being passed in
     console.log("🐛 Initial Activity Object for Edit:", activity);
     console.log("🐛 Activity ID:", activity.activityId);
 
     try {
-        // Log the start of the API call
         console.log(`➡️ Fetching milestone links for activity ID: ${activity.activityId}`);
         const milestoneActivitiesData = await apiService.strategy.milestoneActivities.getActivitiesByActivityId(activity.activityId);
         
-        // Log the raw data received from the API
         console.log("✅ Raw API response (milestoneActivitiesData):", milestoneActivitiesData);
 
         const currentMilestoneIds = milestoneActivitiesData.map(ma => ma.milestoneId);
         
-        // Log the extracted milestone IDs
         console.log("🔗 Extracted Milestone IDs:", currentMilestoneIds);
 
         const workplanName = projectWorkPlans.find(wp => wp.workplanId === activity.workplanId)?.workplanName || '';
@@ -380,7 +375,6 @@ function ProjectDetailsPage() {
             milestoneIds: currentMilestoneIds,
         };
 
-        // Log the final formData object before setting state
         console.log("🎉 Final formData prepared for modal:", newFormData);
 
         setCurrentActivity(activity);
@@ -392,7 +386,6 @@ function ProjectDetailsPage() {
         console.log("🟢 Edit Activity modal is now open.");
         
     } catch (err) {
-        // Log the full error to the console for debugging
         console.error("❌ Error in handleOpenEditActivityDialog:", err);
         setSnackbar({ open: true, message: 'Failed to load activity for editing. Please try again.', severity: 'error' });
         setOpenActivityDialog(false);
@@ -812,6 +805,8 @@ function ProjectDetailsPage() {
                     />
                     <Stack direction="row" spacing={1}>
                       <IconButton edge="end" aria-label="attachments" onClick={() => {
+                          // FIX: Add a log to trace the data
+                          console.log("📂 Opening attachments modal for milestone:", milestone);
                           setMilestoneToViewAttachments(milestone);
                           setOpenAttachmentsModal(true);
                       }}>
@@ -887,6 +882,7 @@ function ProjectDetailsPage() {
         milestoneId={milestoneToViewAttachments?.milestoneId}
         currentMilestoneName={milestoneToViewAttachments?.milestoneName}
         onUploadSuccess={fetchProjectDetails}
+        projectId={projectId}
       />
       <ProjectMonitoringComponent
         open={openMonitoringModal}
@@ -908,51 +904,22 @@ function ProjectDetailsPage() {
         projectId={projectId}
         onSave={handleMilestoneSubmit}
       />
-
-      {/* FIX: The ActivityForm is now properly wrapped in a Dialog */}
-      <Dialog
+      <ActivityForm
           open={openActivityDialog}
           onClose={handleCloseActivityDialog}
-          fullWidth
-          maxWidth="md"
-      >
-          <DialogTitle>
-              {currentActivity ? 'Edit Activity' : 'Add New Activity'}
-              <IconButton
-                  aria-label="close"
-                  onClick={handleCloseActivityDialog}
-                  sx={{ position: 'absolute', right: 8, top: 8 }}
-              >
-                  <CloseIcon />
-              </IconButton>
-          </DialogTitle>
-          <DialogContent dividers>
-              <ActivityForm
-                  // Pass all the necessary props to the form component
-                  initialData={activityFormData}
-                  milestones={milestones}
-                  staff={staff}
-                  formErrors={activityFormErrors}
-                  setFormErrors={setActivityFormErrors}
-                  selectedWorkplanName={selectedWorkplanName}
-                  isEditing={!!currentActivity}
-                  onChange={handleActivityFormChange}
-                  onMilestoneSelectionChange={handleMilestoneSelectionChange}
-                  workPlans={projectWorkPlans}
-                  // The following props are now managed by the Dialog
-                  open={openActivityDialog}
-                  onClose={handleCloseActivityDialog}
-                  onSubmit={handleActivitySubmit}
-              />
-          </DialogContent>
-          <DialogActions>
-              <Button onClick={handleCloseActivityDialog}>Cancel</Button>
-              <Button onClick={handleActivitySubmit} variant="contained" color="primary">
-                  {currentActivity ? 'Save Changes' : 'Create Activity'}
-              </Button>
-          </DialogActions>
-      </Dialog>
-      
+          onSubmit={handleActivitySubmit}
+          initialData={activityFormData}
+          milestones={milestones}
+          staff={staff}
+          formErrors={activityFormErrors}
+          setFormErrors={setActivityFormErrors}
+          selectedWorkplanName={selectedWorkplanName}
+          isEditing={!!currentActivity}
+          onChange={handleActivityFormChange}
+          onMilestoneSelectionChange={handleMilestoneSelectionChange}
+          workPlans={projectWorkPlans}
+      />
+
       <PaymentRequestForm
         open={openPaymentModal}
         onClose={() => setOpenPaymentModal(false)}

@@ -197,6 +197,12 @@ const projectService = {
       const response = await axiosInstance.put(`/projects/documents/resize/${documentId}`, sizeData);
       return response.data;
     },
+     // New function to fetch documents by milestone
+    getMilestoneDocuments: async (milestoneId) => {
+        // FIX: Remove the leading '/api' from the URL
+        const response = await axiosInstance.get(`/projects/documents/milestone/${milestoneId}`);
+        return response.data;
+    }
   },
   
   // --- NEW: Project Monitoring API Calls ---
