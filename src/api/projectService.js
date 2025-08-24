@@ -262,47 +262,7 @@ const projectService = {
     },
   },
 
-  // --- NEW: Payment Request API Calls ---
-  paymentRequests: {
-    getRequestsForProject: async (projectId) => {
-      const response = await axiosInstance.get(`/projects/${projectId}/payment-requests`);
-      return response.data;
-    },
-    createRequest: async (requestData) => {
-      const response = await axiosInstance.post('/payment-requests', requestData);
-      return response.data;
-    },
-    updateStatus: async (requestId, statusData) => {
-      const response = await axiosInstance.put(`/payment-requests/${requestId}/status`, statusData);
-      return response.data;
-    },
-    getRequestsByContractor: async (contractorId) => {
-      const response = await axiosInstance.get(`/contractors/${contractorId}/payment-requests`);
-      return response.data;
-    },
-  },
-
-  // --- NEW: Contractor Photo API Calls ---
-  contractorPhotos: {
-    getPhotosForProject: async (projectId) => {
-      const response = await axiosInstance.get(`/projects/${projectId}/contractor-photos`);
-      return response.data;
-    },
-    uploadPhoto: async (contractorId, fileData) => {
-      const response = await axiosInstance.post(`/contractors/${contractorId}/photos`, fileData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      return response.data;
-    },
-    updateStatus: async (photoId, statusData) => {
-      const response = await axiosInstance.put(`/contractor-photos/${photoId}/status`, statusData);
-      return response.data;
-    },
-    getPhotosByContractor: async (contractorId) => {
-        const response = await axiosInstance.get(`/contractors/${contractorId}/photos`);
-        return response.data;
-    },
-  },
+  // ⬅️ NOTE: The paymentRequests object was removed from here.
 
   // --- Task Assignees API Calls (kemri_task_assignees) ---
   taskAssignees: {

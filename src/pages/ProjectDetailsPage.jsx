@@ -1,4 +1,3 @@
-// src/pages/ProjectDetailsPage.jsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -20,12 +19,15 @@ import {
   ExpandMore as ExpandMoreIcon
 } from '@mui/icons-material';
 import apiService from '../api';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext.jsx';
 import { getProjectStatusBackgroundColor, getProjectStatusTextColor } from '../utils/projectStatusColors';
 import MilestoneAttachments from '../components/MilestoneAttachments.jsx';
 import ProjectMonitoringComponent from '../components/ProjectMonitoringComponent.jsx';
 import ProjectManagerReviewPanel from '../components/ProjectManagerReviewPanel.jsx';
 import ActivityForm from '../components/strategicPlan/ActivityForm';
+import AddEditMilestoneModal from '../components/modals/AddEditMilestoneModal';
+import PaymentRequestForm from '../components/PaymentRequestForm';
+import PaymentRequestDocumentUploader from '../components/PaymentRequestDocumentUploader';
 
 const checkUserPrivilege = (user, privilegeName) => {
   return user && user.privileges && Array.isArray(user.privileges) && user.privileges.includes(privilegeName);
@@ -62,26 +64,17 @@ function ProjectDetailsPage() {
   const [categoryMilestones, setCategoryMilestones] = useState([]);
   const [milestoneActivities, setMilestoneActivities] = useState([]);
   
-  const [projectWorkPlans, setProjectWorkPlans] = useState([]); // State to hold work plans
-  const [loadingWorkPlans, setLoadingWorkPlans] = useState(false); // Loading state for work plans
+  const [projectWorkPlans, setProjectWorkPlans] = useState([]);
+  const [loadingWorkPlans, setLoadingWorkPlans] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
+  // Corrected: use local state for the modal
   const [openMilestoneDialog, setOpenMilestoneDialog] = useState(false);
   const [currentMilestone, setCurrentMilestone] = useState(null);
-  const [milestoneFormData, setMilestoneFormData] = useState({
-    milestoneName: '',
-    description: '',
-    dueDate: '',
-    completed: false,
-    completedDate: '',
-    sequenceOrder: '',
-    progress: 0,
-    weight: 1,
-  });
-  const [milestoneFormErrors, setMilestoneFormErrors] = useState({});
+  
   const [openAttachmentsModal, setOpenAttachmentsModal] = useState(false);
   const [milestoneToViewAttachments, setMilestoneToViewAttachments] = useState(null);
   const [openMonitoringModal, setOpenMonitoringModal] = useState(false); 
@@ -104,8 +97,20 @@ function ProjectDetailsPage() {
   });
   const [activityFormErrors, setActivityFormErrors] = useState({});
 
-  const [expandedWorkPlan, setExpandedWorkPlan] = useState(false); // New state for work plan accordions
-  const [selectedWorkplanName, setSelectedWorkplanName] = useState(''); // New state for selected work plan name
+  const [expandedWorkPlan, setExpandedWorkPlan] = useState(false);
+  const [selectedWorkplanName, setSelectedWorkplanName] = useState('');
+
+  const [paymentJustification, setPaymentJustification] = useState({
+      totalBudget: 0,
+      accomplishedActivities: [],
+      accomplishedMilestones: []
+  });
+  
+  const [openPaymentModal, setOpenPaymentModal] = useState(false);
+  
+  // NEW: State for the document uploader modal
+  const [openDocumentUploader, setOpenDocumentUploader] = useState(false);
+  const [selectedRequestId, setSelectedRequestId] = useState(null);
 
   const handleAccordionChange = (panel) => (event, isExpanded) => {
     setExpandedWorkPlan(isExpanded ? panel : false);
@@ -188,6 +193,27 @@ function ProjectDetailsPage() {
     fetchProjectDetails();
   }, [fetchProjectDetails]);
 
+  // NEW: Effect to process data for payment justification
+  useEffect(() => {
+    if (!milestones.length && !milestoneActivities.length) {
+        return;
+    }
+
+    // Identify accomplished activities and milestones
+    const accomplishedActivities = milestoneActivities.filter(a => a.activityStatus === 'completed');
+    const accomplishedMilestoneIds = new Set(accomplishedActivities.map(a => a.milestoneId));
+    const accomplishedMilestones = milestones.filter(m => accomplishedMilestoneIds.has(m.milestoneId));
+
+    // Calculate total budget for accomplished activities
+    const totalAccomplishedBudget = accomplishedActivities.reduce((sum, activity) => sum + (parseFloat(activity.budgetAllocated) || 0), 0);
+
+    setPaymentJustification({
+        totalBudget: totalAccomplishedBudget,
+        accomplishedActivities: accomplishedActivities,
+        accomplishedMilestones: accomplishedMilestones
+    });
+  }, [milestones, milestoneActivities]);
+
   const handleApplyMilestoneTemplate = async () => {
     if (!checkUserPrivilege(user, 'project.apply_template')) {
       setSnackbar({ open: true, message: 'Permission denied to apply milestone templates.', severity: 'error' });
@@ -211,12 +237,6 @@ function ProjectDetailsPage() {
       return;
     }
     setCurrentMilestone(null);
-    setMilestoneFormData({
-      milestoneName: '', description: '', dueDate: '', completed: false, completedDate: '', sequenceOrder: '',
-      progress: 0,
-      weight: 1,
-    });
-    setMilestoneFormErrors({});
     setOpenMilestoneDialog(true);
   };
 
@@ -226,59 +246,15 @@ function ProjectDetailsPage() {
       return;
     }
     setCurrentMilestone(milestone);
-    setMilestoneFormData({
-      milestoneName: milestone.milestoneName || '',
-      description: milestone.description || '',
-      dueDate: milestone.dueDate ? new Date(milestone.dueDate).toISOString().split('T')[0] : '',
-      completed: milestone.completed || false,
-      completedDate: milestone.completedDate ? new Date(milestone.completedDate).toISOString().split('T')[0] : '',
-      sequenceOrder: milestone.sequenceOrder || '',
-      progress: milestone.progress || 0,
-      weight: milestone.weight || 1,
-    });
-    setMilestoneFormErrors({});
     setOpenMilestoneDialog(true);
   };
 
   const handleCloseMilestoneDialog = () => {
     setOpenMilestoneDialog(false);
     setCurrentMilestone(null);
-    setMilestoneFormErrors({});
   };
 
-  const handleMilestoneFormChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setMilestoneFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : (type === 'number' ? parseFloat(value) : value)
-    }));
-  };
-
-  const validateMilestoneForm = () => {
-    let errors = {};
-    if (!milestoneFormData.milestoneName.trim()) errors.milestoneName = 'Milestone Name is required.';
-    if (!milestoneFormData.dueDate) errors.dueDate = 'Due Date is required.';
-    setMilestoneFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleMilestoneSubmit = async () => {
-    if (!validateMilestoneForm()) {
-      setSnackbar({ open: true, message: 'Please correct the milestone form errors.', severity: 'error' });
-      return;
-    }
-
-    let completedDateToSend = null;
-    if (milestoneFormData.completed) {
-      completedDateToSend = milestoneFormData.completedDate || new Date().toISOString().split('T')[0];
-    }
-
-    const dataToSubmit = {
-        ...milestoneFormData,
-        projectId: projectId,
-        completedDate: completedDateToSend
-    };
-
+  const handleMilestoneSubmit = async (dataToSubmit) => {
     try {
       if (currentMilestone) {
         if (!checkUserPrivilege(user, 'milestone.update')) {
@@ -326,8 +302,7 @@ function ProjectDetailsPage() {
     }
     setSnackbar({ ...snackbar, open: false });
   };
-
-  // Re-added the missing function
+  
   const handleManagePhotos = () => {
     navigate(`/projects/${projectId}/photos`);
   };
@@ -345,7 +320,29 @@ function ProjectDetailsPage() {
   const handleCloseReviewPanel = () => {
     setOpenReviewPanel(false);
   };
-  
+
+  const handleOpenPaymentRequest = () => {
+    setOpenPaymentModal(true);
+  };
+
+  const handlePaymentRequestSubmit = async (projectId, formData) => {
+    try {
+        // Assume this API call creates the request and returns the new requestId
+        const newRequest = await apiService.paymentRequests.createRequest(projectId, formData); 
+        
+        setSnackbar({ open: true, message: 'Payment request submitted successfully!', severity: 'success' });
+        
+        // After successful creation, close the current modal and open the document uploader for the new request
+        setOpenPaymentModal(false);
+        setSelectedRequestId(newRequest.requestId);
+        setOpenDocumentUploader(true);
+
+        fetchProjectDetails(); // Re-fetch data to show the new request
+    } catch (err) {
+        setSnackbar({ open: true, message: err.message || 'Failed to submit payment request.', severity: 'error' });
+    }
+  };
+
   const handleOpenCreateActivityDialog = (workplanId, workplanName) => {
       setOpenActivityDialog(true);
       setCurrentActivity(null);
@@ -354,7 +351,7 @@ function ProjectDetailsPage() {
           activityName: '', activityDescription: '', responsibleOfficer: null, startDate: '', endDate: '', budgetAllocated: null,
           actualCost: null, percentageComplete: null, activityStatus: 'not_started',
           projectId: projectId,
-          workplanId: workplanId, // Pass the workplanId directly
+          workplanId: workplanId,
           milestoneIds: [],
       });
       setActivityFormErrors({});
@@ -384,7 +381,7 @@ function ProjectDetailsPage() {
   
   const handleCloseActivityDialog = () => {
       setOpenActivityDialog(false);
-      setCurrentActivity(null);/*  */
+      setCurrentActivity(null);
       setActivityFormErrors({});
       setSelectedWorkplanName('');
   };
@@ -461,10 +458,25 @@ function ProjectDetailsPage() {
           }
       }
   };
+  
+  // NEW: Handlers for the document uploader modal
+  const handleOpenDocumentUploader = (requestId) => {
+    setSelectedRequestId(requestId);
+    setOpenDocumentUploader(true);
+  };
+  
+  const handleCloseDocumentUploader = () => {
+    setOpenDocumentUploader(false);
+    setSelectedRequestId(null);
+    fetchProjectDetails(); // Re-fetch to show new documents
+  };
 
   const canApplyTemplate = !!projectCategory && checkUserPrivilege(user, 'project.apply_template');
-  const canReviewSubmissions = checkUserPrivilege(user, 'project_manager.review'); // Assumed new privilege
+  const canReviewSubmissions = checkUserPrivilege(user, 'project_manager.review');
   
+  // 🐛 FIX: Add a debug log to verify projectId
+  console.log("ProjectDetailsPage projectId:", projectId);
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -578,7 +590,61 @@ function ProjectDetailsPage() {
         </Stack>
       </Paper>
 
-      {/* --- NEW SECTION: Work Plans Accordion --- */}
+      {/* Payment Justification Section */}
+      <Box sx={{ mt: 4 }}>
+        <Typography variant="h5" color="primary.main" gutterBottom>Payment Justification</Typography>
+        <Paper elevation={3} sx={{ p: 3, mb: 2, borderRadius: '8px' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6">Accomplished Milestones & Activities</Typography>
+            <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
+              Total Accomplished Budget: <span style={{ color: theme.palette.success.main }}>KES {paymentJustification.totalBudget.toFixed(2)}</span>
+            </Typography>
+          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            This section shows the budget for all completed project activities. You can use this to justify a payment request.
+          </Typography>
+          {paymentJustification.accomplishedMilestones.length > 0 ? (
+            <List dense>
+              {paymentJustification.accomplishedMilestones.map(milestone => (
+                <Accordion key={milestone.milestoneId} expanded>
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                    <Typography sx={{ fontWeight: 'bold' }}>Milestone: {milestone.milestoneName}</Typography>
+                  </AccordionSummary>
+                  <AccordionDetails sx={{ bgcolor: '#fafafa' }}>
+                    <List dense>
+                      {paymentJustification.accomplishedActivities
+                        .filter(a => a.milestoneId === milestone.milestoneId)
+                        .map(activity => (
+                          <ListItem key={activity.activityId}>
+                            <ListItemText
+                              primary={activity.activityName}
+                              secondary={`Budget: KES ${parseFloat(activity.budgetAllocated).toFixed(2)}`}
+                            />
+                          </ListItem>
+                        ))}
+                    </List>
+                  </AccordionDetails>
+                </Accordion>
+              ))}
+            </List>
+          ) : (
+            <Alert severity="info">No completed milestones with activities found yet.</Alert>
+          )}
+        </Paper>
+        {/* Button to initiate payment request based on the accomplished work */}
+        <Box sx={{ textAlign: 'right' }}>
+            <Button
+                variant="contained"
+                startIcon={<PaidIcon />}
+                onClick={handleOpenPaymentRequest}
+                disabled={paymentJustification.accomplishedActivities.length === 0}
+            >
+                Request Payment for Accomplished Work
+            </Button>
+        </Box>
+      </Box>
+
+      {/* Work Plans Accordion */}
       <Box sx={{ mt: 4 }}>
         <Typography variant="h5" color="primary.main" gutterBottom>Work Plans</Typography>
         {loadingWorkPlans ? (
@@ -589,7 +655,6 @@ function ProjectDetailsPage() {
             <Alert severity="info">No work plans available for this project's subprogram.</Alert>
         ) : (
             projectWorkPlans.map((workplan) => {
-                // Calculate the budget of activities already added to this work plan
                 const activitiesForWorkplan = milestoneActivities.filter(a => String(a.workplanId) === String(workplan.workplanId));
                 const totalMappedBudget = activitiesForWorkplan.reduce((sum, activity) => sum + (parseFloat(activity.budgetAllocated) || 0), 0);
                 const remainingBudget = (parseFloat(workplan.totalBudget) || 0) - totalMappedBudget;
@@ -654,14 +719,14 @@ function ProjectDetailsPage() {
                                                 secondaryAction={
                                                     <Stack direction="row" spacing={1}>
                                                         {checkUserPrivilege(user, 'activity.update') && (
-                                                            <IconButton edge="end" aria-label="edit" onClick={() => handleOpenEditActivityDialog(activity)}>
-                                                                <EditIcon />
-                                                            </IconButton>
+                                                            <Tooltip title="Edit Activity">
+                                                                <IconButton edge="end" aria-label="edit" onClick={(e) => { e.stopPropagation(); handleOpenEditActivityDialog(activity); }}><EditIcon /></IconButton>
+                                                            </Tooltip>
                                                         )}
                                                         {checkUserPrivilege(user, 'activity.delete') && (
-                                                            <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteActivity(activity.activityId)}>
-                                                                <DeleteIcon />
-                                                            </IconButton>
+                                                            <Tooltip title="Delete Activity">
+                                                                <IconButton edge="end" aria-label="delete" onClick={(e) => { e.stopPropagation(); handleDeleteActivity(activity.activityId); }}><DeleteIcon /></IconButton>
+                                                            </Tooltip>
                                                         )}
                                                     </Stack>
                                                 }
@@ -772,16 +837,19 @@ function ProjectDetailsPage() {
                           <List dense disablePadding>
                               {(milestoneActivities || []).filter(a => a.milestoneId === milestone.milestoneId).map(activity => (
                                   <ListItem key={activity.activityId} disablePadding sx={{ py: 0.5 }}>
-                                      <ListItemText primary={activity.activityName} secondary={`Budget: ${parseFloat(activity.budgetAllocated).toFixed(2)} | Status: ${activity.activityStatus.replace(/_/g, ' ')}`} />
+                                      <ListItemText
+                                        primary={activity.activityName}
+                                        secondary={`Budget: KES ${parseFloat(activity.budgetAllocated).toFixed(2)} | Status: ${activity.activityStatus.replace(/_/g, ' ')}`}
+                                      />
                                       <Box>
                                           {checkUserPrivilege(user, 'activity.update') && (
                                               <Tooltip title="Edit Activity">
-                                                  <IconButton size="small" color="primary" onClick={(e) => { e.stopPropagation(); handleOpenEditActivityDialog(activity); }}><EditIcon /></IconButton>
+                                                  <IconButton edge="end" aria-label="edit" onClick={(e) => { e.stopPropagation(); handleOpenEditActivityDialog(activity); }}><EditIcon /></IconButton>
                                               </Tooltip>
                                           )}
                                           {checkUserPrivilege(user, 'activity.delete') && (
                                               <Tooltip title="Delete Activity">
-                                                  <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); handleDeleteActivity(activity.activityId); }}><DeleteIcon /></IconButton>
+                                                  <IconButton edge="end" aria-label="delete" onClick={(e) => { e.stopPropagation(); handleDeleteActivity(activity.activityId); }}><DeleteIcon /></IconButton>
                                               </Tooltip>
                                           )}
                                       </Box>
@@ -802,6 +870,7 @@ function ProjectDetailsPage() {
         )}
       </Box>
 
+      {/* Modals for Activities, Milestones, and Monitoring */}
       <MilestoneAttachments
         open={openAttachmentsModal}
         onClose={() => setOpenAttachmentsModal(false)}
@@ -809,18 +878,58 @@ function ProjectDetailsPage() {
         currentMilestoneName={milestoneToViewAttachments?.milestoneName}
         onUploadSuccess={fetchProjectDetails}
       />
-
       <ProjectMonitoringComponent
         open={openMonitoringModal}
         onClose={handleCloseMonitoringModal}
         projectId={projectId}
       />
-      
       <ProjectManagerReviewPanel
           open={openReviewPanel}
           onClose={handleCloseReviewPanel}
           projectId={projectId}
           projectName={project?.projectName}
+          paymentJustification={paymentJustification}
+          handleOpenDocumentUploader={handleOpenDocumentUploader}
+      />
+      <AddEditMilestoneModal
+        isOpen={openMilestoneDialog}
+        onClose={handleCloseMilestoneDialog}
+        editedMilestone={currentMilestone}
+        projectId={projectId}
+        onSave={handleMilestoneSubmit}
+      />
+      <ActivityForm
+          open={openActivityDialog}
+          onClose={handleCloseActivityDialog}
+          onSubmit={handleActivitySubmit}
+          initialData={activityFormData}
+          milestones={milestones}
+          staff={staff}
+          formErrors={activityFormErrors}
+          setFormErrors={setActivityFormErrors}
+          selectedWorkplanName={selectedWorkplanName}
+          isEditing={!!currentActivity}
+          onChange={handleActivityFormChange}
+          onMilestoneSelectionChange={handleMilestoneSelectionChange}
+          workPlans={projectWorkPlans}
+      />
+
+      <PaymentRequestForm
+        open={openPaymentModal}
+        onClose={() => setOpenPaymentModal(false)}
+        projectId={project?.projectId}
+        projectName={project?.projectName}
+        onSubmit={handlePaymentRequestSubmit}
+        accomplishedActivities={paymentJustification.accomplishedActivities}
+        totalJustifiedAmount={paymentJustification.totalBudget}
+      />
+      
+      {/* NEW: The document uploader modal */}
+      <PaymentRequestDocumentUploader
+        open={openDocumentUploader}
+        onClose={handleCloseDocumentUploader}
+        requestId={selectedRequestId}
+        projectId={projectId}
       />
 
       <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar}>

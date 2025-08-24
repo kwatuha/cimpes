@@ -3,13 +3,13 @@ import {
   Box, Typography, Button, Paper, Stack, Grid, CircularProgress, Alert,
   List, ListItem, ListItemText, ListItemSecondaryAction, IconButton,
   Dialog, DialogTitle, DialogContent, DialogActions, TextField, Chip, MenuItem,
-  Snackbar
+  Snackbar, Link
 } from '@mui/material';
 import {
   Add as AddIcon, PhotoCamera as PhotoCameraIcon, Paid as PaidIcon,
   Visibility as VisibilityIcon, UploadFile as UploadFileIcon
 } from '@mui/icons-material';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext.jsx';
 import apiService from '../api';
 // NEW: Import the standalone form components
 import PaymentRequestForm from '../components/PaymentRequestForm.jsx';
@@ -165,9 +165,20 @@ const ContractorDashboard = () => {
               {paymentRequests.length > 0 ? (
                 paymentRequests.map(req => (
                   <ListItem key={req.id} divider>
-                    <ListItemText primary={`KES ${parseFloat(req.amount).toFixed(2)}`} secondary={`Project ID: ${req.projectId}`} />
+                    <ListItemText primary={`KES ${parseFloat(req.amount).toFixed(2)}`} secondary={
+                      <React.Fragment>
+                        <Typography component="span" variant="body2" color="text.primary">
+                          Project ID: {req.projectId}
+                        </Typography>
+                        <br />
+                        <Typography component="span" variant="body2" color="text.secondary">
+                          Submitted: {new Date(req.submittedAt).toLocaleDateString()}
+                        </Typography>
+                      </React.Fragment>
+                    } />
                     <ListItemSecondaryAction>
                       <Chip label={req.status} color={req.status === 'Approved' ? 'success' : (req.status === 'Rejected' ? 'error' : 'default')} />
+                      {/* TODO: Add button to view request details if needed */}
                     </ListItemSecondaryAction>
                   </ListItem>
                 ))

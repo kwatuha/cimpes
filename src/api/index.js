@@ -1,6 +1,4 @@
 import axios from 'axios';
-
-// Import the specific axios instance file
 import axiosInstance from './axiosInstance';
 
 import authService from './authService';
@@ -14,21 +12,13 @@ import dashboardService from './dashboardService';
 import metaDataService from './metaDataService';
 import kdspIIService from './kdspIIService';
 import hrService from './hrService';
+import paymentService from './paymentService';
 
-// Export the base URL for API calls (used by axiosInstance)
-// Use the VITE_API_BASE_URL environment variable
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
-
-// Export the base URL for directly accessing static files
-// Use the VITE_FILE_SERVER_BASE_URL environment variable
 export const FILE_SERVER_BASE_URL = import.meta.env.VITE_FILE_SERVER_BASE_URL || 'http://localhost:3000';
 
 const apiService = {
-  // Use the spread syntax to merge all top-level properties from projectService.
-  // This automatically includes the new `projectPhotos` service.
   ...projectService,
-  
-  // These services are flat objects and can be assigned directly
   kdspIIService,
   auth: authService,
   users: userService,
@@ -39,8 +29,10 @@ const apiService = {
   dashboard: dashboardService,
   metadata: metaDataService,
   hr: hrService,
+  // 🐛 FIX: Change the key from 'payment' to 'paymentRequests'
+  paymentRequests: paymentService, 
 };
 
-export { axiosInstance};
+export { axiosInstance };
 
 export default apiService;

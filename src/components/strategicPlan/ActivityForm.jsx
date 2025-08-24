@@ -1,5 +1,6 @@
 // src/components/strategicPlan/ActivityForm.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
+import PropTypes from 'prop-types';
 import {
   Box,
   TextField,
@@ -26,28 +27,60 @@ const activityStatusOptions = [
   'cancelled',
 ];
 
-const ActivityForm = React.memo(({ formData, handleFormChange, workPlans, milestones, hideWorkplanSelector }) => {
-  const [staff, setStaff] = useState([]);
-  const [loadingStaff, setLoadingStaff] = useState(false);
-  const [workplanActivities, setWorkplanActivities] = useState([]);
+const ActivityForm = memo(({
+  open,
+  onClose,
+  onSubmit,
+  initialData,
+  milestones,
+  staff,
+  formErrors,
+  setFormErrors,
+  selectedWorkplanName,
+  isEditing,
+  onChange,
+  onMilestoneSelectionChange,
+  workPlans
+}) => {
+  const [formData, setFormData] = useState(initialData);
   const [loadingWorkplanActivities, setLoadingWorkplanActivities] = useState(false);
+  const [workplanActivities, setWorkplanActivities] = useState([]);
 
   useEffect(() => {
-    const fetchStaffData = async () => {
-      setLoadingStaff(true);
-      try {
-        const staffData = await apiService.users.getStaff();
-        setStaff(staffData.map(s => ({ staffId: s.staffId, name: `${s.firstName} ${s.lastName}` })));
-      } catch (err) {
-        console.error("Error fetching staff data:", err);
-      } finally {
-        setLoadingStaff(false);
-      }
-    };
-    fetchStaffData();
-  }, []);
+    setFormData(initialData);
+  }, [initialData]);
+
+  const handleLocalChange = useCallback((e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+    onChange(e);
+  }, [onChange]);
+
+  const handleAutocompleteChange = useCallback((name, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [name]: value,
+    }));
+    onChange({ target: { name, value } });
+  }, [onChange]);
+
+  const [selectedMilestones, setSelectedMilestones] = useState([]);
   
-  // New useEffect to fetch activities for the selected work plan
+  useEffect(() => {
+    if (initialData.milestoneIds && milestones) {
+      const selected = initialData.milestoneIds.map(id => milestones.find(m => m.milestoneId === id)).filter(Boolean);
+      setSelectedMilestones(selected);
+    }
+  }, [initialData.milestoneIds, milestones]);
+  
+  const handleMilestoneSelection = useCallback((event, newValue) => {
+    setSelectedMilestones(newValue);
+    onMilestoneSelectionChange(event, newValue);
+  }, [onMilestoneSelectionChange]);
+  
   useEffect(() => {
     const fetchWorkplanActivities = async () => {
       if (formData.workplanId) {
@@ -68,56 +101,28 @@ const ActivityForm = React.memo(({ formData, handleFormChange, workPlans, milest
     fetchWorkplanActivities();
   }, [formData.workplanId]);
 
-  // Filter milestones based on the project ID provided from the parent component
   const relevantMilestones = milestones.filter(m => String(m.projectId) === String(formData.projectId));
 
-  const selectedWorkPlan = workPlans.find(wp => wp.workplanId === formData.workplanId);
+  const selectedWorkPlan = workPlans?.find(wp => wp.workplanId === formData.workplanId);
+  const selectedResponsibleOfficer = staff.find(s => s.staffId === formData.responsibleOfficer);
 
-  // Calculate the total budget of activities already added to this work plan
   const totalMappedBudget = workplanActivities.reduce((sum, activity) => sum + (parseFloat(activity.budgetAllocated) || 0), 0);
 
   return (
     <Box sx={{ mt: 2, p: 2 }}>
       <Grid container spacing={2}>
-        {/* Row 1: Work Plan, Activity Name, Status */}
-        {!hideWorkplanSelector && (
-          <Grid item xs={12} sm={6}>
-              <Autocomplete
-                  fullWidth
-                  options={workPlans}
-                  getOptionLabel={(option) => option.workplanName || ''}
-                  isOptionEqualToValue={(option, value) => option.workplanId === value}
-                  value={selectedWorkPlan || null}
-                  onChange={(event, newValue) => {
-                      const workplanId = newValue ? newValue.workplanId : null;
-                      handleFormChange({ target: { name: 'workplanId', value: workplanId } });
-                      if (!newValue) {
-                        handleFormChange({ target: { name: 'milestoneIds', value: [] } });
-                      }
-                  }}
-                  loading={false}
-                  renderInput={(params) => (
-                      <TextField
-                          {...params}
-                          label="Select Work Plan"
-                          variant="outlined"
-                          margin="dense"
-                          InputProps={{
-                              ...params.InputProps,
-                              endAdornment: (
-                                  <>
-                                      {false ? <CircularProgress color="inherit" size={20} /> : null}
-                                      {params.InputProps.endAdornment}
-                                  </>
-                              ),
-                          }}
-                      />
-                  )}
-              />
+        {selectedWorkplanName && (
+          <Grid item xs={12} sm={12}>
+            <Typography variant="h6" sx={{ color: 'primary.main', mb: 1 }}>
+              <Chip label="Work Plan" sx={{ mr: 1 }} /> {selectedWorkplanName}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              This activity will be linked to the work plan selected in the main Project Details page.
+            </Typography>
           </Grid>
         )}
         <Grid item xs={12} sm={6}>
-            <TextField
+          <TextField
             name="activityName"
             label="Activity Name"
             type="text"
@@ -125,17 +130,17 @@ const ActivityForm = React.memo(({ formData, handleFormChange, workPlans, milest
             variant="outlined"
             margin="dense"
             value={formData.activityName || ''}
-            onChange={handleFormChange}
+            onChange={handleLocalChange}
           />
         </Grid>
         <Grid item xs={12} sm={6}>
-          <FormControl fullWidth margin="dense" variant="outlined">
+          <FormControl fullWidth margin="dense" variant="outlined" sx={{ minWidth: 120 }}>
             <InputLabel>Activity Status</InputLabel>
             <Select
               name="activityStatus"
               label="Activity Status"
               value={formData.activityStatus || ''}
-              onChange={handleFormChange}
+              onChange={handleLocalChange}
             >
               {activityStatusOptions.map((status) => (
                 <MenuItem key={status} value={status}>
@@ -146,7 +151,6 @@ const ActivityForm = React.memo(({ formData, handleFormChange, workPlans, milest
           </FormControl>
         </Grid>
 
-        {/* Row 2: Dates */}
         <Grid item xs={12} sm={6}>
           <TextField
             name="startDate"
@@ -156,7 +160,7 @@ const ActivityForm = React.memo(({ formData, handleFormChange, workPlans, milest
             variant="outlined"
             margin="dense"
             value={formData.startDate || ''}
-            onChange={handleFormChange}
+            onChange={handleLocalChange}
             InputLabelProps={{ shrink: true }}
           />
         </Grid>
@@ -169,23 +173,20 @@ const ActivityForm = React.memo(({ formData, handleFormChange, workPlans, milest
             variant="outlined"
             margin="dense"
             value={formData.endDate || ''}
-            onChange={handleFormChange}
+            onChange={handleLocalChange}
             InputLabelProps={{ shrink: true }}
           />
         </Grid>
 
-        {/* Row 3: Contributes to Milestones */}
-        <Grid item xs={12} sm={6}>
+        <Grid item xs={12}>
           <Autocomplete
             multiple
             fullWidth
             options={relevantMilestones}
             getOptionLabel={(option) => option.milestoneName || ''}
             isOptionEqualToValue={(option, value) => option.milestoneId === value.milestoneId}
-            value={relevantMilestones.filter(m => (formData.milestoneIds || []).includes(m.milestoneId))}
-            onChange={(event, newValue) => {
-              handleFormChange({ target: { name: 'milestoneIds', value: newValue.map(m => m.milestoneId) } });
-            }}
+            value={selectedMilestones}
+            onChange={handleMilestoneSelection}
             disabled={!formData.projectId}
             renderInput={(params) => (
               <TextField
@@ -199,39 +200,25 @@ const ActivityForm = React.memo(({ formData, handleFormChange, workPlans, milest
           />
         </Grid>
 
-        {/* Row 4: Responsible Officer */}
-        <Grid item xs={12} sm={6}>
+        <Grid item xs={12}>
           <Autocomplete
             fullWidth
             options={staff}
             getOptionLabel={(option) => option.name || ''}
             isOptionEqualToValue={(option, value) => option.staffId === value.staffId}
-            value={staff.find(s => s.staffId === formData.responsibleOfficer) || null}
-            onChange={(event, newValue) => {
-              handleFormChange({ target: { name: 'responsibleOfficer', value: newValue ? newValue.staffId : null } });
-            }}
-            loading={loadingStaff}
+            value={selectedResponsibleOfficer || null}
+            onChange={(event, newValue) => handleAutocompleteChange('responsibleOfficer', newValue ? newValue.staffId : null)}
             renderInput={(params) => (
               <TextField
                 {...params}
                 label="Responsible Officer"
                 variant="outlined"
                 margin="dense"
-                InputProps={{
-                  ...params.InputProps,
-                  endAdornment: (
-                    <>
-                      {loadingStaff ? <CircularProgress color="inherit" size={20} /> : null}
-                      {params.InputProps.endAdornment}
-                    </>
-                  ),
-                }}
               />
             )}
           />
         </Grid>
 
-        {/* Row 5: Financials & Progress */}
         <Grid item xs={12} sm={4}>
           <TextField
             name="budgetAllocated"
@@ -241,7 +228,7 @@ const ActivityForm = React.memo(({ formData, handleFormChange, workPlans, milest
             variant="outlined"
             margin="dense"
             value={formData.budgetAllocated || ''}
-            onChange={handleFormChange}
+            onChange={handleLocalChange}
           />
         </Grid>
         <Grid item xs={12} sm={4}>
@@ -253,7 +240,7 @@ const ActivityForm = React.memo(({ formData, handleFormChange, workPlans, milest
             variant="outlined"
             margin="dense"
             value={formData.actualCost || ''}
-            onChange={handleFormChange}
+            onChange={handleLocalChange}
           />
         </Grid>
         <Grid item xs={12} sm={4}>
@@ -265,11 +252,11 @@ const ActivityForm = React.memo(({ formData, handleFormChange, workPlans, milest
             variant="outlined"
             margin="dense"
             value={formData.percentageComplete || ''}
-            onChange={handleFormChange}
+            onChange={handleLocalChange}
+            inputProps={{ min: 0, max: 100 }}
           />
         </Grid>
 
-        {/* Row 6: Descriptions and Remarks */}
         <Grid item xs={12}>
           <TextField
             name="activityDescription"
@@ -281,7 +268,7 @@ const ActivityForm = React.memo(({ formData, handleFormChange, workPlans, milest
             variant="outlined"
             margin="dense"
             value={formData.activityDescription || ''}
-            onChange={handleFormChange}
+            onChange={handleLocalChange}
           />
         </Grid>
         <Grid item xs={12}>
@@ -295,12 +282,11 @@ const ActivityForm = React.memo(({ formData, handleFormChange, workPlans, milest
             variant="outlined"
             margin="dense"
             value={formData.remarks || ''}
-            onChange={handleFormChange}
+            onChange={handleLocalChange}
           />
         </Grid>
       </Grid>
       
-      {/* New section for work plan details */}
       {selectedWorkPlan && (
         <Box sx={{ mt: 4, p: 2, border: '1px solid #ccc', borderRadius: '8px' }}>
           <Typography variant="h6" gutterBottom>Work Plan Summary: {selectedWorkPlan.workplanName}</Typography>
@@ -337,5 +323,29 @@ const ActivityForm = React.memo(({ formData, handleFormChange, workPlans, milest
     </Box>
   );
 });
+
+ActivityForm.propTypes = {
+  open: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onSubmit: PropTypes.func.isRequired,
+  initialData: PropTypes.object,
+  milestones: PropTypes.array.isRequired,
+  staff: PropTypes.array.isRequired,
+  formErrors: PropTypes.object,
+  setFormErrors: PropTypes.func,
+  selectedWorkplanName: PropTypes.string,
+  isEditing: PropTypes.bool.isRequired,
+  onChange: PropTypes.func.isRequired,
+  onMilestoneSelectionChange: PropTypes.func.isRequired,
+  workPlans: PropTypes.array.isRequired
+};
+
+ActivityForm.defaultProps = {
+  initialData: {},
+  formErrors: {},
+  setFormErrors: () => {},
+  selectedWorkplanName: '',
+  workPlans: [],
+};
 
 export default ActivityForm;
