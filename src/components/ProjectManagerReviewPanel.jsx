@@ -47,20 +47,14 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
   // State for edit and delete modals
   const [deleteConfirmationModal, setDeleteConfirmationModal] = useState({ open: false, documentId: null });
   const [editDocumentModal, setEditDocumentModal] = useState({ open: false, document: null, newDescription: '' });
-  // NEW: State for confirming resize action
+  // State for confirming resize action
   const [resizeConfirmationModal, setResizeConfirmationModal] = useState({ open: false, document: null, width: '', height: '' });
   // State for context menu
   const [contextMenu, setContextMenu] = useState(null);
   
-  // NEW: State to track if resizing is active
+  // State to track if resizing is active (no longer used for drag-to-resize)
   const [resizeMode, setResizeMode] = useState(false);
   const [resizingPhoto, setResizingPhoto] = useState(null);
-  const resizingStateRef = useRef({
-      isResizing: false,
-      photo: null,
-      startPos: { x: 0, y: 0 },
-      dimensions: { width: 0, height: 0 },
-  });
   const photoRefs = useRef({});
 
   const fetchData = useCallback(async () => {
@@ -262,7 +256,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
     }
   };
 
-  // NEW: Handlers for context menu
+  // Handlers for context menu
   const handleContextMenu = (event, photo) => {
     event.preventDefault();
     setContextMenu(
@@ -280,19 +274,25 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
     setContextMenu(null);
   };
   
-  // NEW: Handlers for drag-to-resize functionality
   const handleResizeMouseDown = useCallback((e, photo) => {
     e.preventDefault();
     e.stopPropagation();
-    resizingStateRef.current = {
-      isResizing: true,
-      photo,
-      startPos: { x: e.clientX, y: e.clientY },
-      dimensions: {
-        width: photoRefs.current[photo.id].clientWidth,
-        height: photoRefs.current[photo.id].clientHeight
-      },
-    };
+    setResizingPhoto(photo);
+    setResizeMode(true);
+    const photoElement = photoRefs.current[photo.id];
+    if (photoElement) {
+        resizingStateRef.current = {
+            isResizing: true,
+            photo,
+            startPos: { x: e.clientX, y: e.clientY },
+            dimensions: {
+                width: photoElement.clientWidth,
+                height: photoElement.clientHeight
+            },
+        };
+        photoElement.style.position = 'relative';
+        photoElement.style.border = `2px solid primary.main`;
+    }
   }, []);
 
   const handleResizeMouseMove = useCallback((e) => {
@@ -324,7 +324,6 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
     const newHeight = ref.clientHeight;
     
     resizingStateRef.current = {
-        ...resizingStateRef.current,
         isResizing: false,
     };
     
@@ -339,7 +338,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
   }, []);
 
   useEffect(() => {
-    if (resizingStateRef.current.isResizing) {
+    if (resizeMode) {
         window.addEventListener('mousemove', handleResizeMouseMove);
         window.addEventListener('mouseup', handleResizeMouseUp);
     } else {
@@ -350,7 +349,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
         window.removeEventListener('mousemove', handleResizeMouseMove);
         window.removeEventListener('mouseup', handleResizeMouseUp);
     };
-  }, [handleResizeMouseMove, handleResizeMouseUp]);
+  }, [resizeMode, handleResizeMouseMove, handleResizeMouseUp]);
 
 
   if (!open) {
@@ -518,18 +517,18 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
                       <DragDropContext onDragEnd={handlePhotoReorder}>
                         <Droppable droppableId={`payment-photos-droppable-${req.requestId}`}>
                           {(provided) => (
-                            <Grid container spacing={2} sx={{ mt: 1 }} {...provided.droppableProps} ref={provided.innerRef}>
+                            <Grid container spacing={2} sx={{ mt: 1, minHeight: '200px' }} {...provided.droppableProps} ref={provided.innerRef}>
                               {paymentRequestDetails[req.requestId]?.documents
                                 .filter(doc => doc.documentType === 'photo_payment')
                                 .map((doc, index) => (
-                                  <Draggable key={doc.id} draggableId={doc.id.toString()} index={index} isDragDisabled={resizeMode}>
+                                  <Draggable key={doc.id} draggableId={doc.id.toString()} index={index} isDragDisabled={resizingPhoto !== null}>
                                     {(provided) => (
                                       <Grid item xs={12} sm={6} md={4} key={doc.id}
                                         ref={provided.innerRef}
                                         {...provided.draggableProps}
                                         {...provided.dragHandleProps}
                                       >
-                                        <Paper elevation={2} sx={{ position: 'relative', overflow: 'hidden' }} onContextMenu={(e) => handleContextMenu(e, doc)}>
+                                        <Paper elevation={2} sx={{ position: 'relative', overflow: 'hidden', border: resizingPhoto?.id === doc.id ? '2px solid' : 'none', borderColor: 'primary.main' }} onContextMenu={(e) => handleContextMenu(e, doc)}>
                                             <Box
                                                 ref={el => photoRefs.current[doc.id] = el}
                                                 sx={{
@@ -544,25 +543,6 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
                                                     alt={doc.description || 'Payment Photo'}
                                                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                                 />
-                                                {hasPrivilege('document.update') && resizeMode && resizingPhoto?.id === doc.id && (
-                                                    <Box
-                                                        sx={{
-                                                            position: 'absolute',
-                                                            bottom: 0,
-                                                            right: 0,
-                                                            width: '16px',
-                                                            height: '16px',
-                                                            backgroundColor: 'primary.main',
-                                                            cursor: 'nwse-resize',
-                                                            '&:hover': {
-                                                                backgroundColor: 'primary.dark',
-                                                            },
-                                                            opacity: 0.8,
-                                                            zIndex: 10,
-                                                        }}
-                                                        onMouseDown={(e) => handleResizeMouseDown(e, doc)}
-                                                    />
-                                                )}
                                             </Box>
                                             <Box sx={{ p: 1 }}>
                                                 <Typography variant="body2" noWrap>{doc.description || 'No description'}</Typography>
@@ -610,7 +590,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
                         <div {...provided.droppableProps} ref={provided.innerRef}>
                             <Timeline position="alternate">
                                 {projectPhotos.map((photo, index) => (
-                                    <Draggable key={photo.id} draggableId={photo.id.toString()} index={index} isDragDisabled={resizeMode}>
+                                    <Draggable key={photo.id} draggableId={photo.id.toString()} index={index} isDragDisabled={resizingPhoto !== null}>
                                         {(provided) => (
                                             <TimelineItem
                                                 ref={provided.innerRef}
@@ -638,6 +618,8 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
                                                                 overflow: 'hidden',
                                                                 width: '100%',
                                                                 height: 'auto',
+                                                                border: resizingPhoto?.id === photo.id ? '2px solid' : 'none',
+                                                                borderColor: 'primary.main',
                                                             }}
                                                         >
                                                             <img
@@ -670,7 +652,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
         <Button onClick={onClose} variant="contained">Close</Button>
       </DialogActions>
 
-      {/* NEW: Confirmation Modal for Deleting a Document */}
+      {/* Confirmation Modal for Deleting a Document */}
       <Dialog
         open={deleteConfirmationModal.open}
         onClose={() => setDeleteConfirmationModal({ open: false, documentId: null })}
@@ -687,7 +669,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
         </DialogActions>
       </Dialog>
       
-      {/* NEW: Modal for Editing a Document's Description */}
+      {/* Modal for Editing a Document's Description */}
       <Dialog
         open={editDocumentModal.open}
         onClose={() => setEditDocumentModal({ open: false, document: null, newDescription: '' })}
@@ -706,13 +688,13 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditDocumentModal({ open: false, document: null, newDescription: '' })}>Cancel</Button>
-          <Button onClick={handleEditDocument} color="primary" variant="contained" disabled={submitting}>
+          <Button onClick={handleEditDocument} color="primary" variant="contained" disabled={submitting || !editDocumentModal.newDescription}>
             {submitting ? <CircularProgress size={24} /> : 'Save'}
           </Button>
         </DialogActions>
       </Dialog>
       
-      {/* NEW: Modal for confirming resize action */}
+      {/* Modal for confirming resize action */}
       <Dialog
         open={resizeConfirmationModal.open}
         onClose={() => setResizeConfirmationModal({ open: false, document: null, width: '', height: '' })}
