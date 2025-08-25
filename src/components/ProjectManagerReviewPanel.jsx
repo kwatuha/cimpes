@@ -6,7 +6,8 @@ import {
   Accordion, AccordionSummary, AccordionDetails,
   ListItemIcon,
   Menu, MenuItem,
-  Snackbar
+  Snackbar,
+  Tabs, Tab,
 } from '@mui/material';
 import {
   Close as CloseIcon, Check as CheckIcon, Clear as ClearIcon,
@@ -19,9 +20,8 @@ import {
   AspectRatio as AspectRatioIcon,
 } from '@mui/icons-material';
 import {
-  Timeline, TimelineItem, TimelineSeparator, TimelineConnector, TimelineContent, TimelineDot
-} from '@mui/lab';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+  DragDropContext, Droppable, Draggable
+} from '@hello-pangea/dnd';
 import apiService from '../api';
 import { useAuth } from '../context/AuthContext';
 import PropTypes from 'prop-types';
@@ -29,26 +29,28 @@ import PropTypes from 'prop-types';
 const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paymentJustification, handleOpenDocumentUploader }) => {
   const { user, hasPrivilege } = useAuth();
   const serverUrl = import.meta.env.VITE_FILE_SERVER_BASE_URL || 'http://localhost:3000';
-  
+
   const numericProjectId = parseInt(projectId, 10);
 
   const [paymentRequests, setPaymentRequests] = useState([]);
   const [projectPhotos, setProjectPhotos] = useState([]);
+  const [milestones, setMilestones] = useState([]);
   const [contractors, setContractors] = useState({});
   const [users, setUsers] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
-  
+
   const [paymentRequestDetails, setPaymentRequestDetails] = useState({});
+  const [tabValues, setTabValues] = useState({});
 
   const [deleteConfirmationModal, setDeleteConfirmationModal] = useState({ open: false, documentId: null });
   const [editDocumentModal, setEditDocumentModal] = useState({ open: false, document: null, newDescription: '' });
   const [fileToReplace, setFileToReplace] = useState(null);
   const [resizeConfirmationModal, setResizeConfirmationModal] = useState({ open: false, document: null, width: '', height: '' });
   const [contextMenu, setContextMenu] = useState(null);
-  
+
   const photoRefs = useRef({});
 
   const fetchData = useCallback(async () => {
@@ -59,6 +61,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
     let fetchedContractors = {};
     const detailsMap = {};
     let fetchedUsers = {};
+    let fetchedMilestones = [];
 
     try {
       if (!hasPrivilege('project_manager.review')) {
@@ -78,18 +81,31 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
       }
 
       try {
+        fetchedMilestones = await apiService.milestones.getMilestonesForProject(numericProjectId);
+        setMilestones(fetchedMilestones);
+      } catch (err) {
+        console.error('Error fetching milestones:', err);
+        setMilestones([]);
+      }
+
+      try {
         fetchedRequests = await apiService.paymentRequests.getRequestsForProject(numericProjectId);
       } catch (err) {
         console.error('Error fetching payment requests:', err);
       }
       
+      const initialTabValues = {};
+      fetchedRequests.forEach(req => {
+        initialTabValues[req.requestId] = 0;
+      });
+      setTabValues(initialTabValues);
+
       try {
         fetchedDocuments = await apiService.documents.getDocumentsForProject(numericProjectId);
-        console.log("Fetched documents for project:", fetchedDocuments);
       } catch (err) {
         console.error('Error fetching project documents:', err);
       }
-
+      
       await Promise.all(fetchedRequests.map(async (request) => {
         try {
           detailsMap[request.requestId] = {
@@ -110,7 +126,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
       } catch (err) {
         console.error('Error fetching contractors:', err);
       }
-      
+
       setPaymentRequests(fetchedRequests);
       setPaymentRequestDetails(detailsMap);
       const projectPhotos = fetchedDocuments
@@ -149,7 +165,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
       setSubmitting(false);
     }
   };
-  
+
   const handleDeleteDocument = async () => {
     if (!deleteConfirmationModal.documentId) return;
 
@@ -189,33 +205,20 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
       setSubmitting(false);
     }
   };
-  
+
   const handlePhotoReorder = async (result) => {
     if (!result.destination || submitting) return;
 
     const { source, destination } = result;
+    const droppableId = source.droppableId;
+    const isPaymentPhotos = droppableId.startsWith('payment-photos-droppable-');
+    const isProgressPhotos = droppableId.startsWith('milestone-photos-');
 
-    if (source.droppableId === 'progress-photos-droppable') {
-      const items = Array.from(projectPhotos);
-      const [reorderedItem] = items.splice(source.index, 1);
-      items.splice(destination.index, 0, reorderedItem);
-
-      const newOrder = items.map((photo, index) => ({ id: photo.id, displayOrder: index }));
-      setProjectPhotos(items.map((photo, index) => ({ ...photo, displayOrder: index })));
-      
-      try {
-        await apiService.documents.reorderPhotos(newOrder);
-        setSnackbar({ open: true, message: 'Progress photo order saved successfully.', severity: 'success' });
-      } catch (err) {
-        console.error('Error reordering progress photos:', err);
-        setSnackbar({ open: true, message: 'Failed to save new progress photo order.', severity: 'error' });
-        fetchData();
-      }
-    } else if (source.droppableId.startsWith('payment-photos-droppable-')) {
-      const requestId = source.droppableId.split('-')[3];
+    if (isPaymentPhotos) {
+      const requestId = droppableId.split('-')[3];
       const requestDocuments = [...paymentRequestDetails[requestId]?.documents || []];
       const paymentPhotos = requestDocuments.filter(doc => doc.documentType === 'photo_payment');
-      
+
       const [reorderedItem] = paymentPhotos.splice(source.index, 1);
       paymentPhotos.splice(destination.index, 0, reorderedItem);
 
@@ -233,8 +236,32 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
         setSnackbar({ open: true, message: 'Failed to save new payment photo order.', severity: 'error' });
         fetchData();
       }
+    } else if (isProgressPhotos) {
+        const milestoneId = droppableId.split('milestone-photos-')[1];
+        const sourcePhotos = projectPhotos.filter(photo => photo.milestoneId === milestoneId);
+        
+        const reorderedPhotos = Array.from(sourcePhotos);
+        const [removed] = reorderedPhotos.splice(source.index, 1);
+        reorderedPhotos.splice(destination.index, 0, removed);
+        
+        const nonMilestonePhotos = projectPhotos.filter(photo => photo.milestoneId !== milestoneId);
+        
+        const newProjectPhotos = [...nonMilestonePhotos, ...reorderedPhotos];
+        setProjectPhotos(newProjectPhotos);
+
+        const newOrder = reorderedPhotos.map((photo, index) => ({ id: photo.id, displayOrder: index }));
+        
+        try {
+            await apiService.documents.reorderPhotos(newOrder);
+            setSnackbar({ open: true, message: 'Progress photo order saved successfully.', severity: 'success' });
+        } catch (err) {
+            console.error('Error reordering progress photos:', err);
+            setSnackbar({ open: true, message: 'Failed to save new progress photo order.', severity: 'error' });
+            fetchData();
+        }
     }
   };
+
 
   const handleFinalizeResize = async () => {
     if (!resizeConfirmationModal.document || !resizeConfirmationModal.width || !resizeConfirmationModal.height) return;
@@ -272,7 +299,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
   const handleContextMenuClose = () => {
     setContextMenu(null);
   };
-  
+
   const handleSetCoverPhoto = async (documentId) => {
     handleContextMenuClose();
     setSubmitting(true);
@@ -287,11 +314,15 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
     }
   };
 
+  const handleTabChange = (requestId, newValue) => {
+    setTabValues(prev => ({ ...prev, [requestId]: newValue }));
+  };
+
 
   if (!open) {
     return null;
   }
-  
+
   if (loading) {
     return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
@@ -301,7 +332,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
     </Dialog>
     );
   }
-  
+
   if (error) {
     return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
@@ -314,12 +345,12 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg" sx={{ '& .MuiDialogContent-root': { overflow: 'visible' } }}>
-      <DialogTitle>
+      <DialogTitle sx={{ backgroundColor: '#0A2342', color: 'white' }}>
         Review Submissions for: {projectName}
         <IconButton
           aria-label="close"
           onClick={onClose}
-          sx={{ position: 'absolute', right: 8, top: 8 }}
+          sx={{ position: 'absolute', right: 8, top: 8, color: 'white' }}
         >
           <CloseIcon />
         </IconButton>
@@ -337,7 +368,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
                 The amount requested for payment should be justified by the following completed activities.
               </Typography>
-              
+
               {paymentJustification.accomplishedMilestones && paymentJustification.accomplishedMilestones.length > 0 ? (
                   <List dense>
                       {paymentJustification.accomplishedMilestones.map(milestone => (
@@ -369,150 +400,161 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
           </Box>
         )}
         <hr />
-        
+
         <Typography variant="h6" color="primary.main" gutterBottom>Payment Requests</Typography>
         <Paper variant="outlined" sx={{ p: 2, mb: 4 }}>
           {paymentRequests.length > 0 ? (
             <List>
-              {paymentRequests.map((req) => (
-                <ListItem key={req.requestId} divider>
-                  <Box sx={{ width: '100%' }}>
-                    <Stack direction="row" alignItems="center" spacing={2}>
-                      <ListItemText
-                        primary={`KES ${parseFloat(req.amount).toFixed(2)}`}
-                        secondary={req.description}
-                      />
-                      <Chip label={req.status} color={req.status === 'Approved' ? 'success' : (req.status === 'Rejected' ? 'error' : 'default')} />
-                      {hasPrivilege('payment_requests.upload_document') && (
-                        <IconButton onClick={() => handleOpenDocumentUploader(req.requestId)}>
-                          <AttachFileIcon color="primary" />
-                        </IconButton>
-                      )}
-                      {req.status === 'Pending Review' && hasPrivilege('project_payments.update') && (
-                        <>
-                          <IconButton onClick={() => handleUpdatePaymentStatus(req.requestId, 'Approved')} disabled={submitting}>
-                            <CheckIcon color="success" />
+              {paymentRequests.map((req) => {
+                const isDateValid = req.createdAt && !isNaN(new Date(req.createdAt));
+                const formattedDate = isDateValid ? new Date(req.createdAt).toLocaleDateString() : 'Date N/A';
+
+                return (
+                  <ListItem key={req.requestId} sx={{ my: 2, p: 2, border: `1px solid ${isDateValid ? '#e0e0e0' : 'red'}`, borderRadius: '8px' }} divider>
+                    <Box sx={{ width: '100%' }}>
+                      <Stack direction="row" alignItems="center" spacing={2}>
+                        <ListItemText
+                          primary={`KES ${parseFloat(req.amount).toFixed(2)}`}
+                          secondary={`${req.description} | Requested: ${formattedDate}`}
+                        />
+                        <Chip label={req.status} color={req.status === 'Approved' ? 'success' : (req.status === 'Rejected' ? 'error' : 'default')} />
+                        {hasPrivilege('payment_requests.upload_document') && (
+                          <IconButton onClick={() => handleOpenDocumentUploader(req.requestId)}>
+                            <AttachFileIcon color="primary" />
                           </IconButton>
-                          <IconButton onClick={() => handleUpdatePaymentStatus(req.requestId, 'Rejected')} disabled={submitting}>
-                            <ClearIcon color="error" />
-                          </IconButton>
-                        </>
-                      )}
-                    </Stack>
-                    
-                    <Box sx={{ mt: 2, pl: 2, borderLeft: '2px solid', borderColor: 'divider' }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Documents</Typography>
-                      {paymentRequestDetails[req.requestId]?.documents?.length > 0 ? (
-                        <List dense disablePadding>
-                          {paymentRequestDetails[req.requestId].documents
-                            .filter(doc => doc.documentType !== 'photo_payment')
-                            .map((doc) => (
-                            <ListItem key={doc.id} disablePadding sx={{ py: 0.5 }}>
-                              <ListItemIcon sx={{ minWidth: 32 }}><DocumentIcon fontSize="small" /></ListItemIcon>
-                              <ListItemText
-                                primary={doc.documentType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                                secondary={`Uploaded by: ${users[doc.userId] || `User ID: ${doc.userId}`} on ${new Date(doc.createdAt).toLocaleDateString()}`}
-                              />
-                              <Stack direction="row" spacing={1} alignItems="center" sx={{ ml: 'auto' }}>
-                                <Button
-                                  size="small"
-                                  variant="outlined"
-                                  href={`${serverUrl}/${doc.documentPath}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
-                                  View
-                                </Button>
-                                {hasPrivilege('document.update') && (
-                                  <IconButton onClick={() => setEditDocumentModal({ open: true, document: doc, newDescription: doc.description || '' })}>
-                                    <EditIcon color="action" fontSize="small" />
-                                  </IconButton>
-                                )}
-                                {hasPrivilege('document.delete') && (
-                                  <IconButton onClick={() => setDeleteConfirmationModal({ open: true, documentId: doc.id })}>
-                                    <DeleteIcon color="error" fontSize="small" />
-                                  </IconButton>
-                                )}
-                              </Stack>
-                            </ListItem>
-                          ))}
-                        </List>
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">No documents attached.</Typography>
-                      )}
-                    </Box>
-                    
-                    {/* NEW: Section for displaying payment photos */}
-                    <Box sx={{ mt: 2, pl: 2, borderLeft: '2px solid', borderColor: 'divider' }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Payment Photos</Typography>
-                      {hasPrivilege('document.update') && (
-                        <Typography variant="subtitle2" gutterBottom>
-                            Right-click a photo to resize or reorder.
-                        </Typography>
-                      )}
-                      <DragDropContext onDragEnd={handlePhotoReorder}>
-                        <Droppable droppableId={`payment-photos-droppable-${req.requestId}`}>
-                          {(provided) => (
-                            <Grid container spacing={2} sx={{ mt: 1, minHeight: '200px' }} {...provided.droppableProps} ref={provided.innerRef}>
-                              {paymentRequestDetails[req.requestId]?.documents
-                                .filter(doc => doc.documentType === 'photo_payment')
-                                .map((doc, index) => (
-                                  <Draggable key={doc.id} draggableId={doc.id.toString()} index={index} isDragDisabled={submitting}>
-                                    {(provided) => (
-                                      <Grid item xs={12} sm={6} md={4} key={doc.id}
-                                        ref={provided.innerRef}
-                                        {...provided.draggableProps}
-                                        {...provided.dragHandleProps}
-                                      >
-                                        <Paper elevation={2} sx={{ position: 'relative', overflow: 'hidden', border: 'none' }} onContextMenu={(e) => handleContextMenu(e, doc)}>
-                                            <Box
-                                                ref={el => photoRefs.current[doc.id] = el}
-                                                sx={{
-                                                    position: 'relative',
-                                                    overflow: 'hidden',
-                                                    width: '100%',
-                                                    height: '200px',
-                                                }}
-                                            >
-                                                <img
-                                                    src={`${serverUrl}/${doc.documentPath}`}
-                                                    alt={doc.description || 'Payment Photo'}
-                                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                                />
-                                                {/* FIX: Add conditional chip for cover photo */}
-                                                {doc.isProjectCover === 1 && (
-                                                    <Chip
-                                                        label="Cover Photo"
-                                                        color="primary"
-                                                        size="small"
-                                                        sx={{ position: 'absolute', top: 8, left: 8 }}
-                                                    />
-                                                )}
-                                            </Box>
-                                            <Box sx={{ p: 1 }}>
-                                                <Typography variant="body2" noWrap>{doc.description || 'No description'}</Typography>
-                                                <Typography variant="caption" color="text.secondary">
-                                                    Uploaded by: {users[doc.userId] || `User ID: ${doc.userId}`} on {new Date(doc.createdAt).toLocaleDateString()}
-                                                </Typography>
-                                            </Box>
-                                        </Paper>
-                                      </Grid>
-                                    )}
-                                  </Draggable>
-                                ))}
-                                {provided.placeholder}
-                            </Grid>
-                          )}
-                        </Droppable>
-                      </DragDropContext>
-                      {paymentRequestDetails[req.requestId]?.documents
-                        .filter(doc => doc.documentType === 'photo_payment').length === 0 && (
-                          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>No payment photos attached.</Typography>
                         )}
+                        {req.status === 'Pending Review' && hasPrivilege('project_payments.update') && (
+                          <>
+                            <IconButton onClick={() => handleUpdatePaymentStatus(req.requestId, 'Approved')} disabled={submitting}>
+                              <CheckIcon color="success" />
+                            </IconButton>
+                            <IconButton onClick={() => handleUpdatePaymentStatus(req.requestId, 'Rejected')} disabled={submitting}>
+                              <ClearIcon color="error" />
+                            </IconButton>
+                          </>
+                        )}
+                      </Stack>
+                      
+                      <Box sx={{ borderBottom: 1, borderColor: 'divider', mt: 2 }}>
+                          <Tabs value={tabValues[req.requestId]} onChange={(event, newValue) => handleTabChange(req.requestId, newValue)}>
+                              <Tab label="Documents" />
+                              <Tab label="Supporting Photos" />
+                          </Tabs>
+                      </Box>
+                      <Box sx={{ mt: 2, pl: 2, borderLeft: '2px solid', borderColor: 'divider' }}>
+                          {tabValues[req.requestId] === 0 && (
+                              <Box>
+                                  {paymentRequestDetails[req.requestId]?.documents
+                                      ?.filter(doc => doc.documentType !== 'photo_payment')
+                                      .length > 0 ? (
+                                      <List dense disablePadding>
+                                          {paymentRequestDetails[req.requestId].documents
+                                              .filter(doc => doc.documentType !== 'photo_payment')
+                                              .map((doc) => (
+                                                  <ListItem key={doc.id} disablePadding sx={{ py: 0.5 }}>
+                                                      <ListItemIcon sx={{ minWidth: 32 }}><DocumentIcon fontSize="small" /></ListItemIcon>
+                                                      <ListItemText
+                                                          primary={doc.documentType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                                                          secondary={`Uploaded by: ${users[doc.userId] || `User ID: ${doc.userId}`} on ${new Date(doc.createdAt).toLocaleDateString()}`}
+                                                      />
+                                                      <Stack direction="row" spacing={1} alignItems="center" sx={{ ml: 'auto' }}>
+                                                          <Button
+                                                              size="small"
+                                                              variant="outlined"
+                                                              href={`${serverUrl}/${doc.documentPath}`}
+                                                              target="_blank"
+                                                              rel="noopener noreferrer"
+                                                          >
+                                                              View
+                                                          </Button>
+                                                          {hasPrivilege('document.update') && (
+                                                              <IconButton onClick={() => setEditDocumentModal({ open: true, document: doc, newDescription: doc.description || '' })}>
+                                                                  <EditIcon color="action" fontSize="small" />
+                                                              </IconButton>
+                                                          )}
+                                                          {hasPrivilege('document.delete') && (
+                                                              <IconButton onClick={() => setDeleteConfirmationModal({ open: true, documentId: doc.id })}>
+                                                                  <DeleteIcon color="error" fontSize="small" />
+                                                              </IconButton>
+                                                          )}
+                                                      </Stack>
+                                                  </ListItem>
+                                              ))}
+                                      </List>
+                                  ) : (
+                                      <Typography variant="body2" color="text.secondary">No documents attached.</Typography>
+                                  )}
+                              </Box>
+                          )}
+                          {tabValues[req.requestId] === 1 && (
+                              <Box>
+                                  {paymentRequestDetails[req.requestId]?.documents
+                                      .filter(doc => doc.documentType === 'photo_payment').length > 0 ? (
+                                          <DragDropContext onDragEnd={handlePhotoReorder}>
+                                              <Droppable droppableId={`payment-photos-droppable-${req.requestId}`}>
+                                                  {(provided) => (
+                                                      <Grid container spacing={2} sx={{ mt: 1 }} {...provided.droppableProps} ref={provided.innerRef}>
+                                                          {paymentRequestDetails[req.requestId]?.documents
+                                                              .filter(doc => doc.documentType === 'photo_payment')
+                                                              .map((doc, index) => (
+                                                                  <Draggable key={doc.id} draggableId={doc.id.toString()} index={index} isDragDisabled={submitting}>
+                                                                      {(provided) => (
+                                                                          <Grid item xs={12} sm={6} md={4} key={doc.id}
+                                                                              ref={provided.innerRef}
+                                                                              {...provided.draggableProps}
+                                                                              {...provided.dragHandleProps}
+                                                                          >
+                                                                              <Paper elevation={2} sx={{ position: 'relative', overflow: 'hidden', border: 'none', height: '100%' }} onContextMenu={(e) => handleContextMenu(e, doc)}>
+                                                                                  <Box
+                                                                                      ref={el => photoRefs.current[doc.id] = el}
+                                                                                      sx={{
+                                                                                          position: 'relative',
+                                                                                          overflow: 'hidden',
+                                                                                          width: '100%',
+                                                                                          height: '180px',
+                                                                                          cursor: 'grab'
+                                                                                      }}
+                                                                                  >
+                                                                                      <img
+                                                                                          src={`${serverUrl}/${doc.documentPath}`}
+                                                                                          alt={doc.description || 'Payment Photo'}
+                                                                                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                                                      />
+                                                                                      {doc.isProjectCover === 1 && (
+                                                                                          <Chip
+                                                                                              label="Cover Photo"
+                                                                                              color="primary"
+                                                                                              size="small"
+                                                                                              sx={{ position: 'absolute', top: 8, left: 8 }}
+                                                                                          />
+                                                                                      )}
+                                                                                  </Box>
+                                                                                  <Box sx={{ p: 1 }}>
+                                                                                      <Typography variant="body2" noWrap>{doc.description || 'No description'}</Typography>
+                                                                                      <Typography variant="caption" color="text.secondary">
+                                                                                          Uploaded by: {users[doc.userId] || `User ID: ${doc.userId}`} on {new Date(doc.createdAt).toLocaleDateString()}
+                                                                                      </Typography>
+                                                                                  </Box>
+                                                                              </Paper>
+                                                                          </Grid>
+                                                                      )}
+                                                                  </Draggable>
+                                                              ))}
+                                                              {provided.placeholder}
+                                                          </Grid>
+                                                      )}
+                                                  </Droppable>
+                                              </DragDropContext>
+                                          ) : (
+                                              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>No supporting photos attached.</Typography>
+                                          )}
+                              </Box>
+                          )}
+                      </Box>
                     </Box>
-                  </Box>
-                </ListItem>
-              ))}
+                  </ListItem>
+                );
+              })}
             </List>
           ) : (
             <Alert severity="info">No payment requests for this project.</Alert>
@@ -521,84 +563,80 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
         <hr />
         <Typography variant="h6" color="primary.main" gutterBottom>Progress Photos</Typography>
         <Paper variant="outlined" sx={{ p: 2 }}>
-        {hasPrivilege('document.update') && (
-            <Box sx={{ mb: 2 }}>
-                <Typography variant="subtitle2" gutterBottom>
-                    Drag and drop photos below to reorder them.
-                </Typography>
-            </Box>
-        )}
-        {projectPhotos.length > 0 ? (
-            <DragDropContext onDragEnd={handlePhotoReorder}>
-                <Droppable droppableId="progress-photos-droppable">
-                    {(provided) => (
-                        <div {...provided.droppableProps} ref={provided.innerRef}>
-                            <Timeline position="alternate">
-                                {projectPhotos.map((photo, index) => (
-                                    <Draggable key={photo.id} draggableId={photo.id.toString()} index={index} isDragDisabled={submitting}>
+            {milestones.length > 0 ? (
+                milestones
+                    .filter(milestone => projectPhotos.some(photo => photo.milestoneId === milestone.milestoneId))
+                    .map((milestone) => {
+                    const photosForMilestone = projectPhotos.filter(photo => photo.milestoneId === milestone.milestoneId);
+                    return (
+                        <Box key={milestone.milestoneId} sx={{ mb: 4 }}>
+                            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+                                <PhotoIcon color="primary" />
+                                <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>Milestone: {milestone.milestoneName}</Typography>
+                            </Stack>
+                            {photosForMilestone.length > 0 ? (
+                                <DragDropContext onDragEnd={handlePhotoReorder}>
+                                    <Droppable droppableId={`milestone-photos-${milestone.milestoneId}`}>
                                         {(provided) => (
-                                            <TimelineItem
-                                                ref={provided.innerRef}
-                                                {...provided.draggableProps}
-                                                {...provided.dragHandleProps}
-                                            >
-                                                <TimelineSeparator>
-                                                    <TimelineDot color="primary">
-                                                        <PhotoIcon />
-                                                    </TimelineDot>
-                                                    {index < projectPhotos.length - 1 && <TimelineConnector />}
-                                                </TimelineSeparator>
-                                                <TimelineContent>
-                                                    <Paper elevation={3} sx={{ p: 2, position: 'relative' }} onContextMenu={(e) => handleContextMenu(e, photo)}>
-                                                        <Typography variant="h6" component="span">
-                                                            {photo.description || photo.documentType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                                                        </Typography>
-                                                        <Typography variant="body2" color="text.secondary">
-                                                            {new Date(photo.createdAt).toLocaleDateString()}
-                                                        </Typography>
-                                                        <Box
-                                                            ref={el => photoRefs.current[photo.id] = el}
-                                                            sx={{
-                                                                position: 'relative',
-                                                                overflow: 'hidden',
-                                                                width: '100%',
-                                                                height: 'auto',
-                                                                border: 'none',
-                                                            }}
-                                                        >
-                                                            <img
-                                                                src={`${serverUrl}/${photo.documentPath}`}
-                                                                alt={photo.description}
-                                                                style={{ width: '100%', height: 'auto', borderRadius: '8px', marginTop: '8px' }}
-                                                            />
-                                                            {/* FIX: Add conditional chip for cover photo */}
-                                                            {photo.isProjectCover === 1 && (
-                                                                <Chip
-                                                                    label="Cover Photo"
-                                                                    color="primary"
-                                                                    size="small"
-                                                                    sx={{ position: 'absolute', top: 8, left: 8 }}
-                                                                />
-                                                            )}
-                                                        </Box>
-                                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                                                            Uploaded by: {users[photo.userId] || `User ID: ${photo.userId}`} on {new Date(photo.createdAt).toLocaleDateString()}
-                                                        </Typography>
-                                                    </Paper>
-                                                </TimelineContent>
-                                            </TimelineItem>
+                                            <Grid container spacing={2} {...provided.droppableProps} ref={provided.innerRef}>
+                                                {photosForMilestone.map((photo, index) => (
+                                                    <Draggable key={photo.id} draggableId={photo.id.toString()} index={index} isDragDisabled={submitting}>
+                                                        {(provided) => (
+                                                            <Grid item xs={12} sm={6} md={4}
+                                                                ref={provided.innerRef}
+                                                                {...provided.draggableProps}
+                                                                {...provided.dragHandleProps}
+                                                            >
+                                                                <Paper elevation={2} sx={{ position: 'relative', overflow: 'hidden', height: '100%' }} onContextMenu={(e) => handleContextMenu(e, photo)}>
+                                                                    <Box
+                                                                        ref={el => photoRefs.current[photo.id] = el}
+                                                                        sx={{
+                                                                            position: 'relative',
+                                                                            overflow: 'hidden',
+                                                                            width: '100%',
+                                                                            height: '180px',
+                                                                            cursor: 'grab'
+                                                                        }}
+                                                                    >
+                                                                        <img
+                                                                            src={`${serverUrl}/${photo.documentPath}`}
+                                                                            alt={photo.description || 'Progress Photo'}
+                                                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                                        />
+                                                                        {photo.isProjectCover === 1 && (
+                                                                            <Chip
+                                                                                label="Cover Photo"
+                                                                                color="primary"
+                                                                                size="small"
+                                                                                sx={{ position: 'absolute', top: 8, left: 8 }}
+                                                                            />
+                                                                        )}
+                                                                    </Box>
+                                                                    <Box sx={{ p: 1 }}>
+                                                                        <Typography variant="body2" noWrap>{photo.description || 'No description'}</Typography>
+                                                                        <Typography variant="caption" color="text.secondary">
+                                                                            Uploaded by: {users[photo.userId] || `User ID: ${photo.userId}`} on {new Date(photo.createdAt).toLocaleDateString()}
+                                                                        </Typography>
+                                                                    </Box>
+                                                                </Paper>
+                                                            </Grid>
+                                                        )}
+                                                    </Draggable>
+                                                ))}
+                                                {provided.placeholder}
+                                            </Grid>
                                         )}
-                                    </Draggable>
-                                ))}
-                                {provided.placeholder}
-                            </Timeline>
-                        </div>
-                    )}
-                </Droppable>
-            </DragDropContext>
-          ) : (
-            <Alert severity="info">No photos submitted for this project.</Alert>
-          )}
+                                    </Droppable>
+                                </DragDropContext>
+                            ) : (
+                                <Alert severity="info" sx={{ mt: 1 }}>No photos submitted for this milestone.</Alert>
+                            )}
+                        </Box>
+                    );
+                })
+            ) : (
+                <Alert severity="info">No photos submitted for this project.</Alert>
+            )}
         </Paper>
       </DialogContent>
       <DialogActions>
@@ -621,7 +659,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
           </Button>
         </DialogActions>
       </Dialog>
-      
+
       {/* Modal for Editing a Document's Description */}
       <Dialog
         open={editDocumentModal.open}
@@ -653,7 +691,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
           </Button>
         </DialogActions>
       </Dialog>
-      
+
       {/* Modal for confirming resize action */}
       <Dialog
         open={resizeConfirmationModal.open}
@@ -673,7 +711,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
           </Button>
         </DialogActions>
       </Dialog>
-      
+
       {/* Context Menu for Photo Actions */}
       <Menu
         open={contextMenu !== null}
@@ -719,7 +757,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
           </MenuItem>
         )}
       </Menu>
-      
+
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
