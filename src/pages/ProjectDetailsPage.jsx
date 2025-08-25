@@ -4,7 +4,7 @@ import {
     Box, Typography, CircularProgress, Alert, Button, Paper,
     List, ListItem, ListItemText, IconButton,
     Stack, Chip, Snackbar, LinearProgress,
-    Tooltip, Accordion, AccordionSummary, AccordionDetails, useTheme
+    Tooltip, Accordion, AccordionSummary, AccordionDetails, useTheme, Grid
 } from '@mui/material';
 import {
     ArrowBack as ArrowBackIcon, Add as AddIcon, Edit as EditIcon,
@@ -14,7 +14,8 @@ import {
     PhotoCamera as PhotoCameraIcon,
     Visibility as VisibilityIcon,
     Paid as PaidIcon,
-    ExpandMore as ExpandMoreIcon
+    ExpandMore as ExpandMoreIcon,
+    Flag as FlagIcon
 } from '@mui/icons-material';
 import apiService from '../api';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -383,8 +384,7 @@ function ProjectDetailsPage() {
     const handleActivitySubmit = async (formData) => {
         try {
             let activityIdToUse;
-            
-            // Fix: Remove selectedWorkplanName from the payload
+
             const { selectedWorkplanName, ...payload } = formData;
 
             if (currentActivity) {
@@ -755,89 +755,96 @@ function ProjectDetailsPage() {
                         <Alert severity="info">No milestones defined for this project.</Alert>
                     )
                 ) : (
-                    <List component={Paper} elevation={2} sx={{ borderRadius: '8px' }}>
+                    <Grid container spacing={3}>
                         {milestones.map((milestone) => (
-                            <ListItem
-                                key={milestone.milestoneId}
-                                divider
-                            >
-                                <Box sx={{ width: '100%' }}>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                                        <ListItemText
-                                            primary={
-                                                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                            <Grid item xs={12} md={6} key={milestone.milestoneId}>
+                                <Paper elevation={3} sx={{ p: 0, borderRadius: '8px', height: '100%', display: 'flex', flexDirection: 'column' }}>
+                                    <Box
+                                        sx={{
+                                            p: 2,
+                                            pb: 1.5,
+                                            borderLeft: `5px solid ${theme.palette.primary.main}`,
+                                            backgroundColor: theme.palette.action.hover,
+                                            borderTopLeftRadius: '8px',
+                                            borderTopRightRadius: '8px',
+                                        }}
+                                    >
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                                <FlagIcon color="primary" sx={{ mr: 1 }} />
+                                                <Typography variant="h6" sx={{ fontWeight: 'bold', color: theme.palette.primary.main }}>
                                                     {milestone.milestoneName || 'Unnamed Milestone'}
                                                 </Typography>
-                                            }
-                                            sx={{ my: 0 }}
-                                        />
-                                        <Stack direction="row" spacing={1}>
-                                            <IconButton edge="end" aria-label="attachments" onClick={() => {
-                                                setMilestoneToViewAttachments(milestone);
-                                                setOpenAttachmentsModal(true);
-                                            }}>
-                                                <AttachmentIcon />
-                                            </IconButton>
-                                            {checkUserPrivilege(user, 'milestone.update') && (
-                                                <IconButton edge="end" aria-label="edit" onClick={() => handleOpenEditMilestoneDialog(milestone)}>
-                                                    <EditIcon />
-                                                </IconButton>
-                                            )}
-                                            {checkUserPrivilege(user, 'milestone.delete') && (
-                                                <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteMilestone(milestone.milestoneId)}>
-                                                    <DeleteIcon />
-                                                </IconButton>
-                                            )}
-                                        </Stack>
+                                            </Box>
+                                            <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
+                                                <Tooltip title="View Attachments">
+                                                    <IconButton edge="end" aria-label="attachments" onClick={() => {
+                                                        setMilestoneToViewAttachments(milestone);
+                                                        setOpenAttachmentsModal(true);
+                                                    }}><AttachmentIcon /></IconButton>
+                                                </Tooltip>
+                                                {checkUserPrivilege(user, 'milestone.update') && (
+                                                    <Tooltip title="Edit Milestone">
+                                                        <IconButton edge="end" aria-label="edit" onClick={() => handleOpenEditMilestoneDialog(milestone)}><EditIcon /></IconButton>
+                                                    </Tooltip>
+                                                )}
+                                                {checkUserPrivilege(user, 'milestone.delete') && (
+                                                    <Tooltip title="Delete Milestone">
+                                                        <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteMilestone(milestone.milestoneId)}><DeleteIcon /></IconButton>
+                                                    </Tooltip>
+                                                )}
+                                            </Stack>
+                                        </Box>
                                     </Box>
-                                    <Box>
-                                        <Typography variant="body2" color="text.secondary">{milestone.description || 'No description.'}</Typography>
+
+                                    <Box sx={{ p: 2, flexGrow: 1 }}>
+                                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                                            {milestone.description || 'No description.'}
+                                        </Typography>
                                         <Typography variant="body2" color="text.secondary">
                                             Due Date: {milestone.dueDate ? new Date(milestone.dueDate).toLocaleDateString() : 'N/A'}
                                         </Typography>
                                         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                                             Progress: {milestone.progress}% (Weight: {milestone.weight})
                                         </Typography>
-                                        <LinearProgress variant="determinate" value={milestone.progress || 0} sx={{ height: 6, borderRadius: 3 }} />
+                                        <LinearProgress variant="determinate" value={milestone.progress || 0} sx={{ height: 6, borderRadius: 3, mt: 0.5 }} />
 
-                                        <Box sx={{ mt: 2, pl: 2, borderLeft: '2px solid', borderColor: theme.palette.secondary.main }}>
-                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                                                <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Activities</Typography>
-                                            </Box>
+                                        <Box sx={{ mt: 2, pl: 1, borderLeft: '2px solid', borderColor: theme.palette.secondary.main }}>
+                                            <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>Activities</Typography>
                                             {(milestoneActivities || []).filter(a => a.milestoneId === milestone.milestoneId).length > 0 ? (
                                                 <List dense disablePadding>
                                                     {(milestoneActivities || []).filter(a => a.milestoneId === milestone.milestoneId).map(activity => (
-                                                        <ListItem key={activity.activityId} disablePadding sx={{ py: 0.5 }}>
+                                                        <ListItem key={activity.activityId} disablePadding sx={{ py: 0.5, pr: 1 }}>
                                                             <ListItemText
                                                                 primary={activity.activityName}
                                                                 secondary={`Budget: KES ${parseFloat(activity.budgetAllocated).toFixed(2)} | Status: ${activity.activityStatus.replace(/_/g, ' ')}`}
                                                             />
-                                                            <Box>
+                                                            <Stack direction="row" spacing={1}>
                                                                 {checkUserPrivilege(user, 'activity.update') && (
                                                                     <Tooltip title="Edit Activity">
-                                                                        <IconButton edge="end" aria-label="edit" onClick={(e) => { e.stopPropagation(); handleOpenEditActivityDialog(activity); }}><EditIcon /></IconButton>
+                                                                        <IconButton edge="end" aria-label="edit" onClick={(e) => { e.stopPropagation(); handleOpenEditActivityDialog(activity); }} size="small"><EditIcon fontSize="small" /></IconButton>
                                                                     </Tooltip>
                                                                 )}
                                                                 {checkUserPrivilege(user, 'activity.delete') && (
                                                                     <Tooltip title="Delete Activity">
-                                                                        <IconButton edge="end" aria-label="delete" onClick={(e) => { e.stopPropagation(); handleDeleteActivity(activity.activityId); }}><DeleteIcon /></IconButton>
+                                                                        <IconButton edge="end" aria-label="delete" onClick={(e) => { e.stopPropagation(); handleDeleteActivity(activity.activityId); }} size="small"><DeleteIcon fontSize="small" /></IconButton>
                                                                     </Tooltip>
                                                                 )}
-                                                            </Box>
+                                                            </Stack>
                                                         </ListItem>
                                                     ))}
                                                 </List>
                                             ) : (
-                                                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', ml: 2 }}>
+                                                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', mt: 1 }}>
                                                     No activities linked to this milestone.
                                                 </Typography>
                                             )}
                                         </Box>
                                     </Box>
-                                </Box>
-                            </ListItem>
+                                </Paper>
+                            </Grid>
                         ))}
-                    </List>
+                    </Grid>
                 )}
             </Box>
 
