@@ -4,12 +4,25 @@ import {
   DialogContent, DialogActions, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Paper, CircularProgress, IconButton,
   Select, MenuItem, FormControl, InputLabel, Snackbar, Alert, Stack, useTheme,
-  Tooltip
+  Tooltip, Tabs, Tab
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext.jsx';
 import apiService from '../api';
 import PropTypes from 'prop-types';
+
+const DeleteConfirmDialog = ({ open, onClose, onConfirm, itemToDeleteName, itemType }) => (
+  <Dialog open={open} onClose={onClose} aria-labelledby="delete-dialog-title">
+    <DialogTitle id="delete-dialog-title">Confirm Deletion</DialogTitle>
+    <DialogContent>
+      <Typography>Are you sure you want to delete this {itemType} "{itemToDeleteName}"? This action cannot be undone.</Typography>
+    </DialogContent>
+    <DialogActions>
+      <Button onClick={onClose} color="primary" variant="outlined">Cancel</Button>
+      <Button onClick={onConfirm} color="error" variant="contained">Delete</Button>
+    </DialogActions>
+  </Dialog>
+);
 
 const ApprovalLevelsManagementPage = () => {
   const { hasPrivilege } = useAuth();
@@ -17,11 +30,13 @@ const ApprovalLevelsManagementPage = () => {
 
   const [approvalLevels, setApprovalLevels] = useState([]);
   const [roles, setRoles] = useState([]);
+  const [paymentStatuses, setPaymentStatuses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  
+  const [mainTabValue, setMainTabValue] = useState(0);
 
-  // Approval Level States
   const [openLevelDialog, setOpenLevelDialog] = useState(false);
   const [currentLevelToEdit, setCurrentLevelToEdit] = useState(null);
   const [levelFormData, setLevelFormData] = useState({
@@ -31,46 +46,58 @@ const ApprovalLevelsManagementPage = () => {
   });
   const [levelFormErrors, setLevelFormErrors] = useState({});
 
-  // Delete Confirmation Dialog States
+  const [openStatusDialog, setOpenStatusDialog] = useState(false);
+  const [currentStatusToEdit, setCurrentStatusToEdit] = useState(null);
+  const [statusFormData, setStatusFormData] = useState({
+    statusName: '',
+    description: '',
+  });
+  const [statusFormErrors, setStatusFormErrors] = useState({});
+
   const [openDeleteConfirmDialog, setOpenDeleteConfirmDialog] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
 
-  const fetchApprovalLevels = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       if (hasPrivilege('approval_levels.read')) {
-        const data = await apiService.approval.getApprovalLevels();
-        setApprovalLevels(data);
+        const approvalData = await apiService.approval.getApprovalLevels();
+        setApprovalLevels(approvalData);
       } else {
         setError("You do not have permission to view approval levels.");
         setApprovalLevels([]);
       }
+
+      if (hasPrivilege('payment_status_definitions.read')) {
+        const statusData = await apiService.approval.getPaymentStatusDefinitions();
+        setPaymentStatuses(statusData);
+      } else {
+        setPaymentStatuses([]);
+      }
+      
+      const rolesData = await apiService.users.getRoles();
+      setRoles(rolesData);
+
     } catch (err) {
-      console.error('Error fetching approval levels:', err);
-      setError(err.message || "Failed to load approval levels.");
+      console.error('Error fetching data:', err);
+      setError(err.message || "Failed to load management data.");
+      setSnackbar({ open: true, message: `Failed to load data: ${err.message}`, severity: 'error' });
     } finally {
       setLoading(false);
     }
   }, [hasPrivilege]);
 
-  const fetchRoles = useCallback(async () => {
-    try {
-      const data = await apiService.users.getRoles();
-      setRoles(data);
-    } catch (err) {
-      console.error('Error fetching roles:', err);
-      setSnackbar({ open: true, message: `Failed to load roles: ${err.message}`, severity: 'error' });
-    }
-  }, []);
-
   useEffect(() => {
-    fetchApprovalLevels();
-    fetchRoles();
-  }, [fetchApprovalLevels, fetchRoles]);
+    fetchData();
+  }, [fetchData]);
 
   const handleCloseSnackbar = () => {
     setSnackbar({ ...snackbar, open: false });
+  };
+  
+  const handleMainTabChange = (event, newValue) => {
+    setMainTabValue(newValue);
   };
 
   // --- Approval Level Handlers ---
@@ -135,7 +162,7 @@ const ApprovalLevelsManagementPage = () => {
         setSnackbar({ open: true, message: 'Approval level created successfully!', severity: 'success' });
       }
       handleCloseLevelDialog();
-      fetchApprovalLevels();
+      fetchData();
     } catch (err) {
       setSnackbar({ open: true, message: err.response?.data?.message || 'Failed to save approval level.', severity: 'error' });
     } finally {
@@ -143,12 +170,84 @@ const ApprovalLevelsManagementPage = () => {
     }
   };
 
-  const handleOpenDeleteConfirm = (item) => {
-    if (!hasPrivilege('approval_levels.delete')) {
+  // --- Payment Status Handlers ---
+  const handleOpenCreateStatusDialog = () => {
+    if (!hasPrivilege('payment_status_definitions.create')) {
+        setSnackbar({ open: true, message: "Permission denied to create statuses.", severity: 'error' });
+        return;
+    }
+    setCurrentStatusToEdit(null);
+    setStatusFormData({ statusName: '', description: '' });
+    setStatusFormErrors({});
+    setOpenStatusDialog(true);
+  };
+  
+  const handleOpenEditStatusDialog = (status) => {
+    if (!hasPrivilege('payment_status_definitions.update')) {
+        setSnackbar({ open: true, message: "Permission denied to update statuses.", severity: 'error' });
+        return;
+    }
+    setCurrentStatusToEdit(status);
+    setStatusFormData({
+        statusName: status.statusName || '',
+        description: status.description || '',
+    });
+    setStatusFormErrors({});
+    setOpenStatusDialog(true);
+  };
+
+  const handleCloseStatusDialog = () => {
+    setOpenStatusDialog(false);
+    setCurrentStatusToEdit(null);
+    setStatusFormErrors({});
+  };
+
+  const handleStatusFormChange = (e) => {
+    const { name, value } = e.target;
+    setStatusFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const validateStatusForm = () => {
+    let errors = {};
+    if (!statusFormData.statusName.trim()) errors.statusName = 'Status name is required.';
+    setStatusFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleStatusSubmit = async () => {
+    if (!validateStatusForm()) {
+      setSnackbar({ open: true, message: 'Please correct the form errors.', severity: 'error' });
+      return;
+    }
+    setLoading(true);
+    try {
+      if (currentStatusToEdit) {
+        await apiService.approval.updatePaymentStatusDefinition(currentStatusToEdit.statusId, statusFormData);
+        setSnackbar({ open: true, message: 'Payment status updated successfully!', severity: 'success' });
+      } else {
+        await apiService.approval.createPaymentStatusDefinition(statusFormData);
+        setSnackbar({ open: true, message: 'Payment status created successfully!', severity: 'success' });
+      }
+      handleCloseStatusDialog();
+      fetchData();
+    } catch (err) {
+      setSnackbar({ open: true, message: err.response?.data?.message || 'Failed to save payment status.', severity: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --- Delete Handlers ---
+  const handleOpenDeleteConfirm = (item, type) => {
+    if (type === 'level' && !hasPrivilege('approval_levels.delete')) {
       setSnackbar({ open: true, message: "Permission denied to delete approval levels.", severity: 'error' });
       return;
     }
-    setItemToDelete({ id: item.levelId, name: item.levelName });
+    if (type === 'status' && !hasPrivilege('payment_status_definitions.delete')) {
+      setSnackbar({ open: true, message: "Permission denied to delete statuses.", severity: 'error' });
+      return;
+    }
+    setItemToDelete({ id: item.levelId || item.statusId, name: item.levelName || item.statusName, type });
     setOpenDeleteConfirmDialog(true);
   };
 
@@ -157,18 +256,24 @@ const ApprovalLevelsManagementPage = () => {
     setLoading(true);
     setOpenDeleteConfirmDialog(false);
     try {
-      await apiService.approval.deleteApprovalLevel(itemToDelete.id);
-      setSnackbar({ open: true, message: 'Approval level deleted successfully!', severity: 'success' });
-      fetchApprovalLevels();
-    } catch (err) {
-      setSnackbar({ open: true, message: err.response?.data?.message || `Failed to delete approval level "${itemToDelete.name}".`, severity: 'error' });
+      if (itemToDelete.type === 'level') {
+        await apiService.approval.deleteApprovalLevel(itemToDelete.id);
+        setSnackbar({ open: true, message: 'Approval level deleted successfully!', severity: 'success' });
+        fetchData();
+      } else if (itemToDelete.type === 'status') {
+        await apiService.approval.deletePaymentStatusDefinition(itemToDelete.id);
+        setSnackbar({ open: true, message: 'Payment status deleted successfully!', severity: 'success' });
+        fetchData();
+      }
+    } catch (error) {
+      setSnackbar({ open: true, message: error.response?.data?.message || `Failed to delete ${itemToDelete.type}.`, severity: 'error' });
     } finally {
       setLoading(false);
       setItemToDelete(null);
     }
   };
 
-  if (loading && approvalLevels.length === 0) {
+  if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="80vh">
         <CircularProgress />
@@ -177,13 +282,6 @@ const ApprovalLevelsManagementPage = () => {
     );
   }
 
-  if (error && !hasPrivilege('approval_levels.read')) {
-    return (
-      <Box sx={{ p: 3 }}>
-        <Alert severity="error">{error || "You do not have sufficient privileges to view this page."}</Alert>
-      </Box>
-    );
-  }
   if (error) {
     return (
       <Box sx={{ p: 3 }}>
@@ -194,64 +292,137 @@ const ApprovalLevelsManagementPage = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1" sx={{ color: theme.palette.primary.main, fontWeight: 'bold' }}>
-          Approval Levels Management
-        </Typography>
-        {hasPrivilege('approval_levels.create') && (
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={handleOpenCreateLevelDialog}
-            sx={{ backgroundColor: '#16a34a', '&:hover': { backgroundColor: '#15803d' }, color: 'white', fontWeight: 'semibold', borderRadius: '8px' }}
-          >
-            Add New Level
-          </Button>
-        )}
+      <Typography variant="h4" component="h1" sx={{ color: theme.palette.primary.main, fontWeight: 'bold', mb: 3 }}>
+        Approval & Status Management
+      </Typography>
+      
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+        <Tabs value={mainTabValue} onChange={handleMainTabChange} aria-label="approval and status tabs">
+          <Tab label="APPROVAL LEVELS" sx={{ fontWeight: 'bold' }} />
+          <Tab label="PAYMENT STATUSES" sx={{ fontWeight: 'bold' }} />
+        </Tabs>
       </Box>
 
-      {approvalLevels.length === 0 ? (
-        <Alert severity="info">No approval levels found. Add a new level to get started.</Alert>
-      ) : (
-        <TableContainer component={Paper} sx={{ borderRadius: '8px', overflow: 'hidden', boxShadow: theme.shadows[2] }}>
-          <Table aria-label="approval levels table">
-            <TableHead>
-              <TableRow sx={{ backgroundColor: theme.palette.primary.main }}>
-                <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Level Name</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Assigned Role</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Approval Order</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 'bold', color: 'white' }}>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {approvalLevels.map((level) => (
-                <TableRow key={level.levelId} sx={{ '&:nth-of-type(odd)': { backgroundColor: theme.palette.action.hover } }}>
-                  <TableCell>{level.levelName}</TableCell>
-                  <TableCell>{roles.find(r => r.roleId === level.roleId)?.roleName || 'N/A'}</TableCell>
-                  <TableCell>{level.approvalOrder}</TableCell>
-                  <TableCell align="right">
-                    <Stack direction="row" spacing={1} justifyContent="flex-end">
-                      {hasPrivilege('approval_levels.update') && (
-                        <Tooltip title="Edit Level">
-                          <IconButton color="primary" onClick={() => handleOpenEditLevelDialog(level)}>
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                      {hasPrivilege('approval_levels.delete') && (
-                        <Tooltip title="Delete Level">
-                          <IconButton color="error" onClick={() => handleOpenDeleteConfirm(level)}>
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                    </Stack>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+      {mainTabValue === 0 && (
+          <Box>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="subtitle1">Manage your multi-stage approval hierarchy.</Typography>
+              {hasPrivilege('approval_levels.create') && (
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={handleOpenCreateLevelDialog}
+                  sx={{ backgroundColor: '#16a34a', '&:hover': { backgroundColor: '#15803d' }, color: 'white', fontWeight: 'semibold' }}
+                >
+                  Add New Level
+                </Button>
+              )}
+            </Box>
+            {approvalLevels.length === 0 ? (
+              <Alert severity="info">No approval levels found. Add a new level to get started.</Alert>
+            ) : (
+              <TableContainer component={Paper} sx={{ borderRadius: '8px', overflow: 'hidden', boxShadow: theme.shadows[2] }}>
+                <Table aria-label="approval levels table">
+                  <TableHead>
+                    <TableRow sx={{ backgroundColor: theme.palette.primary.main }}>
+                      <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Level Name</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Assigned Role</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Approval Order</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 'bold', color: 'white' }}>Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {approvalLevels.map((level) => (
+                      <TableRow key={level.levelId} sx={{ '&:nth-of-type(odd)': { backgroundColor: theme.palette.action.hover } }}>
+                        <TableCell>{level.levelName}</TableCell>
+                        <TableCell>{roles.find(r => r.roleId === level.roleId)?.roleName || 'N/A'}</TableCell>
+                        <TableCell>{level.approvalOrder}</TableCell>
+                        <TableCell align="right">
+                          <Stack direction="row" spacing={1} justifyContent="flex-end">
+                            {hasPrivilege('approval_levels.update') && (
+                              <Tooltip title="Edit Level">
+                                <IconButton color="primary" onClick={() => handleOpenEditLevelDialog(level)}>
+                                  <EditIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                            {hasPrivilege('approval_levels.delete') && (
+                              <Tooltip title="Delete Level">
+                                <IconButton color="error" onClick={() => handleOpenDeleteConfirm(level, 'level')}>
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </Box>
+      )}
+      
+      {mainTabValue === 1 && (
+          <Box>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="subtitle1">Manage the list of available payment statuses.</Typography>
+              {hasPrivilege('payment_status_definitions.create') && (
+                  <Button
+                      variant="contained"
+                      startIcon={<AddIcon />}
+                      onClick={handleOpenCreateStatusDialog}
+                      sx={{ backgroundColor: '#16a34a', '&:hover': { backgroundColor: '#15803d' }, color: 'white', fontWeight: 'semibold' }}
+                  >
+                      Add New Status
+                  </Button>
+              )}
+            </Box>
+            {paymentStatuses.length === 0 ? (
+              <Alert severity="info">No payment statuses found. Add a new one to get started.</Alert>
+            ) : (
+              <TableContainer component={Paper} sx={{ borderRadius: '8px', overflow: 'hidden', boxShadow: theme.shadows[2] }}>
+                <Table aria-label="payment statuses table">
+                  <TableHead>
+                    <TableRow sx={{ backgroundColor: theme.palette.primary.main }}>
+                      <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>ID</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Status Name</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Description</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 'bold', color: 'white' }}>Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {paymentStatuses.map((status) => (
+                      <TableRow key={status.statusId} sx={{ '&:nth-of-type(odd)': { backgroundColor: theme.palette.action.hover } }}>
+                        <TableCell>{status.statusId}</TableCell>
+                        <TableCell>{status.statusName}</TableCell>
+                        <TableCell>{status.description}</TableCell>
+                        <TableCell align="right">
+                          <Stack direction="row" spacing={1} justifyContent="flex-end">
+                            {hasPrivilege('payment_status_definitions.update') && (
+                              <Tooltip title="Edit Status">
+                                <IconButton color="primary" onClick={() => handleOpenEditStatusDialog(status)}>
+                                  <EditIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                            {hasPrivilege('payment_status_definitions.delete') && (
+                              <Tooltip title="Delete Status">
+                                <IconButton color="error" onClick={() => handleOpenDeleteConfirm(status, 'status')}>
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </Box>
       )}
 
       {/* Add/Edit Approval Level Dialog */}
@@ -274,7 +445,7 @@ const ApprovalLevelsManagementPage = () => {
             helperText={levelFormErrors.levelName}
             sx={{ mb: 2 }}
           />
-          <FormControl fullWidth margin="dense" variant="outlined" error={!!levelFormErrors.roleId} sx={{ mb: 2 }}>
+          <FormControl fullWidth margin="dense" variant="outlined" error={!!levelFormErrors.roleId} sx={{ minWidth: 200, mb: 2 }}>
             <InputLabel>Assigned Role</InputLabel>
             <Select
               name="roleId"
@@ -307,13 +478,53 @@ const ApprovalLevelsManagementPage = () => {
           <Button onClick={handleLevelSubmit} color="primary" variant="contained">{currentLevelToEdit ? 'Update Level' : 'Create Level'}</Button>
         </DialogActions>
       </Dialog>
+      
+      {/* Add/Edit Payment Status Dialog */}
+      <Dialog open={openStatusDialog} onClose={handleCloseStatusDialog} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ backgroundColor: theme.palette.primary.main, color: 'white' }}>
+          {currentStatusToEdit ? 'Edit Payment Status' : 'Add New Payment Status'}
+        </DialogTitle>
+        <DialogContent dividers sx={{ backgroundColor: theme.palette.background.default }}>
+          <TextField
+            autoFocus
+            margin="dense"
+            name="statusName"
+            label="Status Name"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={statusFormData.statusName}
+            onChange={handleStatusFormChange}
+            error={!!statusFormErrors.statusName}
+            helperText={statusFormErrors.statusName}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            margin="dense"
+            name="description"
+            label="Description"
+            type="text"
+            fullWidth
+            multiline
+            rows={2}
+            variant="outlined"
+            value={statusFormData.description}
+            onChange={handleStatusFormChange}
+            sx={{ mb: 2 }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ padding: '16px 24px', borderTop: `1px solid ${theme.palette.divider}` }}>
+          <Button onClick={handleCloseStatusDialog} color="primary" variant="outlined">Cancel</Button>
+          <Button onClick={handleStatusSubmit} color="primary" variant="contained">{currentStatusToEdit ? 'Update Status' : 'Create Status'}</Button>
+        </DialogActions>
+      </Dialog>
 
       <DeleteConfirmDialog
         open={openDeleteConfirmDialog}
         onClose={() => setOpenDeleteConfirmDialog(false)}
         onConfirm={handleConfirmDelete}
         itemToDeleteName={itemToDelete?.name || ''}
-        itemType="Approval Level"
+        itemType={itemToDelete?.type || ''}
       />
 
       <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar}>
@@ -324,19 +535,6 @@ const ApprovalLevelsManagementPage = () => {
     </Box>
   );
 };
-
-const DeleteConfirmDialog = ({ open, onClose, onConfirm, itemToDeleteName, itemType }) => (
-  <Dialog open={open} onClose={onClose} aria-labelledby="delete-dialog-title">
-    <DialogTitle id="delete-dialog-title">Confirm Deletion</DialogTitle>
-    <DialogContent>
-      <Typography>Are you sure you want to delete this {itemType} "{itemToDeleteName}"? This action cannot be undone.</Typography>
-    </DialogContent>
-    <DialogActions>
-      <Button onClick={onClose} color="primary" variant="outlined">Cancel</Button>
-      <Button onClick={onConfirm} color="error" variant="contained">Delete</Button>
-    </DialogActions>
-  </Dialog>
-);
 
 ApprovalLevelsManagementPage.propTypes = {
     // No props for this page component
