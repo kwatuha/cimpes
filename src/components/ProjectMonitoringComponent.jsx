@@ -34,6 +34,8 @@ const ProjectMonitoringComponent = ({ open, onClose, projectId }) => {
   const [error, setError] = useState(null);
   const [formState, setFormState] = useState({
     comment: '',
+    recommendations: '',
+    challenges: '',
     warningLevel: 'None',
     isRoutineObservation: true,
   });
@@ -73,6 +75,8 @@ const ProjectMonitoringComponent = ({ open, onClose, projectId }) => {
   const handleClearForm = () => {
     setFormState({
       comment: '',
+      recommendations: '',
+      challenges: '',
       warningLevel: 'None',
       isRoutineObservation: true,
     });
@@ -95,14 +99,12 @@ const ProjectMonitoringComponent = ({ open, onClose, projectId }) => {
 
     try {
       if (currentRecord) {
-        // Update existing record
         if (!hasPrivilege('project_monitoring.update')) {
            setError("You don't have permission to update records.");
            return;
         }
         await apiService.projectMonitoring.updateRecord(projectId, currentRecord.recordId, dataToSubmit);
       } else {
-        // Create new record
         await apiService.projectMonitoring.createRecord(projectId, dataToSubmit);
       }
       handleClearForm();
@@ -118,6 +120,8 @@ const ProjectMonitoringComponent = ({ open, onClose, projectId }) => {
   const handleEditRecord = (record) => {
     setFormState({
       comment: record.comment,
+      recommendations: record.recommendations || '',
+      challenges: record.challenges || '',
       warningLevel: record.warningLevel,
       isRoutineObservation: record.isRoutineObservation === 1,
     });
@@ -167,7 +171,7 @@ const ProjectMonitoringComponent = ({ open, onClose, projectId }) => {
           <Stack spacing={2}>
             <TextField
               name="comment"
-              label="Progress Comment / Observation"
+              label="Observation / Progress Comment"
               multiline
               rows={4}
               fullWidth
@@ -175,7 +179,25 @@ const ProjectMonitoringComponent = ({ open, onClose, projectId }) => {
               onChange={handleFormChange}
               required
             />
-            <FormControl fullWidth>
+            <TextField
+              name="recommendations"
+              label="Recommendations"
+              multiline
+              rows={2}
+              fullWidth
+              value={formState.recommendations}
+              onChange={handleFormChange}
+            />
+            <TextField
+              name="challenges"
+              label="Challenges Encountered"
+              multiline
+              rows={2}
+              fullWidth
+              value={formState.challenges}
+              onChange={handleFormChange}
+            />
+            <FormControl fullWidth sx={{ minWidth: 120 }}>
               <InputLabel id="warning-level-label">Warning Level</InputLabel>
               <Select
                 labelId="warning-level-label"
@@ -244,14 +266,24 @@ const ProjectMonitoringComponent = ({ open, onClose, projectId }) => {
                       </Stack>
                     }
                     secondary={
-                      <>
+                      <Stack spacing={1} sx={{ mt: 1 }}>
                         <Typography variant="body2" color="text.secondary">
-                          {record.comment}
+                          <Box component="span" fontWeight="bold">Observation:</Box> {record.comment}
                         </Typography>
+                        {record.recommendations && (
+                          <Typography variant="body2" color="text.primary">
+                            <Box component="span" fontWeight="bold">Recommendations:</Box> {record.recommendations}
+                          </Typography>
+                        )}
+                        {record.challenges && (
+                          <Typography variant="body2" color="text.error">
+                            <Box component="span" fontWeight="bold">Challenges:</Box> {record.challenges}
+                          </Typography>
+                        )}
                         <Typography variant="caption" color="text.disabled">
                           Recorded on: {formattedDate(record.createdAt)}
                         </Typography>
-                      </>
+                      </Stack>
                     }
                   />
                 </ListItem>
