@@ -74,7 +74,7 @@ const formatDate = (dateString) => {
 function ProjectDetailsPage() {
     const { projectId } = useParams();
     const navigate = useNavigate();
-    const { user, logout } = useAuth();
+    const { user, logout, authLoading } = useAuth(); // Destructure authLoading
     const theme = useTheme();
 
     const [project, setProject] = useState(null);
@@ -127,33 +127,63 @@ function ProjectDetailsPage() {
 
     const [openDocumentUploader, setOpenDocumentUploader] = useState(false);
     const [selectedRequestId, setSelectedRequestId] = useState(null);
+    
+    // NEW: State for Access Control
+    const [isAccessAllowed, setIsAccessAllowed] = useState(false);
+    const [accessLoading, setAccessLoading] = useState(true);
+    const [accessError, setAccessError] = useState(null);
 
     const handleAccordionChange = (panel) => (event, isExpanded) => {
         setExpandedWorkPlan(isExpanded ? panel : false);
     };
 
+    // NEW: Access Control Function
+    const checkAccess = useCallback(async () => {
+        setAccessLoading(true);
+        setAccessError(null);
+
+        // Wait for auth to finish loading
+        if (authLoading) return;
+        
+        try {
+            // Admins and privileged users can view any project
+            if (checkUserPrivilege(user, 'project.read_all')) {
+                setIsAccessAllowed(true);
+            } else {
+                // Contractors can only view their assigned projects
+                if (user?.contractorId) {
+                    const contractors = await apiService.projects.getContractors(projectId);
+                    const isAssigned = contractors.some(c => c.contractorId === user.contractorId);
+                    setIsAccessAllowed(isAssigned);
+                    if (!isAssigned) {
+                        setAccessError("You do not have access to this project.");
+                    }
+                } else {
+                    // If not a privileged user or a contractor, deny access
+                    setAccessError("You do not have the necessary privileges to view this project.");
+                    setIsAccessAllowed(false);
+                }
+            }
+        } catch (err) {
+            console.error("Access check failed:", err);
+            setAccessError("Failed to verify access to this project.");
+            setIsAccessAllowed(false);
+        } finally {
+            setAccessLoading(false);
+        }
+    }, [projectId, user, authLoading]);
+
+    // This effect runs the access check when auth state or projectId changes
+    useEffect(() => {
+        checkAccess();
+    }, [checkAccess]);
+
     const fetchProjectDetails = useCallback(async () => {
         setLoading(true);
         setError(null);
-
-        if (!user || !Array.isArray(user.privileges)) {
-            setLoading(false);
-            setError("Authentication data loading or missing privileges. Cannot fetch project details.");
-            return;
-        }
-
-        if (!projectId) {
-            setLoading(false);
-            setError("No project ID provided.");
-            return;
-        }
-
+        
         try {
-            if (!checkUserPrivilege(user, 'project.read_all')) {
-                setError("You do not have 'project.read_all' privilege to view this project's details.");
-                return;
-            }
-
+            // This is the main data fetching logic, which now only runs after access is granted
             const projectData = await apiService.projects.getProjectById(projectId);
             setProject(projectData);
 
@@ -202,9 +232,12 @@ function ProjectDetailsPage() {
         }
     }, [projectId, logout, user]);
 
+    // This effect now conditionally fetches data based on the access check
     useEffect(() => {
-        fetchProjectDetails();
-    }, [fetchProjectDetails]);
+        if (isAccessAllowed) {
+            fetchProjectDetails();
+        }
+    }, [isAccessAllowed, fetchProjectDetails]);
 
     useEffect(() => {
         if (!milestones.length && !milestoneActivities.length) {
@@ -471,7 +504,24 @@ function ProjectDetailsPage() {
 
     const canApplyTemplate = !!projectCategory && checkUserPrivilege(user, 'project.apply_template');
     const canReviewSubmissions = checkUserPrivilege(user, 'project_manager.review');
-
+    
+    // Manage Loading and Error States for both Access Control and Data Fetching
+    if (authLoading || accessLoading) {
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
+    
+    if (accessError) {
+        return (
+            <Box sx={{ p: 3 }}>
+                <Alert severity="error">{accessError}</Alert>
+            </Box>
+        );
+    }
+    
     if (loading) {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>

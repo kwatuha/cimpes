@@ -14,7 +14,8 @@ import kdspIIService from './kdspIIService';
 import hrService from './hrService';
 import paymentService from './paymentService';
 import projectWorkFlowService from './projectWorkFlowService';
-import approvalService from './approvalService'; // NEW: Import the new service
+import approvalService from './approvalService';
+import contractorService from './contractorService'; // Import the new service
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
 export const FILE_SERVER_BASE_URL = import.meta.env.VITE_FILE_SERVER_BASE_URL || 'http://localhost:3000';
@@ -33,7 +34,8 @@ const apiService = {
   hr: hrService,
   paymentRequests: paymentService,
   workflow: projectWorkFlowService,
-  approval: approvalService, // NEW: Mount the new service under the 'approval' key
+  approval: approvalService,
+  contractors: contractorService, // Mount the new service under the 'contractors' key
 };
 
 export { axiosInstance };

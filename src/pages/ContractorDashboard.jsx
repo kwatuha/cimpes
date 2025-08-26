@@ -1,24 +1,21 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Button, Paper, Stack, Grid, CircularProgress, Alert,
   List, ListItem, ListItemText, ListItemSecondaryAction, IconButton,
-  Dialog, DialogTitle, DialogContent, DialogActions, TextField, Chip, MenuItem,
-  Snackbar, Link
+  Chip, Snackbar
 } from '@mui/material';
 import {
-  Add as AddIcon, PhotoCamera as PhotoCameraIcon, Paid as PaidIcon,
-  Visibility as VisibilityIcon, UploadFile as UploadFileIcon
+  Visibility as VisibilityIcon
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext.jsx';
 import apiService from '../api';
-// NEW: Import the standalone form components
-import PaymentRequestForm from '../components/PaymentRequestForm.jsx';
-import ContractorPhotoUploader from '../components/ContractorPhotoUploader.jsx';
-
 
 const ContractorDashboard = () => {
-  const { user } = useAuth();
-  const contractorId = user?.contractorId || 1;
+  const navigate = useNavigate();
+  const { user, authLoading } = useAuth();
+ 
+  const contractorId = user?.contractorId;
   const serverUrl = import.meta.env.VITE_FILE_SERVER_BASE_URL || 'http://localhost:3000';
 
   const [projects, setProjects] = useState([]);
@@ -27,75 +24,59 @@ const ContractorDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+const fetchData = useCallback(async () => {
+  console.log("Starting fetchData...");
+  setLoading(true);
+  setError(null);
   
-  const [openPaymentModal, setOpenPaymentModal] = useState(false);
-  const [openPhotoModal, setOpenPhotoModal] = useState(false);
-  const [selectedProject, setSelectedProject] = useState(null);
+  // Log the user details here
+  console.log("User details before fetching projects:", user);
+  console.log("Contractor ID being used:", contractorId);
 
-  const fetchData = useCallback(async () => {
-    if (!contractorId) return;
+  if (!contractorId) {
+    console.error("fetchData aborted: contractorId is not defined.");
+    setLoading(false);
+    return;
+  }
 
-    setLoading(true);
-    setError(null);
-    try {
-      const projectsData = await apiService.contractors.getProjectsByContractor(contractorId); 
-      const paymentData = await apiService.paymentRequests.getRequestsByContractor(contractorId);
-      const photosData = await apiService.contractorPhotos.getPhotosByContractor(contractorId);
+  try {
+    const projectsData = await apiService.contractors.getProjectsByContractor(contractorId); 
+    const paymentData = await apiService.contractors.getPaymentRequestsByContractor(contractorId);
+    const photosData = await apiService.contractors.getPhotosByContractor(contractorId);
+    
+    setProjects(projectsData);
+    setPaymentRequests(paymentData);
+    setPhotos(photosData);
 
-      setProjects(projectsData);
-      setPaymentRequests(paymentData);
-      setPhotos(photosData);
-    } catch (err) {
-      console.error('Error fetching contractor data:', err);
-      setError(err.response?.data?.message || 'Failed to load dashboard data.');
-    } finally {
-      setLoading(false);
-    }
-  }, [contractorId]);
+  } catch (err) {
+    console.error('An error occurred during API calls:', err);
+    setError(err.response?.data?.message || 'Failed to load dashboard data.');
+  } finally {
+    setLoading(false);
+  }
+}, [contractorId, user]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-  
-  const handleOpenPaymentModal = (project) => {
-    setSelectedProject(project);
-    setOpenPaymentModal(true);
-  };
-
-  const handlePaymentSubmit = async (projectId, formData) => {
-    try {
-      await apiService.paymentRequests.createRequest({ projectId, ...formData });
-      setSnackbar({ open: true, message: 'Payment request submitted!', severity: 'success' });
+    // Only fetch data when contractorId is available and not during auth loading
+    if (!authLoading && contractorId) {
+      console.log("useEffect triggered with valid contractorId. Calling fetchData().");
       fetchData();
-    } catch (err) {
-      setSnackbar({ open: true, message: 'Failed to submit payment request.', severity: 'error' });
+    } else if (!authLoading && !contractorId) {
+      // If auth is done but no contractorId is present, stop loading.
+      console.log("Auth is complete, but no contractorId found. Stopping loader.");
+      setLoading(false);
     }
-  };
-
-  const handleOpenPhotoModal = (project) => {
-    setSelectedProject(project);
-    setOpenPhotoModal(true);
-  };
+  }, [fetchData, contractorId, authLoading]);
   
-  const handlePhotoSubmit = async (projectId, file, caption) => {
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('projectId', projectId);
-      formData.append('caption', caption);
-      await apiService.contractorPhotos.uploadPhoto(contractorId, formData);
-      setSnackbar({ open: true, message: 'Photo uploaded!', severity: 'success' });
-      fetchData();
-    } catch (err) {
-      setSnackbar({ open: true, message: 'Failed to upload photo.', severity: 'error' });
-    }
-  };
-
   const handleCloseSnackbar = () => {
     setSnackbar({ ...snackbar, open: false });
   };
+  
+  const handleViewProjectDetails = (projectId) => {
+    navigate(`/projects/${projectId}`);
+  };
 
-  if (loading) {
+  if (authLoading || (loading && !error)) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <CircularProgress />
@@ -131,22 +112,13 @@ const ContractorDashboard = () => {
                   <ListItem key={proj.id} divider>
                     <ListItemText primary={proj.projectName} secondary={`Status: ${proj.status}`} />
                     <ListItemSecondaryAction>
-                      <Stack direction="row" spacing={1}>
-                        <Button
-                          variant="contained"
-                          startIcon={<PaidIcon />}
-                          onClick={() => handleOpenPaymentModal(proj)}
-                        >
-                          Request Payment
-                        </Button>
-                        <Button
-                          variant="contained"
-                          startIcon={<PhotoCameraIcon />}
-                          onClick={() => handleOpenPhotoModal(proj)}
-                        >
-                          Upload Photo
-                        </Button>
-                      </Stack>
+                      <Button
+                        variant="contained"
+                        startIcon={<VisibilityIcon />}
+                        onClick={() => handleViewProjectDetails(proj.id)}
+                      >
+                        View Details
+                      </Button>
                     </ListItemSecondaryAction>
                   </ListItem>
                 ))
@@ -164,7 +136,7 @@ const ContractorDashboard = () => {
             <List>
               {paymentRequests.length > 0 ? (
                 paymentRequests.map(req => (
-                  <ListItem key={req.id} divider>
+                  <ListItem key={req.paymentRequestId} divider>
                     <ListItemText primary={`KES ${parseFloat(req.amount).toFixed(2)}`} secondary={
                       <React.Fragment>
                         <Typography component="span" variant="body2" color="text.primary">
@@ -178,7 +150,6 @@ const ContractorDashboard = () => {
                     } />
                     <ListItemSecondaryAction>
                       <Chip label={req.status} color={req.status === 'Approved' ? 'success' : (req.status === 'Rejected' ? 'error' : 'default')} />
-                      {/* TODO: Add button to view request details if needed */}
                     </ListItemSecondaryAction>
                   </ListItem>
                 ))
@@ -225,22 +196,6 @@ const ContractorDashboard = () => {
         </Grid>
       </Grid>
       
-      {/* Modals */}
-      <PaymentRequestForm
-        open={openPaymentModal}
-        onClose={() => setOpenPaymentModal(false)}
-        projectId={selectedProject?.id}
-        projectName={selectedProject?.projectName}
-        onSubmit={handlePaymentSubmit}
-      />
-      <ContractorPhotoUploader
-        open={openPhotoModal}
-        onClose={() => setOpenPhotoModal(false)}
-        projectId={selectedProject?.id}
-        projectName={selectedProject?.projectName}
-        onSubmit={handlePhotoSubmit}
-      />
-
       <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar}>
         <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
           {snackbar.message}
