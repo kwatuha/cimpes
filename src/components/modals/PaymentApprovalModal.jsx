@@ -9,7 +9,7 @@ import {
     Check as CheckIcon, Clear as ClearIcon, Replay as ReplayIcon,
     Close as CloseIcon, AttachFile as AttachFileIcon,
     InsertDriveFile as DocumentIcon, Photo as PhotoIcon,
-    Edit as EditIcon, Delete as DeleteIcon
+    Edit as EditIcon, Delete as DeleteIcon, Paid as PaidIcon
 } from '@mui/icons-material';
 import {
     Timeline, TimelineItem, TimelineSeparator, TimelineConnector, TimelineContent, TimelineDot
@@ -17,6 +17,7 @@ import {
 import apiService from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import PropTypes from 'prop-types';
+import PaymentPaidModal from './PaymentPaidModal';
 
 const PaymentApprovalModal = ({ open, onClose, requestId }) => {
     const { user, hasPrivilege } = useAuth();
@@ -34,6 +35,8 @@ const PaymentApprovalModal = ({ open, onClose, requestId }) => {
     const [notes, setNotes] = useState('');
     const [actionDialog, setActionDialog] = useState({ open: false, type: null });
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+    
+    const [isPaidModalOpen, setIsPaidModalOpen] = useState(false);
 
     const handleTabChange = (event, newValue) => {
         setTabValue(newValue);
@@ -80,7 +83,6 @@ const PaymentApprovalModal = ({ open, onClose, requestId }) => {
 
     useEffect(() => {
         if (open && requestId) {
-            // FIX: Reset state when requestId changes to prevent displaying stale data
             setRequest(null);
             setHistory([]);
             fetchData();
@@ -97,7 +99,7 @@ const PaymentApprovalModal = ({ open, onClose, requestId }) => {
         setActionDialog({ open: false, type: null });
 
         try {
-            const response = await apiService.paymentRequests.recordApprovalAction(requestId, {
+            await apiService.paymentRequests.recordApprovalAction(requestId, {
                 action,
                 notes,
                 assignedToUserId: assignedTo,
@@ -105,7 +107,6 @@ const PaymentApprovalModal = ({ open, onClose, requestId }) => {
             
             setSnackbar({ open: true, message: `Payment request ${action.toLowerCase()}d successfully!`, severity: 'success' });
             
-            // Re-fetch all data to ensure the UI is fully consistent and up-to-date
             await fetchData();
 
         } catch (err) {
@@ -136,6 +137,24 @@ const PaymentApprovalModal = ({ open, onClose, requestId }) => {
         const actionNotes = notes || `Approved by ${currentApprovalLevel?.levelName}`;
         
         handleAction(actionText, actionNotes);
+    };
+    
+    const handleMarkAsPaid = async (paidRequestId, paidFormData) => {
+        if (!hasPrivilege('payment_details.create')) {
+            setSnackbar({ open: true, message: 'Permission denied to mark as paid.', severity: 'error' });
+            return;
+        }
+        setSubmitting(true);
+        try {
+            await apiService.paymentRequests.createPaymentDetails(paidRequestId, paidFormData);
+            setSnackbar({ open: true, message: 'Payment recorded successfully!', severity: 'success' });
+            await fetchData();
+            onClose();
+        } catch (err) {
+            setSnackbar({ open: true, message: err.response?.data?.message || 'Failed to record payment.', severity: 'error' });
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     if (!open) {
@@ -172,6 +191,7 @@ const PaymentApprovalModal = ({ open, onClose, requestId }) => {
         (level) => level.levelId === request.currentApprovalLevelId
     );
     const isCurrentUserReviewer = currentApprovalLevel && user?.roleId === currentApprovalLevel.roleId;
+    const paidByUser = request?.paymentDetails?.paidByUserId ? allUsers[request.paymentDetails.paidByUserId] : null;
 
     return (
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
@@ -201,11 +221,37 @@ const PaymentApprovalModal = ({ open, onClose, requestId }) => {
                             {tabValue === 0 && (
                                 <Box>
                                     <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>Request Details</Typography>
-                                    <Typography variant="body2" color="text.secondary">{request.description}</Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                        Submitted on: {new Date(request.submittedAt).toLocaleDateString()}
-                                    </Typography>
                                     
+                                    {request.paymentStatus === 'Paid' ? (
+                                        <Box sx={{ my: 2 }}>
+                                            <Alert severity="success">
+                                                This request has been paid. See details below.
+                                            </Alert>
+                                            <Box sx={{ mt: 2, p: 2, border: '1px solid #e0e0e0', borderRadius: '8px' }}>
+                                                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>Payment Information:</Typography>
+                                                <Typography variant="body2">Mode: {request.paymentDetails?.paymentMode || 'N/A'}</Typography>
+                                                <Typography variant="body2">Bank: {request.paymentDetails?.bankName || 'N/A'}</Typography>
+                                                <Typography variant="body2">Account: {request.paymentDetails?.accountNumber || 'N/A'}</Typography>
+                                                <Typography variant="body2">Transaction ID: {request.paymentDetails?.transactionId || 'N/A'}</Typography>
+                                                <Typography variant="body2" sx={{ mt: 1 }}>Notes: {request.paymentDetails?.notes || 'No notes provided.'}</Typography>
+                                                {/* NEW: Add payment date and user */}
+                                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
+                                                    Paid by: {paidByUser ? `${paidByUser.firstName} ${paidByUser.lastName}` : `User ID: ${request.paymentDetails?.paidByUserId}`}
+                                                </Typography>
+                                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                                    Paid on: {new Date(request.paymentDetails?.paidAt).toLocaleDateString() || 'N/A'}
+                                                </Typography>
+                                            </Box>
+                                        </Box>
+                                    ) : (
+                                        <Box>
+                                            <Typography variant="body2" color="text.secondary">{request.description}</Typography>
+                                            <Typography variant="caption" color="text.secondary">
+                                                Submitted on: {new Date(request.submittedAt).toLocaleDateString()}
+                                            </Typography>
+                                        </Box>
+                                    )}
+
                                     {isCurrentUserReviewer ? (
                                         <Alert severity="warning" sx={{ mt: 2 }}>
                                             Your approval is required for this payment request.
@@ -336,6 +382,17 @@ const PaymentApprovalModal = ({ open, onClose, requestId }) => {
                         Return
                     </Button>
                 </Stack>
+                {request?.paymentStatus === 'Approved for Payment' && hasPrivilege('payment_details.create') && (
+                    <Button
+                        variant="contained"
+                        startIcon={<PaidIcon />}
+                        color="primary"
+                        disabled={submitting}
+                        onClick={() => setIsPaidModalOpen(true)}
+                    >
+                        Mark as Paid
+                    </Button>
+                )}
                 <Button onClick={onClose} variant="outlined">Close</Button>
             </DialogActions>
 
@@ -381,6 +438,13 @@ const PaymentApprovalModal = ({ open, onClose, requestId }) => {
                     </Button>
                 </DialogActions>
             </Dialog>
+            
+            <PaymentPaidModal
+                open={isPaidModalOpen}
+                onClose={() => setIsPaidModalOpen(false)}
+                requestId={requestId}
+                onPaid={handleMarkAsPaid}
+            />
         </Dialog>
     );
 };
