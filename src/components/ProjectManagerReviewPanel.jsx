@@ -25,6 +25,7 @@ import {
 import apiService from '../api';
 import { useAuth } from '../context/AuthContext';
 import PropTypes from 'prop-types';
+import PaymentApprovalModal from './modals/PaymentApprovalModal'; // NEW: Import the new modal
 
 const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paymentJustification, handleOpenDocumentUploader }) => {
   const { user, hasPrivilege } = useAuth();
@@ -50,6 +51,10 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
   const [fileToReplace, setFileToReplace] = useState(null);
   const [resizeConfirmationModal, setResizeConfirmationModal] = useState({ open: false, document: null, width: '', height: '' });
   const [contextMenu, setContextMenu] = useState(null);
+
+  // NEW: State for the payment approval modal
+  const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
+  const [selectedRequestId, setSelectedRequestId] = useState(null);
 
   const photoRefs = useRef({});
 
@@ -93,12 +98,6 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
       } catch (err) {
         console.error('Error fetching payment requests:', err);
       }
-      
-      const initialTabValues = {};
-      fetchedRequests.forEach(req => {
-        initialTabValues[req.requestId] = 0;
-      });
-      setTabValues(initialTabValues);
 
       try {
         fetchedDocuments = await apiService.documents.getDocumentsForProject(numericProjectId);
@@ -106,6 +105,12 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
         console.error('Error fetching project documents:', err);
       }
       
+      const initialTabValues = {};
+      fetchedRequests.forEach(req => {
+        initialTabValues[req.requestId] = 0;
+      });
+      setTabValues(initialTabValues);
+
       await Promise.all(fetchedRequests.map(async (request) => {
         try {
           detailsMap[request.requestId] = {
@@ -152,6 +157,8 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
   }, [open, fetchData]);
 
   const handleUpdatePaymentStatus = async (requestId, newStatus) => {
+    // This function will be removed or repurposed soon, as the new modal handles this.
+    // For now, let's keep it to prevent errors on existing calls.
     if (!hasPrivilege('project_payments.update')) return;
 
     setSubmitting(true);
@@ -317,6 +324,18 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
   const handleTabChange = (requestId, newValue) => {
     setTabValues(prev => ({ ...prev, [requestId]: newValue }));
   };
+  
+  // NEW: Handlers for the PaymentApprovalModal
+  const handleOpenApprovalModal = (requestId) => {
+    setSelectedRequestId(requestId);
+    setIsApprovalModalOpen(true);
+  };
+
+  const handleCloseApprovalModal = () => {
+    setIsApprovalModalOpen(false);
+    setSelectedRequestId(null);
+    fetchData(); // Refresh the list after the modal closes
+  };
 
 
   if (!open) {
@@ -410,7 +429,11 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
                 const formattedDate = isDateValid ? new Date(req.createdAt).toLocaleDateString() : 'Date N/A';
 
                 return (
-                  <ListItem key={req.requestId} sx={{ my: 2, p: 2, border: `1px solid ${isDateValid ? '#e0e0e0' : 'red'}`, borderRadius: '8px' }} divider>
+                  <ListItem 
+                    key={req.requestId} 
+                    sx={{ my: 2, p: 2, border: `1px solid ${isDateValid ? '#e0e0e0' : 'red'}`, borderRadius: '8px' }}
+                    onClick={() => handleOpenApprovalModal(req.requestId)}
+                  >
                     <Box sx={{ width: '100%' }}>
                       <Stack direction="row" alignItems="center" spacing={2}>
                         <ListItemText
@@ -419,16 +442,16 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
                         />
                         <Chip label={req.status} color={req.status === 'Approved' ? 'success' : (req.status === 'Rejected' ? 'error' : 'default')} />
                         {hasPrivilege('payment_requests.upload_document') && (
-                          <IconButton onClick={() => handleOpenDocumentUploader(req.requestId)}>
+                          <IconButton onClick={(e) => { e.stopPropagation(); handleOpenDocumentUploader(req.requestId); }}>
                             <AttachFileIcon color="primary" />
                           </IconButton>
                         )}
                         {req.status === 'Pending Review' && hasPrivilege('project_payments.update') && (
                           <>
-                            <IconButton onClick={() => handleUpdatePaymentStatus(req.requestId, 'Approved')} disabled={submitting}>
+                            <IconButton onClick={(e) => { e.stopPropagation(); handleUpdatePaymentStatus(req.requestId, 'Approved'); }} disabled={submitting}>
                               <CheckIcon color="success" />
                             </IconButton>
-                            <IconButton onClick={() => handleUpdatePaymentStatus(req.requestId, 'Rejected')} disabled={submitting}>
+                            <IconButton onClick={(e) => { e.stopPropagation(); handleUpdatePaymentStatus(req.requestId, 'Rejected'); }} disabled={submitting}>
                               <ClearIcon color="error" />
                             </IconButton>
                           </>
@@ -768,6 +791,14 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
           {snackbar.message}
         </Alert>
       </Snackbar>
+      
+      {/* NEW: Payment Approval Modal */}
+      <PaymentApprovalModal
+        open={isApprovalModalOpen}
+        onClose={handleCloseApprovalModal}
+        requestId={selectedRequestId}
+      />
+      
     </Dialog>
   );
 };

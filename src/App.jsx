@@ -41,6 +41,10 @@ import ContractorDashboard from './pages/ContractorDashboard.jsx';
 import ContractorManagementPage from './pages/ContractorManagementPage.jsx';
 // NEW: Import the HrModulePage component
 import HrModulePage from './pages/HrModulePage.jsx';
+// ✨ NEW: Import the WorkflowManagementPage component
+import WorkflowManagementPage from './pages/WorkflowManagementPage.jsx';
+// ✨ NEW: Import the ApprovalLevelsManagementPage component
+import ApprovalLevelsManagementPage from './pages/ApprovalLevelsManagementPage.jsx';
 
 
 // Define a custom theme to match KEMRI's blue
@@ -158,6 +162,16 @@ const router = createBrowserRouter([
       {
         path: 'user-management', // NEW ROUTE: User Management Page
         element: <UserManagementPage />,
+      },
+      // ✨ NEW ROUTE: Workflow Management Page
+      {
+        path: 'workflow-management',
+        element: <WorkflowManagementPage />,
+      },
+      // ✨ NEW ROUTE: Approval Levels Management Page
+      {
+        path: 'approval-levels-management',
+        element: <ApprovalLevelsManagementPage />,
       },
       {
         path: 'strategic-planning', // NEW ROUTE: Strategic Planning Page (list view)

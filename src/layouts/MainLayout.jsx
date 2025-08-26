@@ -31,7 +31,8 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import PaidIcon from '@mui/icons-material/Paid';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import BusinessIcon from '@mui/icons-material/Business';
-import PeopleIcon from '@mui/icons-material/People'; // New import for HR icon
+import PeopleIcon from '@mui/icons-material/People';
+import AccountTreeIcon from '@mui/icons-material/AccountTree';
 
 import { Link as RouterLink, Outlet, useNavigate, Navigate, useLocation } from 'react-router-dom';
 
@@ -45,13 +46,12 @@ const collapsedDrawerWidth = 60;
 function MainLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   
-  // Single state variable for sidebar collapse.
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     const saved = localStorage.getItem('isSidebarCollapsed');
     return saved !== null ? JSON.parse(saved) : false;
   });
 
-  const { token, user, logout, hasPrivilege } = useAuth(); // Destructure hasPrivilege from useAuth
+  const { token, user, logout, hasPrivilege } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -59,7 +59,6 @@ function MainLayout() {
     setMobileOpen(!mobileOpen);
   };
   
-  // CORRECTED: This function now simply toggles the single state variable.
   const handleSidebarToggle = () => {
     const newState = !isSidebarCollapsed;
     setIsSidebarCollapsed(newState);
@@ -67,13 +66,11 @@ function MainLayout() {
   };
   
   useEffect(() => {
-    if (user && user.role === 'contractor' && location.pathname !== ROUTES.CONTRACTOR_DASHBOARD) {
+    if (user && user.roleName === 'contractor' && location.pathname !== ROUTES.CONTRACTOR_DASHBOARD) {
         navigate(ROUTES.CONTRACTOR_DASHBOARD, { replace: true });
     }
   }, [location.pathname, user, navigate]);
 
-  // CORRECTED: The useEffect now checks for the route, but only sets the state
-  // if the user hasn't explicitly toggled it.
   useEffect(() => {
     const baseRoutesToCollapse = [
         ROUTES.PROJECTS.split('/:')[0],
@@ -81,14 +78,15 @@ function MainLayout() {
         ROUTES.USER_MANAGEMENT.split('/:')[0],
         ROUTES.DASHBOARD.split('/:')[0],
         ROUTES.STRATEGIC_PLANNING.split('/:')[0],
-        ROUTES.HR, // New HR route
+        ROUTES.HR,
+        ROUTES.WORKFLOW_MANAGEMENT,
+        ROUTES.APPROVAL_LEVELS_MANAGEMENT,
     ];
 
     const shouldCollapse = baseRoutesToCollapse.some(basePath =>
         location.pathname.startsWith(basePath)
     );
 
-    // Only update the state if the new state is different from the current one.
     if (shouldCollapse && !isSidebarCollapsed) {
       setIsSidebarCollapsed(true);
     } else if (!shouldCollapse && isSidebarCollapsed) {
@@ -201,7 +199,6 @@ function MainLayout() {
           </ListItem>
         </Tooltip>
         
-        {/* New HR Module Link */}
         {hasPrivilege('hr.access') && (
           <Tooltip title="HR Module" placement="right" disableHoverListener={isSidebarCollapsed}>
             <ListItem disablePadding>
@@ -213,7 +210,7 @@ function MainLayout() {
           </Tooltip>
         )}
         
-        {user && user.role === 'admin' && (
+        {user && user.roleName === 'admin' && (
           <>
             <Divider sx={{ my: 1 }} />
             <Tooltip title="User Management" placement="right" disableHoverListener={isSidebarCollapsed}>
@@ -224,6 +221,28 @@ function MainLayout() {
                 </ListItemButton>
               </ListItem>
             </Tooltip>
+
+            {hasPrivilege('project_workflow.read') && (
+              <Tooltip title="Workflow Management" placement="right" disableHoverListener={isSidebarCollapsed}>
+                <ListItem disablePadding>
+                  <ListItemButton component={RouterLink} to={ROUTES.WORKFLOW_MANAGEMENT}>
+                    <ListItemIcon><AccountTreeIcon color="primary" /></ListItemIcon>
+                    {!isSidebarCollapsed && <ListItemText primary="Workflow Management" />}
+                  </ListItemButton>
+                </ListItem>
+              </Tooltip>
+            )}
+
+            {hasPrivilege('approval_levels.read') && (
+              <Tooltip title="Approval Levels" placement="right" disableHoverListener={isSidebarCollapsed}>
+                <ListItem disablePadding>
+                  <ListItemButton component={RouterLink} to={ROUTES.APPROVAL_LEVELS_MANAGEMENT}>
+                    <ListItemIcon><SettingsIcon color="primary" /></ListItemIcon>
+                    {!isSidebarCollapsed && <ListItemText primary="Approval Levels" />}
+                  </ListItemButton>
+                </ListItem>
+              </Tooltip>
+            )}
 
             <Tooltip title="Metadata Management" placement="right" disableHoverListener={isSidebarCollapsed}>
               <ListItem disablePadding>
@@ -290,7 +309,7 @@ function MainLayout() {
     </div>
   );
 
-  const drawerToRender = (user?.role === 'contractor') ? contractorDrawer : internalStaffDrawer;
+  const drawerToRender = (user?.roleName === 'contractor') ? contractorDrawer : internalStaffDrawer;
 
 
   return (

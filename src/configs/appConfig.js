@@ -48,6 +48,8 @@ export const ROUTES = {
     STRATEGIC_PLANNING: '/strategic-planning',
     METADATA_MANAGEMENT: '/metadata-management',
     HR: '/hr-module', // New route for the HR module
+    WORKFLOW_MANAGEMENT: '/workflow-management',
+    APPROVAL_LEVELS_MANAGEMENT: '/approval-levels-management', // ✨ NEW: Add the approval levels management route
 
     // Sub-routes with dynamic parameters
     PROJECT_DETAILS: '/projects/:projectId',
