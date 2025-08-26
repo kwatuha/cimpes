@@ -4,7 +4,8 @@ import {
     Box, Typography, CircularProgress, Alert, Button, Paper,
     List, ListItem, ListItemText, IconButton,
     Stack, Chip, Snackbar, LinearProgress,
-    Tooltip, Accordion, AccordionSummary, AccordionDetails, useTheme, Grid
+    Tooltip, Accordion, AccordionSummary, AccordionDetails, useTheme, Grid,
+    Divider
 } from '@mui/material';
 import {
     ArrowBack as ArrowBackIcon, Add as AddIcon, Edit as EditIcon,
@@ -15,7 +16,10 @@ import {
     Visibility as VisibilityIcon,
     Paid as PaidIcon,
     ExpandMore as ExpandMoreIcon,
-    Flag as FlagIcon
+    Flag as FlagIcon,
+    Assessment as AssessmentIcon,
+    AccountTree as AccountTreeIcon,
+    Info as InfoIcon
 } from '@mui/icons-material';
 import apiService from '../api';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -47,6 +51,22 @@ const snakeToCamelCase = (obj) => {
         }
     }
     return newObj;
+};
+
+// Helper function for currency formatting
+const formatCurrency = (amount) => {
+    return `KES ${parseFloat(amount || 0).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
+
+// Helper function for date formatting
+const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+        return new Date(dateString).toLocaleDateString('en-GB');
+    } catch (e) {
+        console.error('Invalid date string:', dateString);
+        return 'Invalid Date';
+    }
 };
 
 function ProjectDetailsPage() {
@@ -341,11 +361,11 @@ function ProjectDetailsPage() {
             budgetAllocated: null,
             actualCost: null,
             percentageComplete: null,
-            activityStatus: 'not_started',
-            projectId: projectId,
-            workplanId: workplanId,
+            activityStatus: '',
+            projectId: null,
+            workplanId: null,
             milestoneIds: [],
-            selectedWorkplanName: workplanName
+            selectedWorkplanName: ''
         });
     };
 
@@ -477,148 +497,155 @@ function ProjectDetailsPage() {
     const overallProgress = project?.overallProgress || 0;
 
     return (
-        <Box sx={{ p: 3 }}>
-            <Button
-                variant="outlined"
-                startIcon={<ArrowBackIcon />}
-                onClick={() => navigate('/projects')}
-                sx={{ mb: 3 }}
-            >
-                Back to Project Management
-            </Button>
-            <Typography variant="h4" component="h1" gutterBottom sx={{ color: '#0A2342', fontWeight: 'bold' }}>
-                Project Details: "{project?.projectName || 'Project Name Missing'}"
-            </Typography>
-            <Typography variant="h6" gutterBottom sx={{ color: '#333' }}>
-                Project ID: {project.id}
-            </Typography>
+        <Box sx={{ p: 3, backgroundColor: theme.palette.background.default }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Button
+                    variant="outlined"
+                    startIcon={<ArrowBackIcon />}
+                    onClick={() => navigate('/projects')}
+                >
+                    Back to Projects
+                </Button>
+            </Box>
 
-            <Paper elevation={3} sx={{ p: 3, mb: 4, borderRadius: '8px', borderLeft: '5px solid #0A2342' }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h6" color="primary.main">Overview</Typography>
-                    <Stack direction="row" spacing={1}>
-                        {canReviewSubmissions && (
-                            <Tooltip title="Review Contractor Submissions">
-                                <Button
-                                    variant="outlined"
-                                    startIcon={<PaidIcon />}
-                                    onClick={handleOpenReviewPanel}
-                                    sx={{ borderColor: '#0A2342', color: '#0A2342', '&:hover': { backgroundColor: '#e0e7ff' } }}
-                                >
-                                    Review Submissions
-                                </Button>
-                            </Tooltip>
-                        )}
-                        <Tooltip title="View Project Monitoring">
-                            <Button
-                                variant="outlined"
-                                startIcon={<VisibilityIcon />}
-                                onClick={handleOpenMonitoringModal}
-                                sx={{ borderColor: '#0A2342', color: '#0A2342', '&:hover': { backgroundColor: '#e0e7ff' } }}
-                            >
-                                Monitoring
-                            </Button>
-                        </Tooltip>
-                        <Tooltip title="Manage Project Photos">
-                            <Button
-                                variant="outlined"
-                                startIcon={<PhotoCameraIcon />}
-                                onClick={handleManagePhotos}
-                                sx={{ borderColor: '#0A2342', color: '#0A2342', '&:hover': { backgroundColor: '#e0e7ff' } }}
-                            >
-                                Photos
-                            </Button>
-                        </Tooltip>
-                    </Stack>
-                </Box>
-                <Stack spacing={1}>
-                    <Typography variant="body1">
-                        <strong>Overall Progress:</strong> {overallProgress.toFixed(2)}%
-                    </Typography>
-                    <LinearProgress variant="determinate" value={overallProgress} sx={{ height: 10, borderRadius: 5, mb: 2 }} />
-
-                    <Typography variant="body1">
-                        <strong>Project Category:</strong> {projectCategory?.categoryName || 'N/A'}
-                    </Typography>
-                    <Typography variant="body1"><strong>Directorate:</strong> {project?.directorate || 'N/A'}</Typography>
-                    <Typography variant="body1"><strong>Principal Investigator:</strong> {project?.principalInvestigator || 'N/A'}</Typography>
-                    <Typography variant="body1"><strong>Status:</strong>
+            {/* Consolidated Top Section */}
+            <Paper elevation={3} sx={{ p: 3, mb: 4, borderRadius: '12px' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', mb: 1 }}>
+                    <Stack direction="row" alignItems="center" spacing={1} sx={{ flexGrow: 1, minWidth: 0 }}>
+                        <Typography
+                            variant="h6"
+                            component="h1"
+                            sx={{
+                                fontWeight: 'bold',
+                                color: theme.palette.primary.main,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                flexShrink: 1,
+                            }}
+                        >
+                            {project?.projectName || 'Project Name Missing'}
+                        </Typography>
                         <Chip
                             label={project?.status || 'N/A'}
                             sx={{
-                                ml: 1,
                                 backgroundColor: getProjectStatusBackgroundColor(project?.status),
                                 color: getProjectStatusTextColor(project?.status),
                                 fontWeight: 'bold',
+                                flexShrink: 0
                             }}
                         />
+                    </Stack>
+                    <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
+                        {canReviewSubmissions && (
+                            <Tooltip title="Review Contractor Submissions">
+                                <IconButton color="success" onClick={handleOpenReviewPanel}>
+                                    <PaidIcon />
+                                </IconButton>
+                            </Tooltip>
+                        )}
+                        <Tooltip title="View Project Monitoring">
+                            <IconButton color="info" onClick={handleOpenMonitoringModal}>
+                                <VisibilityIcon />
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Manage Project Photos">
+                            <IconButton color="secondary" onClick={handleManagePhotos}>
+                                <PhotoCameraIcon />
+                            </IconButton>
+                        </Tooltip>
+                    </Stack>
+                </Box>
+                <Stack direction="row" alignItems="center" spacing={2} sx={{ mt: 2 }}>
+                    <Typography variant="body1" sx={{ fontWeight: 'bold', flexShrink: 0 }}>
+                        Overall Progress: {overallProgress.toFixed(2)}%
                     </Typography>
-                    <Typography variant="body1"><strong>Start Date:</strong> {project?.startDate ? new Date(project.startDate).toLocaleDateString() : 'N/A'}</Typography>
-                    <Typography variant="body1"><strong>End Date:</strong> {project?.endDate ? new Date(project.endDate).toLocaleDateString() : 'N/A'}</Typography>
-                    <Typography variant="body1"><strong>Cost:</strong> ${parseFloat(project?.costOfProject || 0).toFixed(2)}</Typography>
-                    <Typography variant="body1"><strong>Paid Out:</strong> ${parseFloat(project?.paidOut || 0).toFixed(2)}</Typography>
-                    <Typography variant="body1"><strong>Objective:</strong> {project?.objective || 'N/A'}</Typography>
-                    <Typography variant="body1"><strong>Expected Output:</strong> {project?.expectedOutput || 'N/A'}</Typography>
-                    <Typography variant="body1"><strong>Expected Outcome:</strong> {project?.expectedOutcome || 'N/A'}</Typography>
+                    <LinearProgress
+                        variant="determinate"
+                        value={overallProgress}
+                        sx={{ flexGrow: 1, height: 10, borderRadius: 5, bgcolor: theme.palette.grey[300] }}
+                        color="primary"
+                    />
                 </Stack>
             </Paper>
 
-            {/* Payment Justification Section */}
-            <Box sx={{ mt: 4 }}>
-                <Typography variant="h5" color="primary.main" gutterBottom>Payment Justification</Typography>
-                <Paper elevation={3} sx={{ p: 3, mb: 2, borderRadius: '8px' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography variant="h6">Accomplished Milestones & Activities</Typography>
-                        <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
-                            Total Accomplished Budget: <span style={{ color: theme.palette.success.main }}>KES {paymentJustification.totalBudget.toFixed(2)}</span>
-                        </Typography>
-                    </Box>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                        This section shows the budget for all completed project activities. You can use this to justify a payment request.
-                    </Typography>
-                    {paymentJustification.accomplishedMilestones.length > 0 ? (
-                        <List dense>
-                            {paymentJustification.accomplishedMilestones.map(milestone => (
-                                <Accordion key={milestone.milestoneId} expanded>
-                                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                                        <Typography sx={{ fontWeight: 'bold' }}>Milestone: {milestone.milestoneName}</Typography>
-                                    </AccordionSummary>
-                                    <AccordionDetails sx={{ bgcolor: '#fafafa' }}>
-                                        <List dense>
-                                            {paymentJustification.accomplishedActivities
-                                                .filter(a => a.milestoneId === milestone.milestoneId)
-                                                .map(activity => (
-                                                    <ListItem key={activity.activityId}>
-                                                        <ListItemText
-                                                            primary={activity.activityName}
-                                                            secondary={`Budget: KES ${parseFloat(activity.budgetAllocated).toFixed(2)}`}
-                                                        />
-                                                    </ListItem>
-                                                ))}
-                                        </List>
-                                    </AccordionDetails>
-                                </Accordion>
-                            ))}
-                        </List>
-                    ) : (
-                        <Alert severity="info">No completed milestones with activities found yet.</Alert>
-                    )}
-                </Paper>
-                <Box sx={{ textAlign: 'right' }}>
-                    <Button
-                        variant="contained"
-                        startIcon={<PaidIcon />}
-                        onClick={handleOpenPaymentRequest}
-                        disabled={paymentJustification.accomplishedActivities.length === 0}
-                    >
-                        Request Payment for Accomplished Work
-                    </Button>
-                </Box>
-            </Box>
+            {/* Combined Overview Section with three columns and description moved */}
+            <Paper elevation={3} sx={{ p: 3, mb: 4, borderRadius: '12px' }}>
+                <Typography variant="h6" color="primary" sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <InfoIcon sx={{ mr: 1 }} />
+                    Project Overview
+                </Typography>
+                <Grid container spacing={4}>
+                    {/* First Column: Key Information */}
+                    <Grid item xs={12} md={4}>
+                        <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>Key Information</Typography>
+                        <Stack spacing={1}>
+                            <Typography variant="body1"><strong>Project Category:</strong> {projectCategory?.categoryName || 'N/A'}</Typography>
+                            <Typography variant="body1"><strong>Directorate:</strong> {project?.directorate || 'N/A'}</Typography>
+                            <Typography variant="body1"><strong>Principal Investigator:</strong> {project?.principalInvestigator || 'N/A'}</Typography>
+                            <Typography variant="body1"><strong>Status:</strong>
+                                <Chip
+                                    label={project?.status || 'N/A'}
+                                    sx={{
+                                        ml: 1,
+                                        backgroundColor: getProjectStatusBackgroundColor(project?.status),
+                                        color: getProjectStatusTextColor(project?.status),
+                                        fontWeight: 'bold',
+                                    }}
+                                />
+                            </Typography>
+                        </Stack>
+                    </Grid>
+                    {/* Second Column: Financial Details */}
+                    <Grid item xs={12} md={4}>
+                        <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>Financial Details</Typography>
+                        <Stack spacing={1}>
+                            <Typography variant="body1"><strong>Start Date:</strong> {formatDate(project?.startDate)}</Typography>
+                            <Typography variant="body1"><strong>End Date:</strong> {formatDate(project?.endDate)}</Typography>
+                            <Typography variant="body1"><strong>Total Cost:</strong> {formatCurrency(project?.costOfProject)}</Typography>
+                            <Typography variant="body1"><strong>Paid Out:</strong> {formatCurrency(project?.paidOut)}</Typography>
+                        </Stack>
+                    </Grid>
+                    {/* Third Column: Accomplished Work */}
+                    <Grid item xs={12} md={4}>
+                        <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>Accomplished Work</Typography>
+                        <Stack spacing={1}>
+                            <Typography variant="h5" sx={{ fontWeight: 'bold', color: theme.palette.success.main }}>
+                                {formatCurrency(paymentJustification.totalBudget)}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                                Total Budget from Completed Activities
+                            </Typography>
+                            <Box sx={{ mt: 2 }}>
+                                <Button
+                                    variant="contained"
+                                    startIcon={<PaidIcon />}
+                                    onClick={handleOpenPaymentRequest}
+                                    disabled={paymentJustification.accomplishedActivities.length === 0}
+                                    size="small"
+                                >
+                                    Request Payment
+                                </Button>
+                            </Box>
+                        </Stack>
+                    </Grid>
+                    {/* Full-width row for Project Description */}
+                    <Grid item xs={12}>
+                        <Divider sx={{ my: 2 }} />
+                        <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>Project Description</Typography>
+                        <Typography variant="body1" sx={{ mb: 1 }}><strong>Objective:</strong> {project?.objective || 'N/A'}</Typography>
+                        <Typography variant="body1" sx={{ mb: 1 }}><strong>Expected Output:</strong> {project?.expectedOutput || 'N/A'}</Typography>
+                        <Typography variant="body1"><strong>Expected Outcome:</strong> {project?.expectedOutcome || 'N/A'}</Typography>
+                    </Grid>
+                </Grid>
+            </Paper>
 
-            {/* Work Plans Accordion */}
+            {/* Work Plans Section */}
             <Box sx={{ mt: 4 }}>
-                <Typography variant="h5" color="primary.main" gutterBottom>Work Plans</Typography>
+                <Typography variant="h5" color="primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', mb: 2, fontWeight: 'bold' }}>
+                    <AccountTreeIcon sx={{ mr: 1 }} />
+                    Work Plans
+                </Typography>
                 {loadingWorkPlans ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
                         <CircularProgress />
@@ -636,7 +663,7 @@ function ProjectDetailsPage() {
                                 key={workplan.workplanId}
                                 expanded={expandedWorkPlan === workplan.workplanId}
                                 onChange={handleAccordionChange(workplan.workplanId)}
-                                sx={{ mb: 2, borderRadius: '8px', '&:before': { display: 'none' } }}
+                                sx={{ mb: 2, borderRadius: '12px', '&:before': { display: 'none' }, border: '1px solid', borderColor: theme.palette.grey[300] }}
                             >
                                 <AccordionSummary
                                     expandIcon={<ExpandMoreIcon />}
@@ -647,73 +674,74 @@ function ProjectDetailsPage() {
                                         <Typography variant="h6" sx={{ flexShrink: 0, fontWeight: 'bold' }}>
                                             {workplan.workplanName} ({workplan.financialYear})
                                         </Typography>
-                                        <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center' }}>
+                                        <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                                             <Chip
-                                                label={`Budget: KES ${parseFloat(workplan.totalBudget).toFixed(2)}`}
+                                                label={`Budget: ${formatCurrency(workplan.totalBudget)}`}
                                                 color="primary"
-                                                sx={{ mr: 1 }}
+                                                size="small"
+                                                sx={{ mr: 1, mb: { xs: 1, sm: 0 } }}
                                             />
                                             <Chip
-                                                label={`Utilized: KES ${totalMappedBudget.toFixed(2)}`}
+                                                label={`Utilized: ${formatCurrency(totalMappedBudget)}`}
                                                 color="secondary"
-                                                sx={{ mr: 1 }}
+                                                size="small"
+                                                sx={{ mr: 1, mb: { xs: 1, sm: 0 } }}
                                             />
                                             <Chip
-                                                label={`Remaining: KES ${remainingBudget.toFixed(2)}`}
+                                                label={`Remaining: ${formatCurrency(remainingBudget)}`}
                                                 color={remainingBudget >= 0 ? 'success' : 'error'}
+                                                size="small"
                                             />
                                         </Box>
                                     </Box>
                                 </AccordionSummary>
                                 <AccordionDetails>
-                                    <Typography variant="body1" sx={{ fontStyle: 'italic' }}>
+                                    <Typography variant="body1" sx={{ fontStyle: 'italic', mb: 2 }}>
                                         {workplan.workplanDescription || 'No description provided.'}
                                     </Typography>
-                                    <Box sx={{ mt: 2 }}>
-                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                                            <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>Activities</Typography>
-                                            {checkUserPrivilege(user, 'activity.create') && (
-                                                <Button
-                                                    variant="contained"
-                                                    startIcon={<AddIcon />}
-                                                    size="small"
-                                                    onClick={() => handleOpenCreateActivityDialog(workplan.workplanId, workplan.workplanName)}
-                                                >
-                                                    Add Activity
-                                                </Button>
-                                            )}
-                                        </Box>
-                                        {activitiesForWorkplan.length > 0 ? (
-                                            <List dense>
-                                                {activitiesForWorkplan.map((activity) => (
-                                                    <ListItem
-                                                        key={activity.activityId}
-                                                        secondaryAction={
-                                                            <Stack direction="row" spacing={1}>
-                                                                {checkUserPrivilege(user, 'activity.update') && (
-                                                                    <Tooltip title="Edit Activity">
-                                                                        <IconButton edge="end" aria-label="edit" onClick={(e) => { e.stopPropagation(); handleOpenEditActivityDialog(activity); }}><EditIcon /></IconButton>
-                                                                    </Tooltip>
-                                                                )}
-                                                                {checkUserPrivilege(user, 'activity.delete') && (
-                                                                    <Tooltip title="Delete Activity">
-                                                                        <IconButton edge="end" aria-label="delete" onClick={(e) => { e.stopPropagation(); handleDeleteActivity(activity.activityId); }}><DeleteIcon /></IconButton>
-                                                                    </Tooltip>
-                                                                )}
-                                                            </Stack>
-                                                        }
-                                                    >
-                                                        <ListItemText
-                                                            primary={activity.activityName}
-                                                            secondary={`Budget: KES ${parseFloat(activity.budgetAllocated).toFixed(2)} | Status: ${activity.activityStatus.replace(/_/g, ' ')}`}
-                                                        />
-                                                    </ListItem>
-                                                ))}
-                                            </List>
-                                        ) : (
-                                            <Typography variant="body2" color="text.secondary">No activities have been added to this work plan yet.</Typography>
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                        <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>Activities</Typography>
+                                        {checkUserPrivilege(user, 'activity.create') && (
+                                            <Button
+                                                variant="contained"
+                                                startIcon={<AddIcon />}
+                                                size="small"
+                                                onClick={() => handleOpenCreateActivityDialog(workplan.workplanId, workplan.workplanName)}
+                                            >
+                                                Add Activity
+                                            </Button>
                                         )}
                                     </Box>
+                                    {activitiesForWorkplan.length > 0 ? (
+                                        <List dense>
+                                            {activitiesForWorkplan.map((activity) => (
+                                                <ListItem
+                                                    key={activity.activityId}
+                                                    secondaryAction={
+                                                        <Stack direction="row" spacing={1}>
+                                                            {checkUserPrivilege(user, 'activity.update') && (
+                                                                <Tooltip title="Edit Activity">
+                                                                    <IconButton edge="end" aria-label="edit" onClick={(e) => { e.stopPropagation(); handleOpenEditActivityDialog(activity); }}><EditIcon /></IconButton>
+                                                                </Tooltip>
+                                                            )}
+                                                            {checkUserPrivilege(user, 'activity.delete') && (
+                                                                <Tooltip title="Delete Activity">
+                                                                    <IconButton edge="end" aria-label="delete" onClick={(e) => { e.stopPropagation(); handleDeleteActivity(activity.activityId); }}><DeleteIcon /></IconButton>
+                                                                </Tooltip>
+                                                            )}
+                                                        </Stack>
+                                                    }
+                                                >
+                                                    <ListItemText
+                                                        primary={activity.activityName}
+                                                        secondary={`Budget: ${formatCurrency(activity.budgetAllocated)} | Status: ${activity.activityStatus.replace(/_/g, ' ')}`}
+                                                    />
+                                                </ListItem>
+                                            ))}
+                                        </List>
+                                    ) : (
+                                        <Typography variant="body2" color="text.secondary">No activities have been added to this work plan yet.</Typography>
+                                    )}
                                 </AccordionDetails>
                             </Accordion>
                         );
@@ -724,7 +752,10 @@ function ProjectDetailsPage() {
             {/* Milestones Section */}
             <Box sx={{ mt: 4 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h5" color="primary.main">Milestones</Typography>
+                    <Typography variant="h5" color="primary" sx={{ display: 'flex', alignItems: 'center', fontWeight: 'bold' }}>
+                        <FlagIcon sx={{ mr: 1 }} />
+                        Milestones
+                    </Typography>
                     <Stack direction="row" spacing={1}>
                         {canApplyTemplate && (
                             <Button
@@ -758,15 +789,15 @@ function ProjectDetailsPage() {
                     <Grid container spacing={3}>
                         {milestones.map((milestone) => (
                             <Grid item xs={12} md={6} key={milestone.milestoneId}>
-                                <Paper elevation={3} sx={{ p: 0, borderRadius: '8px', height: '100%', display: 'flex', flexDirection: 'column' }}>
+                                <Paper elevation={3} sx={{ p: 0, borderRadius: '12px', height: '100%', display: 'flex', flexDirection: 'column' }}>
                                     <Box
                                         sx={{
                                             p: 2,
                                             pb: 1.5,
                                             borderLeft: `5px solid ${theme.palette.primary.main}`,
                                             backgroundColor: theme.palette.action.hover,
-                                            borderTopLeftRadius: '8px',
-                                            borderTopRightRadius: '8px',
+                                            borderTopLeftRadius: '12px',
+                                            borderTopRightRadius: '12px',
                                         }}
                                     >
                                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -802,7 +833,7 @@ function ProjectDetailsPage() {
                                             {milestone.description || 'No description.'}
                                         </Typography>
                                         <Typography variant="body2" color="text.secondary">
-                                            Due Date: {milestone.dueDate ? new Date(milestone.dueDate).toLocaleDateString() : 'N/A'}
+                                            Due Date: {formatDate(milestone.dueDate)}
                                         </Typography>
                                         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                                             Progress: {milestone.progress}% (Weight: {milestone.weight})
@@ -817,13 +848,13 @@ function ProjectDetailsPage() {
                                                         <ListItem key={activity.activityId} disablePadding sx={{ py: 0.5, pr: 1 }}>
                                                             <ListItemText
                                                                 primary={activity.activityName}
-                                                                secondary={`Budget: KES ${parseFloat(activity.budgetAllocated).toFixed(2)} | Status: ${activity.activityStatus.replace(/_/g, ' ')}`}
+                                                                secondary={`Budget: ${formatCurrency(activity.budgetAllocated)} | Status: ${activity.activityStatus.replace(/_/g, ' ')}`}
                                                             />
                                                             <Stack direction="row" spacing={1}>
                                                                 {checkUserPrivilege(user, 'activity.update') && (
                                                                     <Tooltip title="Edit Activity">
                                                                         <IconButton edge="end" aria-label="edit" onClick={(e) => { e.stopPropagation(); handleOpenEditActivityDialog(activity); }} size="small"><EditIcon fontSize="small" /></IconButton>
-                                                                    </Tooltip>
+                                                                </Tooltip>
                                                                 )}
                                                                 {checkUserPrivilege(user, 'activity.delete') && (
                                                                     <Tooltip title="Delete Activity">
