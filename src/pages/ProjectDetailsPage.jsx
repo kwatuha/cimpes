@@ -55,6 +55,8 @@ const snakeToCamelCase = (obj) => {
 
 // Helper function for currency formatting
 const formatCurrency = (amount) => {
+    // Current location is Nairobi, Nairobi County, Kenya.
+    // So the currency symbol is KES.
     return `KES ${parseFloat(amount || 0).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
@@ -363,9 +365,9 @@ function ProjectDetailsPage() {
             percentageComplete: null,
             activityStatus: '',
             projectId: null,
-            workplanId: null,
+            workplanId: workplanId,
             milestoneIds: [],
-            selectedWorkplanName: ''
+            selectedWorkplanName: workplanName
         });
     };
 
@@ -569,7 +571,7 @@ function ProjectDetailsPage() {
                 </Stack>
             </Paper>
 
-            {/* Combined Overview Section with three columns and description moved */}
+            {/* Combined Overview and Description Section */}
             <Paper elevation={3} sx={{ p: 3, mb: 4, borderRadius: '12px' }}>
                 <Typography variant="h6" color="primary" sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                     <InfoIcon sx={{ mr: 1 }} />
@@ -583,17 +585,6 @@ function ProjectDetailsPage() {
                             <Typography variant="body1"><strong>Project Category:</strong> {projectCategory?.categoryName || 'N/A'}</Typography>
                             <Typography variant="body1"><strong>Directorate:</strong> {project?.directorate || 'N/A'}</Typography>
                             <Typography variant="body1"><strong>Principal Investigator:</strong> {project?.principalInvestigator || 'N/A'}</Typography>
-                            <Typography variant="body1"><strong>Status:</strong>
-                                <Chip
-                                    label={project?.status || 'N/A'}
-                                    sx={{
-                                        ml: 1,
-                                        backgroundColor: getProjectStatusBackgroundColor(project?.status),
-                                        color: getProjectStatusTextColor(project?.status),
-                                        fontWeight: 'bold',
-                                    }}
-                                />
-                            </Typography>
                         </Stack>
                     </Grid>
                     {/* Second Column: Financial Details */}
@@ -623,6 +614,7 @@ function ProjectDetailsPage() {
                                     onClick={handleOpenPaymentRequest}
                                     disabled={paymentJustification.accomplishedActivities.length === 0}
                                     size="small"
+                                    color="success"
                                 >
                                     Request Payment
                                 </Button>
@@ -640,12 +632,36 @@ function ProjectDetailsPage() {
                 </Grid>
             </Paper>
 
-            {/* Work Plans Section */}
+            {/* Work Plans and Milestones Section (Refactored) */}
             <Box sx={{ mt: 4 }}>
-                <Typography variant="h5" color="primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', mb: 2, fontWeight: 'bold' }}>
-                    <AccountTreeIcon sx={{ mr: 1 }} />
-                    Work Plans
-                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h5" color="primary" sx={{ display: 'flex', alignItems: 'center', fontWeight: 'bold' }}>
+                        <AccountTreeIcon sx={{ mr: 1 }} />
+                        Work Plans & Milestones
+                    </Typography>
+                    <Stack direction="row" spacing={1}>
+                        {canApplyTemplate && (
+                            <Button
+                                variant="contained"
+                                startIcon={<UpdateIcon />}
+                                onClick={handleApplyMilestoneTemplate}
+                                disabled={applyingTemplate}
+                            >
+                                {applyingTemplate ? <CircularProgress size={24} /> : 'Apply Latest Milestones'}
+                            </Button>
+                        )}
+                        {checkUserPrivilege(user, 'activity.create') && (
+                            <Button
+                                variant="contained"
+                                startIcon={<AddIcon />}
+                                onClick={() => handleOpenCreateActivityDialog(null, null)}
+                                sx={{ backgroundColor: '#16a34a', '&:hover': { backgroundColor: '#15803d' } }}
+                            >
+                                Add Activity
+                            </Button>
+                        )}
+                    </Stack>
+                </Box>
                 {loadingWorkPlans ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
                         <CircularProgress />
@@ -655,6 +671,8 @@ function ProjectDetailsPage() {
                 ) : (
                     projectWorkPlans.map((workplan) => {
                         const activitiesForWorkplan = milestoneActivities.filter(a => String(a.workplanId) === String(workplan.workplanId));
+                        const milestoneIdsForWorkplan = new Set(activitiesForWorkplan.map(a => a.milestoneId));
+                        const milestonesForWorkplan = milestones.filter(m => milestoneIdsForWorkplan.has(m.milestoneId));
                         const totalMappedBudget = activitiesForWorkplan.reduce((sum, activity) => sum + (parseFloat(activity.budgetAllocated) || 0), 0);
                         const remainingBudget = (parseFloat(workplan.totalBudget) || 0) - totalMappedBudget;
 
@@ -699,183 +717,126 @@ function ProjectDetailsPage() {
                                     <Typography variant="body1" sx={{ fontStyle: 'italic', mb: 2 }}>
                                         {workplan.workplanDescription || 'No description provided.'}
                                     </Typography>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                                        <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>Activities</Typography>
-                                        {checkUserPrivilege(user, 'activity.create') && (
-                                            <Button
-                                                variant="contained"
-                                                startIcon={<AddIcon />}
-                                                size="small"
-                                                onClick={() => handleOpenCreateActivityDialog(workplan.workplanId, workplan.workplanName)}
-                                            >
-                                                Add Activity
-                                            </Button>
+
+                                    {/* Milestones and Activities for this Workplan */}
+                                    <Box sx={{ mt: 2 }}>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                                            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Milestones</Typography>
+                                            {checkUserPrivilege(user, 'milestone.create') && !projectCategory && (
+                                                <Button
+                                                    variant="contained"
+                                                    startIcon={<AddIcon />}
+                                                    onClick={handleOpenCreateMilestoneDialog}
+                                                    size="small"
+                                                    sx={{ backgroundColor: '#16a34a', '&:hover': { backgroundColor: '#15803d' } }}
+                                                >
+                                                    Add Milestone
+                                                </Button>
+                                            )}
+                                        </Box>
+
+                                        {milestonesForWorkplan.length === 0 ? (
+                                            <Alert severity="info">No milestones linked to this work plan yet.</Alert>
+                                        ) : (
+                                            <Grid container spacing={3}>
+                                                {milestonesForWorkplan.map((milestone) => {
+                                                    const activitiesForMilestone = activitiesForWorkplan.filter(a => a.milestoneId === milestone.milestoneId);
+                                                    return (
+                                                        <Grid item xs={12} md={6} key={milestone.milestoneId}>
+                                                            <Paper elevation={3} sx={{ p: 0, borderRadius: '12px', height: '100%', display: 'flex', flexDirection: 'column' }}>
+                                                                <Box
+                                                                    sx={{
+                                                                        p: 2,
+                                                                        pb: 1.5,
+                                                                        borderLeft: `5px solid ${theme.palette.primary.main}`,
+                                                                        backgroundColor: theme.palette.action.hover,
+                                                                        borderTopLeftRadius: '12px',
+                                                                        borderTopRightRadius: '12px',
+                                                                    }}
+                                                                >
+                                                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                                                            <FlagIcon color="primary" sx={{ mr: 1 }} />
+                                                                            <Typography variant="h6" sx={{ fontWeight: 'bold', color: theme.palette.primary.main }}>
+                                                                                {milestone.milestoneName || 'Unnamed Milestone'}
+                                                                            </Typography>
+                                                                        </Box>
+                                                                        <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
+                                                                            <Tooltip title="View Attachments">
+                                                                                <IconButton edge="end" aria-label="attachments" onClick={() => {
+                                                                                    setMilestoneToViewAttachments(milestone);
+                                                                                    setOpenAttachmentsModal(true);
+                                                                                }}><AttachmentIcon /></IconButton>
+                                                                            </Tooltip>
+                                                                            {checkUserPrivilege(user, 'milestone.update') && (
+                                                                                <Tooltip title="Edit Milestone">
+                                                                                    <IconButton edge="end" aria-label="edit" onClick={() => handleOpenEditMilestoneDialog(milestone)}><EditIcon /></IconButton>
+                                                                                </Tooltip>
+                                                                            )}
+                                                                            {checkUserPrivilege(user, 'milestone.delete') && (
+                                                                                <Tooltip title="Delete Milestone">
+                                                                                    <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteMilestone(milestone.milestoneId)}><DeleteIcon /></IconButton>
+                                                                                </Tooltip>
+                                                                            )}
+                                                                        </Stack>
+                                                                    </Box>
+                                                                </Box>
+
+                                                                <Box sx={{ p: 2, flexGrow: 1 }}>
+                                                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                                                                        {milestone.description || 'No description.'}
+                                                                    </Typography>
+                                                                    <Typography variant="body2" color="text.secondary">
+                                                                        Due Date: {formatDate(milestone.dueDate)}
+                                                                    </Typography>
+                                                                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                                                                        Progress: {milestone.progress}% (Weight: {milestone.weight})
+                                                                    </Typography>
+                                                                    <LinearProgress variant="determinate" value={milestone.progress || 0} sx={{ height: 6, borderRadius: 3, mt: 0.5 }} />
+
+                                                                    <Box sx={{ mt: 2, pl: 1, borderLeft: '2px solid', borderColor: theme.palette.secondary.main }}>
+                                                                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>Activities</Typography>
+                                                                        {activitiesForMilestone.length > 0 ? (
+                                                                            <List dense disablePadding>
+                                                                                {activitiesForMilestone.map(activity => (
+                                                                                    <ListItem key={activity.activityId} disablePadding sx={{ py: 0.5, pr: 1 }}>
+                                                                                        <ListItemText
+                                                                                            primary={activity.activityName}
+                                                                                            secondary={`Budget: ${formatCurrency(activity.budgetAllocated)} | Status: ${activity.activityStatus.replace(/_/g, ' ')}`}
+                                                                                        />
+                                                                                        <Stack direction="row" spacing={1}>
+                                                                                            {checkUserPrivilege(user, 'activity.update') && (
+                                                                                                <Tooltip title="Edit Activity">
+                                                                                                    <IconButton edge="end" aria-label="edit" onClick={(e) => { e.stopPropagation(); handleOpenEditActivityDialog(activity); }} size="small"><EditIcon fontSize="small" /></IconButton>
+                                                                                            </Tooltip>
+                                                                                            )}
+                                                                                            {checkUserPrivilege(user, 'activity.delete') && (
+                                                                                                <Tooltip title="Delete Activity">
+                                                                                                    <IconButton edge="end" aria-label="delete" onClick={(e) => { e.stopPropagation(); handleDeleteActivity(activity.activityId); }} size="small"><DeleteIcon fontSize="small" /></IconButton>
+                                                                                            </Tooltip>
+                                                                                            )}
+                                                                                        </Stack>
+                                                                                    </ListItem>
+                                                                                ))}
+                                                                            </List>
+                                                                        ) : (
+                                                                            <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', mt: 1 }}>
+                                                                                No activities linked to this milestone.
+                                                                            </Typography>
+                                                                        )}
+                                                                    </Box>
+                                                                </Box>
+                                                            </Paper>
+                                                        </Grid>
+                                                    );
+                                                })}
+                                            </Grid>
                                         )}
                                     </Box>
-                                    {activitiesForWorkplan.length > 0 ? (
-                                        <List dense>
-                                            {activitiesForWorkplan.map((activity) => (
-                                                <ListItem
-                                                    key={activity.activityId}
-                                                    secondaryAction={
-                                                        <Stack direction="row" spacing={1}>
-                                                            {checkUserPrivilege(user, 'activity.update') && (
-                                                                <Tooltip title="Edit Activity">
-                                                                    <IconButton edge="end" aria-label="edit" onClick={(e) => { e.stopPropagation(); handleOpenEditActivityDialog(activity); }}><EditIcon /></IconButton>
-                                                                </Tooltip>
-                                                            )}
-                                                            {checkUserPrivilege(user, 'activity.delete') && (
-                                                                <Tooltip title="Delete Activity">
-                                                                    <IconButton edge="end" aria-label="delete" onClick={(e) => { e.stopPropagation(); handleDeleteActivity(activity.activityId); }}><DeleteIcon /></IconButton>
-                                                                </Tooltip>
-                                                            )}
-                                                        </Stack>
-                                                    }
-                                                >
-                                                    <ListItemText
-                                                        primary={activity.activityName}
-                                                        secondary={`Budget: ${formatCurrency(activity.budgetAllocated)} | Status: ${activity.activityStatus.replace(/_/g, ' ')}`}
-                                                    />
-                                                </ListItem>
-                                            ))}
-                                        </List>
-                                    ) : (
-                                        <Typography variant="body2" color="text.secondary">No activities have been added to this work plan yet.</Typography>
-                                    )}
                                 </AccordionDetails>
                             </Accordion>
                         );
                     })
-                )}
-            </Box>
-
-            {/* Milestones Section */}
-            <Box sx={{ mt: 4 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h5" color="primary" sx={{ display: 'flex', alignItems: 'center', fontWeight: 'bold' }}>
-                        <FlagIcon sx={{ mr: 1 }} />
-                        Milestones
-                    </Typography>
-                    <Stack direction="row" spacing={1}>
-                        {canApplyTemplate && (
-                            <Button
-                                variant="contained"
-                                startIcon={<UpdateIcon />}
-                                onClick={handleApplyMilestoneTemplate}
-                                disabled={applyingTemplate}
-                            >
-                                {applyingTemplate ? <CircularProgress size={24} /> : 'Apply Latest Milestones'}
-                            </Button>
-                        )}
-                        {checkUserPrivilege(user, 'milestone.create') && !projectCategory && (
-                            <Button
-                                variant="contained"
-                                startIcon={<AddIcon />}
-                                onClick={handleOpenCreateMilestoneDialog}
-                                sx={{ backgroundColor: '#16a34a', '&:hover': { backgroundColor: '#15803d' } }}
-                            >
-                                Add Milestone
-                            </Button>
-                        )}
-                    </Stack>
-                </Box>
-                {milestones.length === 0 ? (
-                    projectCategory?.categoryName ? (
-                        <Alert severity="info">Milestones for this project are generated from the '{projectCategory.categoryName}' template. Please apply the template first.</Alert>
-                    ) : (
-                        <Alert severity="info">No milestones defined for this project.</Alert>
-                    )
-                ) : (
-                    <Grid container spacing={3}>
-                        {milestones.map((milestone) => (
-                            <Grid item xs={12} md={6} key={milestone.milestoneId}>
-                                <Paper elevation={3} sx={{ p: 0, borderRadius: '12px', height: '100%', display: 'flex', flexDirection: 'column' }}>
-                                    <Box
-                                        sx={{
-                                            p: 2,
-                                            pb: 1.5,
-                                            borderLeft: `5px solid ${theme.palette.primary.main}`,
-                                            backgroundColor: theme.palette.action.hover,
-                                            borderTopLeftRadius: '12px',
-                                            borderTopRightRadius: '12px',
-                                        }}
-                                    >
-                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                                <FlagIcon color="primary" sx={{ mr: 1 }} />
-                                                <Typography variant="h6" sx={{ fontWeight: 'bold', color: theme.palette.primary.main }}>
-                                                    {milestone.milestoneName || 'Unnamed Milestone'}
-                                                </Typography>
-                                            </Box>
-                                            <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
-                                                <Tooltip title="View Attachments">
-                                                    <IconButton edge="end" aria-label="attachments" onClick={() => {
-                                                        setMilestoneToViewAttachments(milestone);
-                                                        setOpenAttachmentsModal(true);
-                                                    }}><AttachmentIcon /></IconButton>
-                                                </Tooltip>
-                                                {checkUserPrivilege(user, 'milestone.update') && (
-                                                    <Tooltip title="Edit Milestone">
-                                                        <IconButton edge="end" aria-label="edit" onClick={() => handleOpenEditMilestoneDialog(milestone)}><EditIcon /></IconButton>
-                                                    </Tooltip>
-                                                )}
-                                                {checkUserPrivilege(user, 'milestone.delete') && (
-                                                    <Tooltip title="Delete Milestone">
-                                                        <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteMilestone(milestone.milestoneId)}><DeleteIcon /></IconButton>
-                                                    </Tooltip>
-                                                )}
-                                            </Stack>
-                                        </Box>
-                                    </Box>
-
-                                    <Box sx={{ p: 2, flexGrow: 1 }}>
-                                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                                            {milestone.description || 'No description.'}
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary">
-                                            Due Date: {formatDate(milestone.dueDate)}
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                                            Progress: {milestone.progress}% (Weight: {milestone.weight})
-                                        </Typography>
-                                        <LinearProgress variant="determinate" value={milestone.progress || 0} sx={{ height: 6, borderRadius: 3, mt: 0.5 }} />
-
-                                        <Box sx={{ mt: 2, pl: 1, borderLeft: '2px solid', borderColor: theme.palette.secondary.main }}>
-                                            <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>Activities</Typography>
-                                            {(milestoneActivities || []).filter(a => a.milestoneId === milestone.milestoneId).length > 0 ? (
-                                                <List dense disablePadding>
-                                                    {(milestoneActivities || []).filter(a => a.milestoneId === milestone.milestoneId).map(activity => (
-                                                        <ListItem key={activity.activityId} disablePadding sx={{ py: 0.5, pr: 1 }}>
-                                                            <ListItemText
-                                                                primary={activity.activityName}
-                                                                secondary={`Budget: ${formatCurrency(activity.budgetAllocated)} | Status: ${activity.activityStatus.replace(/_/g, ' ')}`}
-                                                            />
-                                                            <Stack direction="row" spacing={1}>
-                                                                {checkUserPrivilege(user, 'activity.update') && (
-                                                                    <Tooltip title="Edit Activity">
-                                                                        <IconButton edge="end" aria-label="edit" onClick={(e) => { e.stopPropagation(); handleOpenEditActivityDialog(activity); }} size="small"><EditIcon fontSize="small" /></IconButton>
-                                                                </Tooltip>
-                                                                )}
-                                                                {checkUserPrivilege(user, 'activity.delete') && (
-                                                                    <Tooltip title="Delete Activity">
-                                                                        <IconButton edge="end" aria-label="delete" onClick={(e) => { e.stopPropagation(); handleDeleteActivity(activity.activityId); }} size="small"><DeleteIcon fontSize="small" /></IconButton>
-                                                                    </Tooltip>
-                                                                )}
-                                                            </Stack>
-                                                        </ListItem>
-                                                    ))}
-                                                </List>
-                                            ) : (
-                                                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', mt: 1 }}>
-                                                    No activities linked to this milestone.
-                                                </Typography>
-                                            )}
-                                        </Box>
-                                    </Box>
-                                </Paper>
-                            </Grid>
-                        ))}
-                    </Grid>
                 )}
             </Box>
 
