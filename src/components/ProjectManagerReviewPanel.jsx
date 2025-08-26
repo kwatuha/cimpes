@@ -7,7 +7,7 @@ import {
   ListItemIcon,
   Menu, MenuItem,
   Snackbar,
-  Tabs, Tab,
+  Tabs, Tab,Tooltip,
 } from '@mui/material';
 import {
   Close as CloseIcon, Check as CheckIcon, Clear as ClearIcon,
@@ -18,6 +18,8 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   AspectRatio as AspectRatioIcon,
+  Paid as PaidIcon,
+  Launch as LaunchIcon // NEW: Import LaunchIcon for a better user experience
 } from '@mui/icons-material';
 import {
   DragDropContext, Droppable, Draggable
@@ -25,7 +27,7 @@ import {
 import apiService from '../api';
 import { useAuth } from '../context/AuthContext';
 import PropTypes from 'prop-types';
-import PaymentApprovalModal from './modals/PaymentApprovalModal'; // NEW: Import the new modal
+import PaymentApprovalModal from './modals/PaymentApprovalModal';
 
 const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paymentJustification, handleOpenDocumentUploader }) => {
   const { user, hasPrivilege } = useAuth();
@@ -52,7 +54,6 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
   const [resizeConfirmationModal, setResizeConfirmationModal] = useState({ open: false, document: null, width: '', height: '' });
   const [contextMenu, setContextMenu] = useState(null);
 
-  // NEW: State for the payment approval modal
   const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState(null);
 
@@ -98,12 +99,6 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
       } catch (err) {
         console.error('Error fetching payment requests:', err);
       }
-
-      try {
-        fetchedDocuments = await apiService.documents.getDocumentsForProject(numericProjectId);
-      } catch (err) {
-        console.error('Error fetching project documents:', err);
-      }
       
       const initialTabValues = {};
       fetchedRequests.forEach(req => {
@@ -111,17 +106,19 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
       });
       setTabValues(initialTabValues);
 
-      await Promise.all(fetchedRequests.map(async (request) => {
-        try {
-          detailsMap[request.requestId] = {
-            documents: fetchedDocuments.filter(doc => doc.requestId === request.requestId)
-          };
-        } catch (err) {
-          console.error(`Error fetching details for request ${request.requestId}:`, err);
-          detailsMap[request.requestId] = { documents: [] };
-        }
-      }));
-
+      const allDocuments = await apiService.documents.getDocumentsForProject(numericProjectId);
+      const finalDetailsMap = fetchedRequests.reduce((acc, request) => {
+        const documents = allDocuments.filter(doc => doc.requestId === request.requestId);
+        acc[request.requestId] = { documents };
+        return acc;
+      }, {});
+      setPaymentRequestDetails(finalDetailsMap);
+      
+      const projectPhotos = allDocuments
+        .filter(doc => doc.documentCategory === 'milestone' && doc.documentType.startsWith('photo'))
+        .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0) || new Date(a.createdAt) - new Date(b.createdAt));
+      setProjectPhotos(projectPhotos);
+      
       try {
         const allContractors = await apiService.contractors.getAllContractors();
         fetchedContractors = allContractors.reduce((map, contractor) => {
@@ -133,12 +130,6 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
       }
 
       setPaymentRequests(fetchedRequests);
-      setPaymentRequestDetails(detailsMap);
-      const projectPhotos = fetchedDocuments
-        .filter(doc => doc.documentCategory === 'milestone' && doc.documentType.startsWith('photo'))
-        .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0) || new Date(a.createdAt) - new Date(b.createdAt));
-      setProjectPhotos(projectPhotos);
-      
       setContractors(fetchedContractors);
       setUsers(fetchedUsers);
 
@@ -157,10 +148,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
   }, [open, fetchData]);
 
   const handleUpdatePaymentStatus = async (requestId, newStatus) => {
-    // This function will be removed or repurposed soon, as the new modal handles this.
-    // For now, let's keep it to prevent errors on existing calls.
     if (!hasPrivilege('project_payments.update')) return;
-
     setSubmitting(true);
     try {
       await apiService.paymentRequests.updateStatus(requestId, { status: newStatus });
@@ -175,7 +163,6 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
 
   const handleDeleteDocument = async () => {
     if (!deleteConfirmationModal.documentId) return;
-
     setSubmitting(true);
     try {
       await apiService.documents.deleteDocument(deleteConfirmationModal.documentId);
@@ -191,7 +178,6 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
 
   const handleEditDocument = async () => {
     if (!editDocumentModal.document) return;
-
     setSubmitting(true);
     try {
       if (fileToReplace) {
@@ -215,7 +201,6 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
 
   const handlePhotoReorder = async (result) => {
     if (!result.destination || submitting) return;
-
     const { source, destination } = result;
     const droppableId = source.droppableId;
     const isPaymentPhotos = droppableId.startsWith('payment-photos-droppable-');
@@ -225,15 +210,12 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
       const requestId = droppableId.split('-')[3];
       const requestDocuments = [...paymentRequestDetails[requestId]?.documents || []];
       const paymentPhotos = requestDocuments.filter(doc => doc.documentType === 'photo_payment');
-
       const [reorderedItem] = paymentPhotos.splice(source.index, 1);
       paymentPhotos.splice(destination.index, 0, reorderedItem);
-
       const newDetails = { ...paymentRequestDetails };
       const nonPaymentDocs = requestDocuments.filter(doc => doc.documentType !== 'photo_payment');
       newDetails[requestId].documents = [...nonPaymentDocs, ...paymentPhotos];
       setPaymentRequestDetails(newDetails);
-
       const newOrder = paymentPhotos.map((photo, index) => ({ id: photo.id, displayOrder: index }));
       try {
         await apiService.documents.reorderPhotos(newOrder);
@@ -246,18 +228,13 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
     } else if (isProgressPhotos) {
         const milestoneId = droppableId.split('milestone-photos-')[1];
         const sourcePhotos = projectPhotos.filter(photo => photo.milestoneId === milestoneId);
-        
         const reorderedPhotos = Array.from(sourcePhotos);
         const [removed] = reorderedPhotos.splice(source.index, 1);
         reorderedPhotos.splice(destination.index, 0, removed);
-        
         const nonMilestonePhotos = projectPhotos.filter(photo => photo.milestoneId !== milestoneId);
-        
         const newProjectPhotos = [...nonMilestonePhotos, ...reorderedPhotos];
         setProjectPhotos(newProjectPhotos);
-
         const newOrder = reorderedPhotos.map((photo, index) => ({ id: photo.id, displayOrder: index }));
-        
         try {
             await apiService.documents.reorderPhotos(newOrder);
             setSnackbar({ open: true, message: 'Progress photo order saved successfully.', severity: 'success' });
@@ -272,7 +249,6 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
 
   const handleFinalizeResize = async () => {
     if (!resizeConfirmationModal.document || !resizeConfirmationModal.width || !resizeConfirmationModal.height) return;
-
     setSubmitting(true);
     try {
       const sizeData = {
@@ -325,7 +301,6 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
     setTabValues(prev => ({ ...prev, [requestId]: newValue }));
   };
   
-  // NEW: Handlers for the PaymentApprovalModal
   const handleOpenApprovalModal = (requestId) => {
     setSelectedRequestId(requestId);
     setIsApprovalModalOpen(true);
@@ -334,7 +309,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
   const handleCloseApprovalModal = () => {
     setIsApprovalModalOpen(false);
     setSelectedRequestId(null);
-    fetchData(); // Refresh the list after the modal closes
+    fetchData();
   };
 
 
@@ -427,12 +402,13 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
               {paymentRequests.map((req) => {
                 const isDateValid = req.createdAt && !isNaN(new Date(req.createdAt));
                 const formattedDate = isDateValid ? new Date(req.createdAt).toLocaleDateString() : 'Date N/A';
+                const documentsCount = paymentRequestDetails[req.requestId]?.documents?.filter(doc => doc.documentType !== 'photo_payment')?.length || 0;
+                const photosCount = paymentRequestDetails[req.requestId]?.documents?.filter(doc => doc.documentType === 'photo_payment')?.length || 0;
 
                 return (
                   <ListItem 
                     key={req.requestId} 
                     sx={{ my: 2, p: 2, border: `1px solid ${isDateValid ? '#e0e0e0' : 'red'}`, borderRadius: '8px' }}
-                    onClick={() => handleOpenApprovalModal(req.requestId)}
                   >
                     <Box sx={{ width: '100%' }}>
                       <Stack direction="row" alignItems="center" spacing={2}>
@@ -456,12 +432,17 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
                             </IconButton>
                           </>
                         )}
+                        <Tooltip title="Review Request">
+                            <IconButton onClick={(e) => { e.stopPropagation(); handleOpenApprovalModal(req.requestId); }}>
+                                <LaunchIcon color="primary" />
+                            </IconButton>
+                        </Tooltip>
                       </Stack>
                       
                       <Box sx={{ borderBottom: 1, borderColor: 'divider', mt: 2 }}>
-                          <Tabs value={tabValues[req.requestId]} onChange={(event, newValue) => handleTabChange(req.requestId, newValue)}>
-                              <Tab label="Documents" />
-                              <Tab label="Supporting Photos" />
+                          <Tabs value={tabValues[req.requestId]} onChange={(event, newValue) => handleTabChange(req.requestId, newValue)} aria-label="request tabs">
+                              <Tab label={`Documents (${documentsCount})`} sx={{ fontWeight: 'bold' }} />
+                              <Tab label={`Supporting Photos (${photosCount})`} sx={{ fontWeight: 'bold' }} />
                           </Tabs>
                       </Box>
                       <Box sx={{ mt: 2, pl: 2, borderLeft: '2px solid', borderColor: 'divider' }}>
@@ -638,7 +619,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
                                                                     <Box sx={{ p: 1 }}>
                                                                         <Typography variant="body2" noWrap>{photo.description || 'No description'}</Typography>
                                                                         <Typography variant="caption" color="text.secondary">
-                                                                            Uploaded by: {users[photo.userId] || `User ID: ${photo.userId}`} on {new Date(photo.createdAt).toLocaleDateString()}
+                                                                            Uploaded by: {users[photo.userId] || `User ID: ${doc.userId}`} on {new Date(photo.createdAt).toLocaleDateString()}
                                                                         </Typography>
                                                                     </Box>
                                                                 </Paper>
@@ -792,7 +773,6 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
         </Alert>
       </Snackbar>
       
-      {/* NEW: Payment Approval Modal */}
       <PaymentApprovalModal
         open={isApprovalModalOpen}
         onClose={handleCloseApprovalModal}
