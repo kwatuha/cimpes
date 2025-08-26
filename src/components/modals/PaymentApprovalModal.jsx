@@ -49,15 +49,23 @@ const PaymentApprovalModal = ({ open, onClose, requestId }) => {
     const fetchData = useCallback(async () => {
         setLoading(true);
         setError(null);
+        
         try {
-            if (!hasPrivilege('payment_request.read')) {
-                setError("You do not have permission to view payment requests.");
+            // First, fetch the request without a privilege check
+            const requestData = await apiService.paymentRequests.getRequestById(requestId);
+            
+            // Now, perform a granular access check
+            const isSubmitter = requestData.userId === user?.id;
+            const hasReadPrivilege = hasPrivilege('payment_request.read');
+            
+            if (!hasReadPrivilege && !isSubmitter) {
+                setError("You do not have permission to view this payment request.");
                 setLoading(false);
                 return;
             }
 
-            const [requestData, historyData, levelData, usersData] = await Promise.all([
-                apiService.paymentRequests.getRequestById(requestId),
+            // If access is granted, fetch the rest of the data
+            const [historyData, levelData, usersData] = await Promise.all([
                 apiService.paymentRequests.getPaymentApprovalHistory(requestId),
                 apiService.approval.getApprovalLevels(),
                 apiService.users.getUsers(),
@@ -79,7 +87,7 @@ const PaymentApprovalModal = ({ open, onClose, requestId }) => {
         } finally {
             setLoading(false);
         }
-    }, [requestId, hasPrivilege]);
+    }, [requestId, user, hasPrivilege]);
 
     useEffect(() => {
         if (open && requestId) {
@@ -234,7 +242,6 @@ const PaymentApprovalModal = ({ open, onClose, requestId }) => {
                                                 <Typography variant="body2">Account: {request.paymentDetails?.accountNumber || 'N/A'}</Typography>
                                                 <Typography variant="body2">Transaction ID: {request.paymentDetails?.transactionId || 'N/A'}</Typography>
                                                 <Typography variant="body2" sx={{ mt: 1 }}>Notes: {request.paymentDetails?.notes || 'No notes provided.'}</Typography>
-                                                {/* NEW: Add payment date and user */}
                                                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
                                                     Paid by: {paidByUser ? `${paidByUser.firstName} ${paidByUser.lastName}` : `User ID: ${request.paymentDetails?.paidByUserId}`}
                                                 </Typography>

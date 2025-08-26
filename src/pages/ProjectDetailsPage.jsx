@@ -74,7 +74,7 @@ const formatDate = (dateString) => {
 function ProjectDetailsPage() {
     const { projectId } = useParams();
     const navigate = useNavigate();
-    const { user, logout, authLoading } = useAuth(); // Destructure authLoading
+    const { user, logout, authLoading } = useAuth();
     const theme = useTheme();
 
     const [project, setProject] = useState(null);
@@ -503,8 +503,10 @@ function ProjectDetailsPage() {
     };
 
     const canApplyTemplate = !!projectCategory && checkUserPrivilege(user, 'project.apply_template');
-    const canReviewSubmissions = checkUserPrivilege(user, 'project_manager.review');
     
+    // UPDATED: New logic for canReviewSubmissions
+    const canReviewSubmissions = checkUserPrivilege(user, 'project_manager.review') || (user?.contractorId && isAccessAllowed);
+
     // Manage Loading and Error States for both Access Control and Data Fetching
     if (authLoading || accessLoading) {
         return (

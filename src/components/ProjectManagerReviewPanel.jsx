@@ -70,7 +70,8 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
     let fetchedMilestones = [];
 
     try {
-      if (!hasPrivilege('project_manager.review')) {
+      // UPDATED: Check if user is a contractor OR has the manager privilege
+      if (!hasPrivilege('project_manager.review') && !user?.contractorId) {
         setError("You do not have permission to review contractor submissions.");
         setLoading(false);
         return;
@@ -139,7 +140,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
     } finally {
       setLoading(false);
     }
-  }, [numericProjectId, hasPrivilege]);
+  }, [numericProjectId, hasPrivilege, user]);
 
   useEffect(() => {
     if (open) {
@@ -148,6 +149,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
   }, [open, fetchData]);
 
   const handleUpdatePaymentStatus = async (requestId, newStatus) => {
+    // Retained privilege check
     if (!hasPrivilege('project_payments.update')) return;
     setSubmitting(true);
     try {
@@ -480,6 +482,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
                                                               <IconButton onClick={() => setDeleteConfirmationModal({ open: true, documentId: doc.id })}>
                                                                   <DeleteIcon color="error" fontSize="small" />
                                                               </IconButton>
+                           
                                                           )}
                                                       </Stack>
                                                   </ListItem>
