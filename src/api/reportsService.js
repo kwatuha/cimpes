@@ -37,6 +37,26 @@ const reportsService = {
     }
   },
   
+  // --- NEW: Functions to support updated ProjectSummaryReport.jsx ---
+  getProjectCostByDepartment: async (filters = {}) => {
+    try {
+      const response = await axiosInstance.get('/reports/project-cost-by-department', { params: filters });
+      return response.data;
+    } catch (error) {
+      console.error("Failed to fetch project cost by department:", error);
+      throw error;
+    }
+  },
+  getProjectsOverTime: async (filters = {}) => {
+    try {
+      const response = await axiosInstance.get('/reports/projects-over-time', { params: filters });
+      return response.data;
+    } catch (error) {
+      console.error("Failed to fetch projects over time:", error);
+      throw error;
+    }
+  },
+  
   // --- Project List & Location Reports ---
   getDetailedProjectList: async (filters = {}) => {
     try {
@@ -66,7 +86,7 @@ const reportsService = {
     }
   },
   
-  // --- NEW: Yearly Trends Report Call ---
+  // --- Other Reports ---
   getYearlyTrendsReport: async (filters = {}) => {
     try {
       const response = await axiosInstance.get('/reports/yearly-trends', { params: filters });
@@ -77,12 +97,6 @@ const reportsService = {
     }
   },
 
-  // --- NEW: Summary KPIs Call ---
-  /**
-   * Fetches high-level summary KPIs for the dashboard.
-   * @param {object} filters - The current filters from the dashboard.
-   * @returns {Promise<object>} A promise that resolves to an object with KPI data.
-   */
   getSummaryKpis: async (filters = {}) => {
     try {
       const response = await axiosInstance.get('/reports/summary-kpis', { params: filters });

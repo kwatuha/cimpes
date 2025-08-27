@@ -1,5 +1,3 @@
-// src/components/ProjectSummaryReport.jsx
-
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, Grid, CircularProgress, Alert } from '@mui/material';
 
@@ -9,23 +7,27 @@ import ExportButtons from './ExportButtons';
 import DonutChart from './charts/DonutChart';
 import BarLineChart from './charts/BarLineChart';
 
-// Define columns for the detailed project list table with the corrected ID
+// Define columns for the detailed project list table
 const projectListColumns = [
-    { id: 'projectName', label: 'Project Title', minWidth: 200 }, // 👈 Fix is here
-    { id: 'financialYearName', label: 'Financial Year', minWidth: 100 },
+    { id: 'projectTitle', label: 'Project Title', minWidth: 200 },
+    { id: 'finYearName', label: 'Financial Year', minWidth: 100 },
     { id: 'departmentName', label: 'Department', minWidth: 150 },
     { id: 'countyName', label: 'County', minWidth: 120 },
-    { id: 'subCountyName', label: 'Subcounty', minWidth: 120 },
+    { id: 'subcountyName', label: 'Subcounty', minWidth: 120 },
     { id: 'wardName', label: 'Ward', minWidth: 120 },
-    { id: 'status', label: 'Status', minWidth: 100 },
+    { id: 'statusName', label: 'Status', minWidth: 100 },
     { id: 'costOfProject', label: 'Budget', minWidth: 120 },
     { id: 'paidOut', label: 'Paid Amount', minWidth: 120 },
 ];
 
 const ProjectSummaryReport = ({ filters }) => {
-    const [reportData, setReportData] = useState([]);
-    const [statusData, setStatusData] = useState([]);
-    const [categoryData, setCategoryData] = useState([]);
+    const [reportData, setReportData] = useState({
+        detailedList: [],
+        statusSummary: [],
+        categorySummary: [],
+        costByDepartment: [],
+        projectsOverTime: []
+    });
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -34,20 +36,30 @@ const ProjectSummaryReport = ({ filters }) => {
             setIsLoading(true);
             setError(null);
             try {
-                // Fetch the detailed project list for the table
-                const fetchedProjectData = await apiService.reports.getDetailedProjectList(filters);
-                setReportData(Array.isArray(fetchedProjectData) ? fetchedProjectData : []);
-                
-                // Fetch project status summary for the chart
-                const fetchedStatusData = await apiService.reports.getProjectStatusSummary(filters);
-                setStatusData(Array.isArray(fetchedStatusData) ? fetchedStatusData : []);
-                
-                // Fetch project category summary for the chart
-                const fetchedCategoryData = await apiService.reports.getProjectCategorySummary(filters);
-                setCategoryData(Array.isArray(fetchedCategoryData) ? fetchedCategoryData : []);
+                const [
+                    fetchedProjectData,
+                    fetchedStatusData,
+                    fetchedCategoryData,
+                    fetchedCostByDepartment,
+                    fetchedProjectsOverTime
+                ] = await Promise.all([
+                    apiService.reports.getDetailedProjectList(filters),
+                    apiService.reports.getProjectStatusSummary(filters),
+                    apiService.reports.getProjectCategorySummary(filters),
+                    apiService.reports.getProjectCostByDepartment(filters),
+                    apiService.reports.getProjectsOverTime(filters)
+                ]);
+
+                setReportData({
+                    detailedList: Array.isArray(fetchedProjectData) ? fetchedProjectData : [],
+                    statusSummary: Array.isArray(fetchedStatusData) ? fetchedStatusData : [],
+                    categorySummary: Array.isArray(fetchedCategoryData) ? fetchedCategoryData : [],
+                    costByDepartment: Array.isArray(fetchedCostByDepartment) ? fetchedCostByDepartment : [],
+                    projectsOverTime: Array.isArray(fetchedProjectsOverTime) ? fetchedProjectsOverTime : []
+                });
             } catch (err) {
                 setError("Failed to load project summary report data.");
-                console.error(err);
+                console.error("API call failed:", err);
             } finally {
                 setIsLoading(false);
             }
@@ -68,32 +80,121 @@ const ProjectSummaryReport = ({ filters }) => {
         return <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>;
     }
 
-    if (reportData.length === 0) {
+    const hasData = reportData.detailedList.length > 0 ||
+                    reportData.statusSummary.length > 0 ||
+                    reportData.categorySummary.length > 0 ||
+                    reportData.costByDepartment.length > 0 ||
+                    reportData.projectsOverTime.length > 0;
+
+    if (!hasData) {
         return <Alert severity="info" sx={{ mt: 2 }}>No data found for the selected filters.</Alert>;
     }
 
     // Process data for charts
-    const donutChartData = statusData.map(item => ({ name: item.name, value: item.value }));
-    const barLineChartData = categoryData.map(item => ({ name: item.name, value: item.value }));
+    const donutChartData = reportData.statusSummary.map(item => ({ 
+        name: item.name || item.statusName, 
+        value: item.value || item.count 
+    }));
+    
+    const categoryBarChartData = reportData.categorySummary.map(item => ({ 
+        name: item.name || item.categoryName, 
+        value: item.value || item.count 
+    }));
 
-    return (
-        <Box>
-            <Grid container spacing={4} justifyContent="center" sx={{ mb: 4 }}>
-                <Grid item xs={12} sm={6} md={4}>
+    const costByDepartmentChartData = reportData.costByDepartment
+        .filter(item => item.departmentName !== null)
+        .map(item => ({ 
+            name: item.departmentName || 'Unknown Department', 
+            value: parseFloat(item.totalBudget || 0)
+        }));
+    
+    const projectsOverTimeChartData = reportData.projectsOverTime.map(item => ({ 
+        name: item.name || item.period || item.date, 
+        value: item.value || item.count || item.projectCount || 0
+    }));
+
+return (
+    <Box sx={{ p: 3 }}>
+        <Typography variant="h4" component="h1" gutterBottom align="center" sx={{ mb: 4 }}>
+            Comprehensive Project Overview
+        </Typography>
+
+        <Grid container spacing={4} sx={{ mb: 4 }} justifyContent="center">
+            {/* Projects by Status - Donut Chart */}
+            <Grid item xs={12} md={6} lg={3}>
+                {donutChartData.length > 0 ? (
                     <DonutChart title="# of Projects by Status" data={donutChartData} />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                    <BarLineChart title="# of Projects by Category" data={barLineChartData} />
-                </Grid>
+                ) : (
+                    <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
+                        <Typography variant="h6" align="center" gutterBottom>
+                            # of Projects by Status
+                        </Typography>
+                        <Typography variant="body2" align="center" color="text.secondary">
+                            No status data available.
+                        </Typography>
+                    </Box>
+                )}
             </Grid>
-            
-            <ExportButtons tableData={reportData} columns={projectListColumns} />
 
-            <Box>
-                <ReportDataTable data={reportData} columns={projectListColumns} />
-            </Box>
+            {/* Projects by Category - Bar Chart */}
+            <Grid item xs={12} md={6} lg={4}>
+                {categoryBarChartData.length > 0 ? (
+                    <BarLineChart title="# of Projects by Category" data={categoryBarChartData} />
+                ) : (
+                    <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
+                        <Typography variant="h6" align="center" gutterBottom>
+                            # of Projects by Category
+                        </Typography>
+                        <Typography variant="body2" align="center" color="text.secondary">
+                            No category data available.
+                        </Typography>
+                    </Box>
+                )}
+            </Grid>
+
+            {/* Total Budget by Department - Bar Chart */}
+            <Grid item xs={12} md={6} lg={4}>
+                {costByDepartmentChartData.length > 0 ? (
+                    <BarLineChart title="Total Budget by Department (Ksh)" data={costByDepartmentChartData} />
+                ) : (
+                    <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
+                        <Typography variant="h6" align="center" gutterBottom>
+                            Total Budget by Department (Ksh)
+                        </Typography>
+                        <Typography variant="body2" align="center" color="text.secondary">
+                            No cost by department data available.
+                        </Typography>
+                    </Box>
+                )}
+            </Grid>
+
+            {/* Projects Over Time - Line Chart */}
+                <Grid item xs={12} md={6} lg={4}>
+                    {projectsOverTimeChartData.length > 0 ? (
+                        <BarLineChart title="Projects Over Time" data={projectsOverTimeChartData} />
+                    ) : (
+                        <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
+                            <Typography variant="h6" align="center" gutterBottom>
+                                Projects Over Time
+                            </Typography>
+                            <Typography variant="body2" align="center" color="text.secondary">
+                                No projects over time data available.
+                            </Typography>
+                        </Box>
+                    )}
+                </Grid>
+        </Grid>
+
+        <ExportButtons tableData={reportData.detailedList} columns={projectListColumns} />
+
+        <Box sx={{ mt: 4 }}>
+            <Typography variant="h5" component="h2" gutterBottom>
+                Detailed Project List
+            </Typography>
+            <ReportDataTable data={reportData.detailedList} columns={projectListColumns} />
         </Box>
-    );
+    </Box>
+);
 };
 
 export default ProjectSummaryReport;

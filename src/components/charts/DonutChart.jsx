@@ -1,43 +1,52 @@
-// src/components/charts/DonutChart.jsx
-
 import React from 'react';
-import { Box, Typography, Paper } from '@mui/material';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { Box, Typography } from '@mui/material';
+import {
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  Legend
+} from 'recharts';
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#A28C56', '#9B59B6', '#34495E', '#16A085', '#27AE60'];
+const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#FF8042', '#AF19FF', '#FF19FF', '#19FFD4', '#FF5733'];
 
 const DonutChart = ({ title, data }) => {
+  if (!data || data.length === 0) {
+    return (
+      <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
+        <Typography variant="h6" align="center" gutterBottom>
+          {title}
+        </Typography>
+        <Typography variant="body2" align="center" color="text.secondary">
+          No data available.
+        </Typography>
+      </Box>
+    );
+  }
+
   return (
-    <Paper elevation={3} sx={{ p: 2, borderRadius: '12px' }}>
+    <Box sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 2, bgcolor: 'background.paper' }}>
       <Typography variant="h6" align="center" gutterBottom>{title}</Typography>
-      <Box sx={{ height: 250, width: '100%' }}>
-        <ResponsiveContainer>
-          <PieChart>
-            <Pie
-              data={data}
-              innerRadius={60}
-              outerRadius={80}
-              fill="#8884d8"
-              paddingAngle={5}
-              dataKey="value"
-            >
-              {data.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip formatter={(value, name) => [value, name]} />
-          </PieChart>
-        </ResponsiveContainer>
-      </Box>
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', mt: 2 }}>
-        {data.map((entry, index) => (
-          <Box key={`legend-${index}`} sx={{ display: 'flex', alignItems: 'center', mx: 1, mb: 1 }}>
-            <Box sx={{ width: 10, height: 10, bgcolor: COLORS[index % COLORS.length], mr: 0.5 }} />
-            <Typography variant="body2">{entry.name}</Typography>
-          </Box>
-        ))}
-      </Box>
-    </Paper>
+      <ResponsiveContainer width="100%" height={300}>
+        <PieChart margin={{ top: 5, right: 100, bottom: 5, left: 5 }}>
+          <Pie
+            data={data}
+            innerRadius={60}
+            outerRadius={90}
+            fill="#8884d8"
+            paddingAngle={5}
+            dataKey="value"
+          >
+            {data.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+            ))}
+          </Pie>
+          <Tooltip />
+          <Legend layout="vertical" verticalAlign="middle" align="right" />
+        </PieChart>
+      </ResponsiveContainer>
+    </Box>
   );
 };
 

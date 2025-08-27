@@ -1,75 +1,69 @@
-// src/components/charts/BarLineChart.jsx
-
 import React from 'react';
+import { Box, Typography } from '@mui/material';
 import {
-  Box,
-  Typography,
-  Paper,
-  Stack
-} from '@mui/material';
-import {
-  BarChart,
+  ResponsiveContainer,
+  ComposedChart,
   Bar,
-  LineChart,
   Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
-  ResponsiveContainer,
-  ComposedChart
+  Legend
 } from 'recharts';
 
-const formatCurrency = (value) => {
-  if (value >= 1000000) {
-    return `${(value / 1000000).toFixed(1)}M`;
-  }
-  if (value >= 1000) {
-    return `${(value / 1000).toFixed(1)}K`;
-  }
-  return value;
-};
-
-const formatPercentage = (value) => {
-    return `${(value * 100).toFixed(0)}%`;
-};
-
-const CustomTooltip = ({ active, payload, label }) => {
-  if (active && payload && payload.length) {
-    const budgetEntry = payload.find(p => p.dataKey === 'budget');
-    const paidEntry = payload.find(p => p.dataKey === 'paid');
-    const absorptionRateEntry = payload.find(p => p.dataKey === 'absorptionRate');
-
+const BarLineChart = ({ title, data, barKeys = [], lineKeys = [], xDataKey = 'name', yAxisLabel = '' }) => {
+  // Defensive check for data
+  if (!data || data.length === 0) {
     return (
-      <Paper elevation={3} sx={{ p: 1.5, minWidth: 200 }}>
-        <Typography variant="body2" sx={{ fontWeight: 'bold' }}>{`Department: ${label}`}</Typography>
-        <Typography variant="body2" color="#8884d8">{`Budget: ${formatCurrency(budgetEntry?.value || 0)}`}</Typography>
-        <Typography variant="body2" color="#82ca9d">{`Paid: ${formatCurrency(paidEntry?.value || 0)}`}</Typography>
-        <Typography variant="body2" color="#ff7300">{`Absorption Rate: ${formatPercentage(absorptionRateEntry?.value || 0)}`}</Typography>
-      </Paper>
+      <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
+        <Typography variant="h6" align="center" gutterBottom>
+          {title}
+        </Typography>
+        <Typography variant="body2" align="center" color="text.secondary">
+          No data available.
+        </Typography>
+      </Box>
     );
   }
-  return null;
-};
 
-const BarLineChart = ({ data }) => {
+  // Get all keys from the first data object to determine chart elements
+  const allDataKeys = Object.keys(data[0]);
+
+  // If no specific keys are provided, default to all non-x-axis keys
+  const resolvedBarKeys = barKeys.length > 0 ? barKeys : allDataKeys.filter(key => key !== xDataKey);
+  const resolvedLineKeys = lineKeys.length > 0 ? lineKeys : [];
+
+  // Function to generate a random color for each bar/line
+  const getRandomColor = () => {
+    const letters = '0123456789ABCDEF';
+    let color = '#';
+    for (let i = 0; i < 6; i++) {
+      color += letters[Math.floor(Math.random() * 16)];
+    }
+    return color;
+  };
+
+  const hasBars = resolvedBarKeys.length > 0;
+  const hasLines = resolvedLineKeys.length > 0;
+
+  // Use a ComposedChart to combine both bar and line charts
   return (
-    <Box sx={{ p: 2, minHeight: 400 }}>
-      <ResponsiveContainer width="100%" height={400}>
-        <ComposedChart
-          data={data}
-          margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-        >
+    <Box sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 2, bgcolor: 'background.paper' }}>
+      <Typography variant="h6" align="center" gutterBottom>{title}</Typography>
+      <ResponsiveContainer width="100%" height={300}>
+        <ComposedChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="name" />
-          <YAxis yAxisId="left" tickFormatter={formatCurrency} label={{ value: 'Budget / Amount Paid', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle' } }} />
-          <YAxis yAxisId="right" orientation="right" tickFormatter={formatPercentage} domain={[0, 1]} label={{ value: 'Absorption Rate', angle: 90, position: 'insideRight', style: { textAnchor: 'middle' } }} />
-          <Tooltip content={<CustomTooltip />} />
+          <XAxis dataKey={xDataKey} />
+          <YAxis label={{ value: yAxisLabel, angle: -90, position: 'insideLeft' }} />
+          <Tooltip />
           <Legend />
-          <Bar yAxisId="left" dataKey="budget" name="Total Budget" fill="#8884d8" />
-          <Bar yAxisId="left" dataKey="paid" name="Total Paid" fill="#82ca9d" />
-          <Line yAxisId="right" dataKey="absorptionRate" name="Absorption Rate" stroke="#ff7300" />
+          {hasBars && resolvedBarKeys.map(key => (
+            <Bar key={key} dataKey={key} fill={getRandomColor()} />
+          ))}
+          {hasLines && resolvedLineKeys.map(key => (
+            <Line key={key} type="monotone" dataKey={key} stroke={getRandomColor()} />
+          ))}
         </ComposedChart>
       </ResponsiveContainer>
     </Box>
