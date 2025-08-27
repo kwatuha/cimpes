@@ -76,6 +76,22 @@ const reportsService = {
       throw error;
     }
   },
+
+  // --- NEW: Summary KPIs Call ---
+  /**
+   * Fetches high-level summary KPIs for the dashboard.
+   * @param {object} filters - The current filters from the dashboard.
+   * @returns {Promise<object>} A promise that resolves to an object with KPI data.
+   */
+  getSummaryKpis: async (filters = {}) => {
+    try {
+      const response = await axiosInstance.get('/reports/summary-kpis', { params: filters });
+      return response.data;
+    } catch (error) {
+      console.error("Failed to fetch summary KPIs:", error);
+      throw error;
+    }
+  },
 };
 
 export default reportsService;

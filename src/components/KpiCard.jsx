@@ -10,7 +10,7 @@ const KpiCard = ({ label, value, isCurrency = false }) => {
             return new Intl.NumberFormat('en-KE', {
                 style: 'currency',
                 currency: 'KES',
-                maximumFractionDigits: 0,
+                maximumFractionDigits: 0, // Optional: No decimals for whole numbers
             }).format(number);
         }
         return number;
@@ -18,10 +18,10 @@ const KpiCard = ({ label, value, isCurrency = false }) => {
 
     return (
         <Paper elevation={2} sx={{ p: 2, borderRadius: '8px' }}>
-            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'regular' }} noWrap>
+            <Typography variant="body2" color="text.secondary" noWrap>
                 {label}
             </Typography>
-            <Typography variant="h5" sx={{ mt: 1, fontWeight: 'bold', color: 'primary.main', fontSize: { xs: '1.2rem', sm: '1.5rem', md: '1.8rem' } }}>
+            <Typography variant="h5" sx={{ mt: 1, fontWeight: 'bold' }}>
                 {formatValue(value)}
             </Typography>
         </Paper>

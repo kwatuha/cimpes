@@ -35,7 +35,13 @@ const ReportTabs = ({ activeTab, setActiveTab }) => {
         allowScrollButtonsMobile
       >
         {tabs.map((tab, index) => (
-          <Tab key={tab.value} label={tab.label} value={tab.value} {...a11yProps(index)} />
+          <Tab 
+            key={tab.value} 
+            label={tab.label} 
+            value={tab.value} 
+            sx={{ fontWeight: 'bold' }} // 👈 New: Bold font for tab labels
+            {...a11yProps(index)} 
+          />
         ))}
       </Tabs>
     </Box>
