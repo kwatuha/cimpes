@@ -18,12 +18,13 @@ import apiService from '../api';
 import DepartmentSummaryReport from './DepartmentSummaryReport'; 
 import ProjectSummaryReport from './ProjectSummaryReport'; 
 import SubcountySummaryReport from './SubcountySummaryReport'; 
-import WardSummaryReport from './WardSummaryReport'; // 👈 New import
+import WardSummaryReport from './WardSummaryReport'; 
+import YearlyTrendsReport from './YearlyTrendsReport'; // 👈 New import
 
 const ReportsDashboard = () => {
     const theme = useTheme();
 
-    const [activeTab, setActiveTab] = useState('WardSummary'); // 👈 Default tab for testing
+    const [activeTab, setActiveTab] = useState('YearlyTrends'); // 👈 Default tab for testing
     const [filters, setFilters] = useState({});
     const [allMetadata, setAllMetadata] = useState({});
     const [metadataLoading, setMetadataLoading] = useState(true);
@@ -71,8 +72,10 @@ const ReportsDashboard = () => {
           return <ProjectSummaryReport filters={filters} />;
         case 'SubcountySummary':
           return <SubcountySummaryReport filters={filters} />;
-        case 'WardSummary': // 👈 New case to render the ward report
+        case 'WardSummary':
           return <WardSummaryReport filters={filters} />;
+        case 'YearlyTrends': // 👈 New case to render the yearly trends report
+          return <YearlyTrendsReport filters={filters} />;
         default:
           return (
              <Box display="flex" justifyContent="center" alignItems="center" height="200px">

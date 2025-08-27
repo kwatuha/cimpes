@@ -100,6 +100,25 @@ const reportsService = {
     }
   },
 
+    getWardSummaryReport: async (filters = {}) => { /* ... */ },
+  getDetailedProjectList: async (filters = {}) => { /* ... */ },
+  
+  // --- NEW: Yearly Trends Report Call ---
+  /**
+   * Fetches financial metrics grouped by financial year for trend analysis.
+   * @param {object} filters - Optional filters for the report.
+   * @returns {Promise<Array>} A promise that resolves to an array of objects.
+   */
+  getYearlyTrendsReport: async (filters = {}) => {
+    try {
+      const response = await axiosInstance.get('/reports/yearly-trends', { params: filters });
+      return response.data;
+    } catch (error) {
+      console.error("Failed to fetch yearly trends report:", error);
+      throw error;
+    }
+  },
+
 };
 
 
