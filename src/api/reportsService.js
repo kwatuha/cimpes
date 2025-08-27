@@ -70,6 +70,20 @@ const reportsService = {
       throw error;
     }
   },
+    /**
+   * Fetches the count and financial metrics of projects by subcounty.
+   * @param {object} filters - Optional filters for the report.
+   * @returns {Promise<Array>} A promise that resolves to an array of objects.
+   */
+  getSubcountySummaryReport: async (filters = {}) => {
+    try {
+      const response = await axiosInstance.get('/reports/subcounty-summary', { params: filters });
+      return response.data;
+    } catch (error) {
+      console.error("Failed to fetch subcounty summary report:", error);
+      throw error;
+    }
+  },
 
 };
 

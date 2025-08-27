@@ -1,3 +1,5 @@
+// src/components/ReportsDashboard.jsx
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
@@ -10,17 +12,18 @@ import {
 } from '@mui/material';
 import ReportFilters from './ReportFilters';
 import ReportTabs from './ReportTabs';
-import  apiService  from '../api';
+import apiService from '../api';
 
-// Make sure these are all imported
-import DepartmentSummaryReport from './DepartmentSummaryReport';
-import ProjectSummaryReport from './ProjectSummaryReport';
+// Make sure to import all of the report components
+import DepartmentSummaryReport from './DepartmentSummaryReport'; 
+import ProjectSummaryReport from './ProjectSummaryReport'; 
+import SubcountySummaryReport from './SubcountySummaryReport'; // 👈 New import
 
 const ReportsDashboard = () => {
     const theme = useTheme();
 
     // The activeTab state controls which report component to display
-    const [activeTab, setActiveTab] = useState('ProjectSummary');
+    const [activeTab, setActiveTab] = useState('SubcountySummary');
     
     // The filters state is shared across the entire dashboard
     const [filters, setFilters] = useState({});
@@ -75,7 +78,8 @@ const ReportsDashboard = () => {
           return <DepartmentSummaryReport filters={filters} />;
         case 'ProjectSummary':
           return <ProjectSummaryReport filters={filters} />;
-        // You will add more cases here for other reports as you build them
+        case 'SubcountySummary': // 👈 New case to render the subcounty report
+          return <SubcountySummaryReport filters={filters} />;
         default:
           return (
              <Box display="flex" justifyContent="center" alignItems="center" height="200px">
@@ -94,7 +98,7 @@ const ReportsDashboard = () => {
         <ReportFilters
           filterState={filters}
           handleFilterChange={handleFilterChange}
-          handleApplyFilters={() => {/* Logic is now handled by the useEffect dependency array in child components */}}
+          handleApplyFilters={() => {}}
           handleClearFilters={handleClearFilters}
           allMetadata={allMetadata}
         />
