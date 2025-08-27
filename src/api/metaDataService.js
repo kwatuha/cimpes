@@ -33,8 +33,8 @@ const metaDataService = {
   // --- Sections API Calls ---
   sections: {
     getAllSections: async () => {
-      const response = await axiosInstance.get('/metadata/sections');
-      return response.data;
+        const response = await axiosInstance.get('/metadata/sections');
+        return response.data;
     },
     getSectionById: async (sectionId) => {
         const response = await axiosInstance.get(`/metadata/sections/${sectionId}`);
@@ -250,6 +250,49 @@ const metaDataService = {
       const response = await axiosInstance.delete(`/metadata/projectcategories/${categoryId}/milestones/${milestoneId}`);
       return response.data;
     },
+  },
+    
+  // --- NEW: Master metadata function for reports dashboard ---
+  getAllMetadata: async () => {
+    try {
+      const [
+        departments,
+        sections,
+        financialYears,
+        programs,
+        subprograms,
+        counties,
+        subcounties,
+        wards,
+        projectCategories
+      ] = await Promise.all([
+        metaDataService.departments.getAllDepartments(),
+        metaDataService.sections.getAllSections(),
+        metaDataService.financialYears.getAllFinancialYears(),
+        metaDataService.programs.getAllPrograms(),
+        metaDataService.subprograms.getAllSubprograms(),
+        metaDataService.counties.getAllCounties(),
+        metaDataService.subcounties.getAllSubcounties(),
+        metaDataService.wards.getAllWards(),
+        metaDataService.projectCategories.getAllCategories(),
+      ]);
+
+      return {
+        departments,
+        sections,
+        financialYears,
+        programs,
+        subprograms,
+        counties,
+        subcounties,
+        wards,
+        projectCategories
+      };
+
+    } catch (error) {
+      console.error("Error fetching all metadata:", error);
+      throw error;
+    }
   },
 };
 

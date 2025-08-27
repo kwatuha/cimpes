@@ -23,12 +23,15 @@ const WardSummaryReport = ({ filters }) => {
     const [error, setError] = useState(null);
 
     useEffect(() => {
+        // This console log will help us debug if the API call is being triggered
+        console.log('Fetching Ward Summary Report with filters:', filters);
+
         const fetchData = async () => {
             setIsLoading(true);
             setError(null);
             try {
                 const fetchedData = await apiService.reports.getWardSummaryReport(filters);
-                setReportData(fetchedData);
+                setReportData(Array.isArray(fetchedData) ? fetchedData : []);
             } catch (err) {
                 setError("Failed to load ward summary report data.");
                 console.error(err);
@@ -56,7 +59,6 @@ const WardSummaryReport = ({ filters }) => {
         return <Alert severity="info" sx={{ mt: 2 }}>No data found for the selected filters.</Alert>;
     }
 
-    // Process the data for the charts
     const donutChartData = reportData.map(item => ({
         name: item.name,
         value: item.projectCount,
