@@ -15,7 +15,8 @@ import hrService from './hrService';
 import paymentService from './paymentService';
 import projectWorkFlowService from './projectWorkFlowService';
 import approvalService from './approvalService';
-import contractorService from './contractorService'; // Import the new service
+import contractorService from './contractorService'; 
+import reportsService from './reportsService'; // 👈 Import the new service
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
 export const FILE_SERVER_BASE_URL = import.meta.env.VITE_FILE_SERVER_BASE_URL || 'http://localhost:3000';
@@ -35,7 +36,8 @@ const apiService = {
   paymentRequests: paymentService,
   workflow: projectWorkFlowService,
   approval: approvalService,
-  contractors: contractorService, // Mount the new service under the 'contractors' key
+  contractors: contractorService,
+  reports: reportsService, // 👈 Mount the reportsService here
 };
 
 export { axiosInstance };

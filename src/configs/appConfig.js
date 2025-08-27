@@ -43,6 +43,7 @@ export const ROUTES = {
     RAW_DATA: '/raw-data',
     PROJECTS: '/projects',
     REPORTS: '/reports',
+    REPORTING: '/reporting', // 👈 ADDED: New route for our comprehensive dashboard
     GIS_MAPPING: '/maps',
     USER_MANAGEMENT: '/user-management',
     STRATEGIC_PLANNING: '/strategic-planning',

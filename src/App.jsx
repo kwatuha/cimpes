@@ -12,7 +12,7 @@ import RawDataPage from './pages/RawDataPage.jsx';
 import ProjectManagementPage from './pages/ProjectManagementPage.jsx';
 import ProjectDetailsPage from './pages/ProjectDetailsPage.jsx';
 import ProjectGanttChartPage from './pages/ProjectGanttChartPage.jsx';
-import ReportsPage from './pages/ReportsPage.jsx';
+import ReportsPage from './pages/ReportsPage.jsx'; // 👈 The old ReportsPage is kept
 import MapsPage from './pages/MapsPage.jsx';
 import UserManagementPage from './pages/UserManagementPage.jsx';
 import Login from './components/Login.jsx';
@@ -45,6 +45,8 @@ import HrModulePage from './pages/HrModulePage.jsx';
 import WorkflowManagementPage from './pages/WorkflowManagementPage.jsx';
 // ✨ NEW: Import the ApprovalLevelsManagementPage component
 import ApprovalLevelsManagementPage from './pages/ApprovalLevelsManagementPage.jsx';
+// ✨ NEW: Import the new ReportingPage component
+import ReportingPage from './pages/ReportingPage.jsx';
 
 
 // Define a custom theme to match KEMRI's blue
@@ -148,8 +150,12 @@ const router = createBrowserRouter([
         element: <ProjectPhotoManager />,
       },
       {
-        path: 'reports', // Dedicated route for Reports page
+        path: 'reports', // The old reports page is kept
         element: <ReportsPage />,
+      },
+      {
+        path: 'reporting', // 👈 This is the new, separate route for your new dashboard
+        element: <ReportingPage />,
       },
       {
         path: 'maps', // Replaced the placeholder MapsPage with the new GISMapPage

@@ -163,6 +163,15 @@ function MainLayout() {
           </ListItem>
         </Tooltip>
         
+        <Tooltip title="Comprehensive Reporting" placement="right" disableHoverListener={isSidebarCollapsed}>
+          <ListItem disablePadding>
+            <ListItemButton component={RouterLink} to={ROUTES.REPORTING}>
+              <ListItemIcon><AssessmentIcon color="primary" /></ListItemIcon>
+              {!isSidebarCollapsed && <ListItemText primary="Comprehensive Reporting" />}
+            </ListItemButton>
+          </ListItem>
+        </Tooltip>
+        
         <Tooltip title="GIS Mapping" placement="right" disableHoverListener={isSidebarCollapsed}>
           <ListItem disablePadding>
             <ListItemButton component={RouterLink} to={ROUTES.GIS_MAPPING}>
