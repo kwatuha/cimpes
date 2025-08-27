@@ -14,25 +14,20 @@ import ReportFilters from './ReportFilters';
 import ReportTabs from './ReportTabs';
 import apiService from '../api';
 
-// Make sure to import all of the report components
+// Make sure all report components are imported
 import DepartmentSummaryReport from './DepartmentSummaryReport'; 
 import ProjectSummaryReport from './ProjectSummaryReport'; 
-import SubcountySummaryReport from './SubcountySummaryReport'; // 👈 New import
+import SubcountySummaryReport from './SubcountySummaryReport'; 
+import WardSummaryReport from './WardSummaryReport'; // 👈 New import
 
 const ReportsDashboard = () => {
     const theme = useTheme();
 
-    // The activeTab state controls which report component to display
-    const [activeTab, setActiveTab] = useState('SubcountySummary');
-    
-    // The filters state is shared across the entire dashboard
+    const [activeTab, setActiveTab] = useState('WardSummary'); // 👈 Default tab for testing
     const [filters, setFilters] = useState({});
-    
-    // State for fetching metadata for filters (e.g., dropdown options)
     const [allMetadata, setAllMetadata] = useState({});
     const [metadataLoading, setMetadataLoading] = useState(true);
 
-    // Fetch all metadata needed for the filters once on component mount
     useEffect(() => {
       const fetchMetadata = async () => {
         try {
@@ -47,7 +42,6 @@ const ReportsDashboard = () => {
       fetchMetadata();
     }, []);
 
-    // Memoized function to handle changes from the ReportFilters component
     const handleFilterChange = useCallback((event) => {
       const { name, value } = event.target;
       setFilters(prevFilters => ({
@@ -56,12 +50,10 @@ const ReportsDashboard = () => {
       }));
     }, []);
 
-    // Memoized function to clear all filters
     const handleClearFilters = useCallback(() => {
       setFilters({});
     }, []);
 
-    // Function to conditionally render the correct report component
     const renderReportComponent = () => {
       if (metadataLoading) {
         return (
@@ -72,14 +64,15 @@ const ReportsDashboard = () => {
         );
       }
       
-      // Each report component now fetches its own data
       switch(activeTab) {
         case 'DepartmentSummary':
           return <DepartmentSummaryReport filters={filters} />;
         case 'ProjectSummary':
           return <ProjectSummaryReport filters={filters} />;
-        case 'SubcountySummary': // 👈 New case to render the subcounty report
+        case 'SubcountySummary':
           return <SubcountySummaryReport filters={filters} />;
+        case 'WardSummary': // 👈 New case to render the ward report
+          return <WardSummaryReport filters={filters} />;
         default:
           return (
              <Box display="flex" justifyContent="center" alignItems="center" height="200px">

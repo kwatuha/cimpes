@@ -85,6 +85,21 @@ const reportsService = {
     }
   },
 
+    /**
+   * Fetches the count and financial metrics of projects by ward.
+   * @param {object} filters - Optional filters for the report.
+   * @returns {Promise<Array>} A promise that resolves to an array of objects.
+   */
+  getWardSummaryReport: async (filters = {}) => {
+    try {
+      const response = await axiosInstance.get('/reports/ward-summary', { params: filters });
+      return response.data;
+    } catch (error) {
+      console.error("Failed to fetch ward summary report:", error);
+      throw error;
+    }
+  },
+
 };
 
 
