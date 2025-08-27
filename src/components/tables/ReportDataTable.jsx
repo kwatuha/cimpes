@@ -2,86 +2,99 @@
 
 import React from 'react';
 import {
-  Box,
-  Paper,
-  TableContainer,
   Table,
-  TableHead,
   TableBody,
-  TableRow,
   TableCell,
-  TableSortLabel,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
   Typography,
+  Box
 } from '@mui/material';
-import useTableSort from '../../hooks/useTableSort';
 
-const currencyFormatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'KES',
-  minimumFractionDigits: 2,
-});
-
-const getFormattedValue = (columnId, value) => {
-  switch (columnId) {
-    case 'totalBudget':
-    case 'totalPaid':
-    case 'totalContractSum':
-    case 'costOfProject': // Added for ProjectSummaryReport
-    case 'paidOut':       // Added for ProjectSummaryReport
-      return !isNaN(parseFloat(value)) ? currencyFormatter.format(parseFloat(value)) : 'N/A';
-    case 'absorptionRate':
-      return !isNaN(parseFloat(value)) ? `${(parseFloat(value) * 100).toFixed(2)}%` : 'N/A';
-    default:
-      return value || 'N/A';
+// Function to format numbers as currency
+const formatCurrency = (amount) => {
+  if (amount === null || amount === undefined || isNaN(amount)) {
+    return 'N/A';
   }
+  return new Intl.NumberFormat('en-KE', {
+    style: 'currency',
+    currency: 'KES',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
 };
 
-// Now accepts a 'columns' prop
 const ReportDataTable = ({ data, columns }) => {
-  const { order, orderBy, handleRequestSort, sortedData } = useTableSort(data, columns[0].id);
-
   if (!data || data.length === 0) {
-    return <Typography>No data to display in the table.</Typography>;
+    return (
+      <Box sx={{ mt: 2 }}>
+        <Typography variant="h6" color="text.secondary" align="center">
+          No data available to display.
+        </Typography>
+      </Box>
+    );
   }
 
   return (
-    <Box>
-      <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>Detailed Data</Typography>
-      <TableContainer component={Paper} elevation={1}>
-        <Table stickyHeader aria-label="report data table">
-          <TableHead>
-            <TableRow>
-              {columns.map((column) => (
-                <TableCell
-                  key={column.id}
-                  sortDirection={orderBy === column.id ? order : false}
-                  sx={{ minWidth: column.minWidth, fontWeight: 'bold' }}
-                >
-                  <TableSortLabel
-                    active={orderBy === column.id}
-                    direction={orderBy === column.id ? order : 'asc'}
-                    onClick={(event) => handleRequestSort(event, column.id)}
-                  >
-                    {column.label}
-                  </TableSortLabel>
-                </TableCell>
-              ))}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {sortedData.map((row, index) => (
-              <TableRow key={index} hover>
-                {columns.map((column) => (
-                  <TableCell key={column.id}>
-                    {getFormattedValue(column.id, row[column.id])}
-                  </TableCell>
-                ))}
-              </TableRow>
+    <TableContainer component={Paper} sx={{ overflowX: 'auto', borderRadius: '8px' }}>
+      <Table stickyHeader aria-label="report table">
+        <TableHead>
+          <TableRow>
+            {columns.map((column, index) => (
+              <TableCell
+                key={column.id}
+                sx={{
+                  minWidth: column.minWidth,
+                  fontWeight: 'bold',
+                  backgroundColor: 'white',
+                  color: 'text.primary',
+                  position: 'sticky',
+                  top: 0,
+                  left: index === 0 ? 0 : 'auto',
+                  zIndex: index === 0 ? 3 : 1,
+                  borderRight: '1px solid',
+                  borderColor: 'divider',
+                }}
+              >
+                {column.label}
+              </TableCell>
             ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    </Box>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {data.map((row, rowIndex) => (
+            <TableRow hover key={rowIndex}>
+              {columns.map((column, colIndex) => {
+                let value = row[column.id] !== undefined && row[column.id] !== null ? row[column.id] : 'N/A';
+
+                // Format financial columns
+                if (column.id === 'costOfProject' || column.id === 'paidOut') {
+                  value = formatCurrency(value);
+                }
+
+                return (
+                  <TableCell
+                    key={column.id}
+                    sx={{
+                      position: colIndex === 0 ? 'sticky' : 'static',
+                      left: colIndex === 0 ? 0 : 'auto',
+                      zIndex: colIndex === 0 ? 2 : 'auto',
+                      bgcolor: 'background.paper',
+                      borderRight: '1px solid',
+                      borderColor: 'divider',
+                    }}
+                  >
+                    {value}
+                  </TableCell>
+                );
+              })}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
   );
 };
 
