@@ -13,21 +13,11 @@ import {
   TableSortLabel,
   Typography,
 } from '@mui/material';
-import useTableSort from '../../hooks/useTableSort'; // Adjust path if needed
-
-// Define the columns for the Department Summary table
-const reportTableColumnsConfig = [
-  { id: 'departmentName', label: 'Department', minWidth: 150 },
-  { id: 'projectCount', label: '# of Projects', minWidth: 100 },
-  { id: 'totalBudget', label: 'Total Budget', minWidth: 150 },
-  { id: 'totalPaid', label: 'Total Paid', minWidth: 150 },
-  { id: 'absorptionRate', label: 'Absorption Rate', minWidth: 100 },
-  { id: 'totalContractSum', label: 'Contract Sum', minWidth: 150 },
-];
+import useTableSort from '../../hooks/useTableSort';
 
 const currencyFormatter = new Intl.NumberFormat('en-US', {
   style: 'currency',
-  currency: 'KES', // Assuming Kenyan Shillings as per your context
+  currency: 'KES',
   minimumFractionDigits: 2,
 });
 
@@ -36,6 +26,8 @@ const getFormattedValue = (columnId, value) => {
     case 'totalBudget':
     case 'totalPaid':
     case 'totalContractSum':
+    case 'costOfProject': // Added for ProjectSummaryReport
+    case 'paidOut':       // Added for ProjectSummaryReport
       return !isNaN(parseFloat(value)) ? currencyFormatter.format(parseFloat(value)) : 'N/A';
     case 'absorptionRate':
       return !isNaN(parseFloat(value)) ? `${(parseFloat(value) * 100).toFixed(2)}%` : 'N/A';
@@ -44,8 +36,13 @@ const getFormattedValue = (columnId, value) => {
   }
 };
 
-const ReportDataTable = ({ data }) => {
-  const { order, orderBy, handleRequestSort, sortedData } = useTableSort(data, reportTableColumnsConfig[0].id);
+// Now accepts a 'columns' prop
+const ReportDataTable = ({ data, columns }) => {
+  const { order, orderBy, handleRequestSort, sortedData } = useTableSort(data, columns[0].id);
+
+  if (!data || data.length === 0) {
+    return <Typography>No data to display in the table.</Typography>;
+  }
 
   return (
     <Box>
@@ -54,7 +51,7 @@ const ReportDataTable = ({ data }) => {
         <Table stickyHeader aria-label="report data table">
           <TableHead>
             <TableRow>
-              {reportTableColumnsConfig.map((column) => (
+              {columns.map((column) => (
                 <TableCell
                   key={column.id}
                   sortDirection={orderBy === column.id ? order : false}
@@ -74,7 +71,7 @@ const ReportDataTable = ({ data }) => {
           <TableBody>
             {sortedData.map((row, index) => (
               <TableRow key={index} hover>
-                {reportTableColumnsConfig.map((column) => (
+                {columns.map((column) => (
                   <TableCell key={column.id}>
                     {getFormattedValue(column.id, row[column.id])}
                   </TableCell>

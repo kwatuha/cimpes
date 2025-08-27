@@ -1,28 +1,66 @@
-// src/components/DepartmentSummaryReport.jsx
+import React, { useState, useEffect } from 'react';
+import { Box, Typography, Grid, CircularProgress, Alert } from '@mui/material';
 
-import React from 'react';
-import { Box, Typography, Grid } from '@mui/material';
-
-// Import our new DonutChart component
-import DonutChart from './charts/DonutChart'; 
-
-// We will build these components in the next steps
+import DonutChart from './charts/DonutChart';
 import BarLineChart from './charts/BarLineChart';
 import ReportDataTable from './tables/ReportDataTable';
+import apiService from '../api';
 
-const DepartmentSummaryReport = ({ data }) => {
-    if (!data || data.length === 0) {
-        return <Typography>No data to display for this report.</Typography>;
+// Define the columns for the department summary table
+const departmentTableColumns = [
+    { id: 'departmentName', label: 'Department Name', minWidth: 170 },
+    { id: 'projectCount', label: 'Total Projects', minWidth: 100 },
+    { id: 'totalBudget', label: 'Total Budget', minWidth: 150 },
+    { id: 'totalPaid', label: 'Total Paid', minWidth: 150 },
+    { id: 'absorptionRate', label: 'Absorption Rate', minWidth: 120 },
+];
+
+const DepartmentSummaryReport = ({ filters }) => {
+    const [reportData, setReportData] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            setIsLoading(true);
+            setError(null);
+            try {
+                const fetchedData = await apiService.reports.getDepartmentSummaryReport(filters);
+                setReportData(fetchedData);
+            } catch (err) {
+                setError("Failed to load department summary report data.");
+                console.error(err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchData();
+    }, [filters]);
+
+    if (isLoading) {
+        return (
+            <Box display="flex" justifyContent="center" alignItems="center" height="200px">
+                <CircularProgress />
+                <Typography sx={{ ml: 2 }}>Loading report data...</Typography>
+            </Box>
+        );
     }
 
-    // Process the raw data for the charts
-    const projectCountData = data.map(item => ({
+    if (error) {
+        return <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>;
+    }
+
+    if (reportData.length === 0) {
+        return <Alert severity="info" sx={{ mt: 2 }}>No data found for the selected filters.</Alert>;
+    }
+
+    const projectCountData = reportData.map(item => ({
         name: item.departmentName,
         value: item.projectCount,
     }));
-    
-    // Process the data for the bar/line chart (still a placeholder)
-    const barLineChartData = data.map(item => ({
+
+    const barLineChartData = reportData.map(item => ({
         name: item.departmentName,
         budget: parseFloat(item.totalBudget),
         paid: parseFloat(item.totalPaid),
@@ -31,24 +69,20 @@ const DepartmentSummaryReport = ({ data }) => {
 
     return (
         <Box>
-            {/* Donut Charts Section */}
             <Grid container spacing={4} justifyContent="center" sx={{ mb: 4 }}>
                 <Grid item xs={12} sm={6} md={4}>
                     <DonutChart title="# of Projects by Department" data={projectCountData} />
                 </Grid>
-                {/* You can add another donut chart here once we have the data,
-                    for example, a chart showing total budget by department */}
             </Grid>
 
-            {/* Main Bar/Line Chart Section */}
             <Box sx={{ mb: 4 }}>
                 <Typography variant="h6" gutterBottom>Project Budget/Contract Sum</Typography>
                 <BarLineChart data={barLineChartData} />
             </Box>
 
-            {/* Data Table Section */}
             <Box>
-                <ReportDataTable data={data} />
+                {/* Now pass the columns prop to the table */}
+                <ReportDataTable data={reportData} columns={departmentTableColumns} />
             </Box>
         </Box>
     );

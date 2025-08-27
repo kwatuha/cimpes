@@ -6,8 +6,7 @@ import axiosInstance from './axiosInstance';
  */
 
 const reportsService = {
-  // --- Reporting API Calls (new report endpoints) ---
-
+  // --- Department Summary Report Calls ---
   /**
    * Fetches the department summary report data from the API.
    * @param {object} filters - Optional filters for the report.
@@ -25,17 +24,55 @@ const reportsService = {
     }
   },
 
-  // You can add other reporting functions here in the future
-  // For example:
-  // getYearlyTrendsReport: async (filters = {}) => {
-  //   const response = await axiosInstance.get('/reports/yearly-trends', { params: filters });
-  //   return response.data;
-  // },
+  // --- Project Summary Report Calls ---
+  /**
+   * Fetches the count of projects by status.
+   * @param {object} filters - Optional filters for the report.
+   * @returns {Promise<Array>} A promise that resolves to an array of objects with 'name' and 'value' properties.
+   */
+  getProjectStatusSummary: async (filters = {}) => {
+    try {
+      const response = await axiosInstance.get('/reports/project-status-summary', { params: filters });
+      return response.data;
+    } catch (error) {
+      console.error("Failed to fetch project status summary:", error);
+      throw error;
+    }
+  },
 
-  // getWardSummaryReport: async (filters = {}) => {
-  //   const response = await axiosInstance.get('/reports/ward-summary', { params: filters });
-  //   return response.data;
-  // },
+  /**
+   * Fetches the count of projects by category.
+   * @param {object} filters - Optional filters for the report.
+   * @returns {Promise<Array>} A promise that resolves to an array of objects with 'name' and 'value' properties.
+   */
+  getProjectCategorySummary: async (filters = {}) => {
+    try {
+      const response = await axiosInstance.get('/reports/project-category-summary', { params: filters });
+      return response.data;
+    } catch (error) {
+      console.error("Failed to fetch project category summary:", error);
+      throw error;
+    }
+  },
+
+  // --- NEW: Detailed Project List Call ---
+  /**
+   * Fetches a detailed list of projects for a table display.
+   * @param {object} filters - Optional filters for the report.
+   * @returns {Promise<Array>} A promise that resolves to an array of project objects.
+   */
+  getDetailedProjectList: async (filters = {}) => {
+    try {
+      const response = await axiosInstance.get('/reports/project-list-detailed', { params: filters });
+      return response.data;
+    } catch (error) {
+      console.error("Failed to fetch detailed project list:", error);
+      throw error;
+    }
+  },
+
 };
+
+
 
 export default reportsService;

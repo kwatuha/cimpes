@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
@@ -11,25 +10,26 @@ import {
 } from '@mui/material';
 import ReportFilters from './ReportFilters';
 import ReportTabs from './ReportTabs';
-import apiService from '../api';
+import  apiService  from '../api';
 
-// We will build this component in the next steps
-import DepartmentSummaryReport from './DepartmentSummaryReport'; 
+// Make sure these are all imported
+import DepartmentSummaryReport from './DepartmentSummaryReport';
+import ProjectSummaryReport from './ProjectSummaryReport';
 
 const ReportsDashboard = () => {
     const theme = useTheme();
 
-    const [activeTab, setActiveTab] = useState('DepartmentSummary');
+    // The activeTab state controls which report component to display
+    const [activeTab, setActiveTab] = useState('ProjectSummary');
+    
+    // The filters state is shared across the entire dashboard
     const [filters, setFilters] = useState({});
-    const [reportData, setReportData] = useState(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState(null);
-
-    // Assuming you have a way to get metadata for filters, like in your ProjectManagementPage
-    // This hook will fetch the necessary data for dropdowns once on component mount.
+    
+    // State for fetching metadata for filters (e.g., dropdown options)
     const [allMetadata, setAllMetadata] = useState({});
     const [metadataLoading, setMetadataLoading] = useState(true);
 
+    // Fetch all metadata needed for the filters once on component mount
     useEffect(() => {
       const fetchMetadata = async () => {
         try {
@@ -41,11 +41,10 @@ const ReportsDashboard = () => {
           setMetadataLoading(false);
         }
       };
-
       fetchMetadata();
     }, []);
 
-    // Function to handle filter changes
+    // Memoized function to handle changes from the ReportFilters component
     const handleFilterChange = useCallback((event) => {
       const { name, value } = event.target;
       setFilters(prevFilters => ({
@@ -54,67 +53,35 @@ const ReportsDashboard = () => {
       }));
     }, []);
 
-    // Function to handle clearing filters
+    // Memoized function to clear all filters
     const handleClearFilters = useCallback(() => {
       setFilters({});
     }, []);
 
-    // Main data fetching effect
-    useEffect(() => {
-        const fetchReportData = async () => {
-            setIsLoading(true);
-            setError(null);
-            setReportData(null); // Clear previous data
-            try {
-                // Fetch data based on the active tab
-                let fetchedData;
-                switch (activeTab) {
-                    case 'DepartmentSummary':
-                        fetchedData = await apiService.reports.getDepartmentSummaryReport(filters);
-                        break;
-                    // Add other cases for different reports here
-                    // case 'ProjectSummary':
-                    //     fetchedData = await apiService.reports.getProjectSummaryReport(filters);
-                    //     break;
-                    default:
-                        fetchedData = null;
-                        break;
-                }
-                setReportData(fetchedData);
-            } catch (err) {
-                setError(err.message || "An unexpected error occurred while fetching report data.");
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchReportData();
-    }, [activeTab, filters]); // Re-run effect when activeTab or filters change
-
-    // Determine which report component to render
+    // Function to conditionally render the correct report component
     const renderReportComponent = () => {
-      if (isLoading || metadataLoading) {
+      if (metadataLoading) {
         return (
           <Box display="flex" justifyContent="center" alignItems="center" height="200px">
             <CircularProgress />
-            <Typography sx={{ ml: 2 }}>Loading report...</Typography>
+            <Typography sx={{ ml: 2 }}>Loading report metadata...</Typography>
           </Box>
         );
       }
-      if (error) {
-        return <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>;
-      }
-      if (!reportData || reportData.length === 0) {
-        return <Alert severity="info" sx={{ mt: 2 }}>No data found for this report. Try adjusting the filters.</Alert>;
-      }
       
+      // Each report component now fetches its own data
       switch(activeTab) {
         case 'DepartmentSummary':
-          return <DepartmentSummaryReport data={reportData} />;
-        // Add other cases for other report components here
-        // case 'ProjectSummary':
-        //   return <ProjectSummaryReport data={reportData} />;
+          return <DepartmentSummaryReport filters={filters} />;
+        case 'ProjectSummary':
+          return <ProjectSummaryReport filters={filters} />;
+        // You will add more cases here for other reports as you build them
         default:
-          return null;
+          return (
+             <Box display="flex" justifyContent="center" alignItems="center" height="200px">
+                <Typography variant="h6">Select a report to view.</Typography>
+            </Box>
+          );
       }
     };
 
@@ -127,7 +94,7 @@ const ReportsDashboard = () => {
         <ReportFilters
           filterState={filters}
           handleFilterChange={handleFilterChange}
-          handleApplyFilters={() => {/* Logic is now handled by the useEffect dependency array */}}
+          handleApplyFilters={() => {/* Logic is now handled by the useEffect dependency array in child components */}}
           handleClearFilters={handleClearFilters}
           allMetadata={allMetadata}
         />
