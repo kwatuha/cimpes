@@ -1,16 +1,15 @@
 // src/utils/projectStatusColors.js
 
 const PROJECT_STATUS_COLORS = {
-  'At Risk': '#b22222',    // FireBrick
-  'In Progress': '#1e90ff', // DodgerBlue
-  'Completed': '#32cd32',  // LimeGreen
-  'Initiated': '#add8e6',  // LightBlue
-  'Stalled': '#ffa500',    // Orange
-  'Delayed': '#e00202',    // A slightly darker red than At Risk for emphasis
-  'Cancelled': '#000000',  // Black
-  'Closed': '#145a32',     // DarkGreen
-  // Add a default for any status not explicitly listed
-  'Default': '#757575',    // Grey
+  'At Risk': '#b22222',    // FireBrick - Red
+  'In Progress': '#1e90ff', // DodgerBlue - Bright Blue
+  'Completed': '#32cd32',  // LimeGreen - Bright Green
+  'Initiated': '#6495ED',  // LightBlue - This is a bit muted, consider '#6495ED' (CornflowerBlue) for sharper
+  'Stalled': '#ffa500',    // Orange - Bright Orange
+  'Delayed': '#e00202',    // A slightly darker red than At Risk for emphasis - Sharp Red
+  'Cancelled': '#000000',  // Black - Sharp
+  'Closed': '#228B22',     // DarkGreen - This is a bit muted, consider '#228B22' (ForestGreen) for sharper
+  'Default': '#757575',    // Grey - This is fine for a default
 };
 
 // This function determines the background color for a given status

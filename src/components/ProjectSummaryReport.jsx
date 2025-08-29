@@ -4,18 +4,22 @@ import { Box, Typography, Grid, CircularProgress, Alert } from '@mui/material';
 import ReportDataTable from './tables/ReportDataTable';
 import apiService from '../api';
 import ExportButtons from './ExportButtons';
+
+// Import the new and updated chart components
 import DonutChart from './charts/DonutChart';
-import BarLineChart from './charts/BarLineChart';
+import ProjectStatusDonutChart from './charts/ProjectStatusDonutChart';
+import BarChart from './charts/BarChart';
+import LineChart from './charts/LineChart';
 
 // Define columns for the detailed project list table
 const projectListColumns = [
-    { id: 'projectTitle', label: 'Project Title', minWidth: 200 },
-    { id: 'finYearName', label: 'Financial Year', minWidth: 100 },
+    { id: 'projectName', label: 'Project Title', minWidth: 200 },
+    { id: 'financialYearName', label: 'Financial Year', minWidth: 100 },
     { id: 'departmentName', label: 'Department', minWidth: 150 },
     { id: 'countyName', label: 'County', minWidth: 120 },
     { id: 'subcountyName', label: 'Subcounty', minWidth: 120 },
     { id: 'wardName', label: 'Ward', minWidth: 120 },
-    { id: 'statusName', label: 'Status', minWidth: 100 },
+    { id: 'status', label: 'Status', minWidth: 100 },
     { id: 'costOfProject', label: 'Budget', minWidth: 120 },
     { id: 'paidOut', label: 'Paid Amount', minWidth: 120 },
 ];
@@ -120,70 +124,87 @@ return (
         </Typography>
 
         <Grid container spacing={4} sx={{ mb: 4 }} justifyContent="center">
-            {/* Projects by Status - Donut Chart */}
-            <Grid item xs={12} md={6} lg={3}>
-                {donutChartData.length > 0 ? (
-                    <DonutChart title="# of Projects by Status" data={donutChartData} />
-                ) : (
-                    <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
-                        <Typography variant="h6" align="center" gutterBottom>
-                            # of Projects by Status
-                        </Typography>
-                        <Typography variant="body2" align="center" color="text.secondary">
-                            No status data available.
-                        </Typography>
-                    </Box>
-                )}
-            </Grid>
+    {/* Projects by Status - Donut Chart (Use a larger grid size) */}
+    <Grid item xs={12} md={6} lg={4}>
+        {donutChartData.length > 0 ? (
+            <ProjectStatusDonutChart title="# of Projects by Status" data={donutChartData} />
+        ) : (
+            <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
+                <Typography variant="h6" align="center" gutterBottom>
+                    # of Projects by Status
+                </Typography>
+                <Typography variant="body2" align="center" color="text.secondary">
+                    No status data available.
+                </Typography>
+            </Box>
+        )}
+    </Grid>
 
-            {/* Projects by Category - Bar Chart */}
-            <Grid item xs={12} md={6} lg={4}>
-                {categoryBarChartData.length > 0 ? (
-                    <BarLineChart title="# of Projects by Category" data={categoryBarChartData} />
-                ) : (
-                    <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
-                        <Typography variant="h6" align="center" gutterBottom>
-                            # of Projects by Category
-                        </Typography>
-                        <Typography variant="body2" align="center" color="text.secondary">
-                            No category data available.
-                        </Typography>
-                    </Box>
-                )}
-            </Grid>
+    {/* Projects by Category - Bar Chart (Use a larger grid size) */}
+    <Grid item xs={12} md={6} lg={4}>
+        {categoryBarChartData.length > 0 ? (
+            <BarChart
+                title="# of Projects by Category"
+                data={categoryBarChartData}
+                xDataKey="name"
+                yDataKey="value"
+            />
+        ) : (
+            <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
+                <Typography variant="h6" align="center" gutterBottom>
+                    # of Projects by Category
+                </Typography>
+                <Typography variant="body2" align="center" color="text.secondary">
+                    No category data available.
+                </Typography>
+            </Box>
+        )}
+    </Grid>
 
-            {/* Total Budget by Department - Bar Chart */}
-            <Grid item xs={12} md={6} lg={4}>
-                {costByDepartmentChartData.length > 0 ? (
-                    <BarLineChart title="Total Budget by Department (Ksh)" data={costByDepartmentChartData} />
-                ) : (
-                    <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
-                        <Typography variant="h6" align="center" gutterBottom>
-                            Total Budget by Department (Ksh)
-                        </Typography>
-                        <Typography variant="body2" align="center" color="text.secondary">
-                            No cost by department data available.
-                        </Typography>
-                    </Box>
-                )}
-            </Grid>
+    {/* Total Budget by Department - Bar Chart (Use a larger grid size) */}
+    <Grid item xs={12} md={6} lg={4}>
+        {costByDepartmentChartData.length > 0 ? (
+            <BarChart
+                title="Total Budget by Department (Ksh)"
+                data={costByDepartmentChartData}
+                xDataKey="name"
+                yDataKey="value"
+                yAxisLabel="Budget (Ksh)"
+            />
+        ) : (
+            <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
+                <Typography variant="h6" align="center" gutterBottom>
+                    Total Budget by Department (Ksh)
+                </Typography>
+                <Typography variant="body2" align="center" color="text.secondary">
+                    No cost by department data available.
+                </Typography>
+            </Box>
+        )}
+    </Grid>
 
-            {/* Projects Over Time - Line Chart */}
-                <Grid item xs={12} md={6} lg={4}>
-                    {projectsOverTimeChartData.length > 0 ? (
-                        <BarLineChart title="Projects Over Time" data={projectsOverTimeChartData} />
-                    ) : (
-                        <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
-                            <Typography variant="h6" align="center" gutterBottom>
-                                Projects Over Time
-                            </Typography>
-                            <Typography variant="body2" align="center" color="text.secondary">
-                                No projects over time data available.
-                            </Typography>
-                        </Box>
-                    )}
-                </Grid>
-        </Grid>
+    {/* Projects Over Time - Line Chart (Use a larger grid size) */}
+    <Grid item xs={12} md={6} lg={4}>
+        {projectsOverTimeChartData.length > 0 ? (
+            <LineChart
+                title="Projects Over Time"
+                data={projectsOverTimeChartData}
+                xDataKey="name"
+                yDataKey="value"
+                yAxisLabel="Projects"
+            />
+        ) : (
+            <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
+                <Typography variant="h6" align="center" gutterBottom>
+                    Projects Over Time
+                </Typography>
+                <Typography variant="body2" align="center" color="text.secondary">
+                    No projects over time data available.
+                </Typography>
+            </Box>
+        )}
+    </Grid>
+</Grid>
 
         <ExportButtons tableData={reportData.detailedList} columns={projectListColumns} />
 

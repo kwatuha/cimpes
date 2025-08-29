@@ -1,4 +1,3 @@
-// src/components/charts/DonutChart.jsx
 import React from 'react';
 import { Box, Typography } from '@mui/material';
 import {
@@ -9,19 +8,10 @@ import {
   Tooltip
 } from 'recharts';
 
-// Define a new, sharper color palette for generic donut charts
-const COLORS = [
-  '#007bff', // Bright Blue
-  '#ffc107', // Bright Yellow/Orange
-  '#28a745', // Bright Green
-  '#dc3545', // Bright Red
-  '#6f42c1', // Bright Purple
-  '#17a2b8', // Bright Cyan
-  '#fd7e14', // Bright Orange
-  '#6610f2'  // Deep Purple
-];
+import { getProjectStatusBackgroundColor } from '../../utils/projectStatusColors';
 
-const DonutChart = ({ title, data }) => {
+const ProjectStatusDonutChart = ({ title, data }) => {
+  // If there's no data, display a placeholder message
   if (!data || data.length === 0) {
     return (
       <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
@@ -44,13 +34,14 @@ const DonutChart = ({ title, data }) => {
             data={data}
             innerRadius={60}
             outerRadius={90}
-            fill="#8884d8" // This fill prop is often overridden by Cell colors, but good to have a default
+            fill="#8884d8"
             paddingAngle={5}
             dataKey="value"
             label
           >
+            {/* Use the specific color utility for status-based coloring */}
             {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+              <Cell key={`cell-${index}`} fill={getProjectStatusBackgroundColor(entry.name)} />
             ))}
           </Pie>
           <Tooltip />
@@ -60,4 +51,4 @@ const DonutChart = ({ title, data }) => {
   );
 };
 
-export default DonutChart;
+export default ProjectStatusDonutChart;

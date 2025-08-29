@@ -2,11 +2,10 @@
 const projectTableColumns = [
   { id: 'id', label: 'ID', minWidth: 20, show: false, sortable: true },
   { id: 'projectName', label: 'Project Name', minWidth: 200, show: true, sticky: 'left', sortable: true },
-  { id: 'status', label: 'Status', minWidth: 120, show: true, sticky: 'left', sortable: true },
+  { id: 'status', label: 'Status', minWidth: 120, show: true, sortable: true },
   { id: 'directorate', label: 'Directorate', minWidth: 150, show: false, sortable: true },
   { id: 'startDate', label: 'Start Date', minWidth: 120, show: false, sortable: true }, // Added sortable
   { id: 'endDate', label: 'End Date', minWidth: 120, show: false, sortable: true },     // Added sortable
-  
   { id: 'costOfProject', label: 'Contracted', minWidth: 100, show: true, sortable: true },   // Added sortable
   { id: 'paidOut', label: 'Paid', minWidth: 100, show: true, sortable: true },     // Added sortable
   { id: 'departmentName', label: 'Department', minWidth: 150, show: false, sortable: true },
