@@ -36,7 +36,7 @@ const reportsService = {
       throw error;
     }
   },
-  
+
   // --- NEW: Functions to support updated ProjectSummaryReport.jsx ---
   getProjectCostByDepartment: async (filters = {}) => {
     try {
@@ -57,6 +57,28 @@ const reportsService = {
     }
   },
   
+  // New function to fetch projects at risk budget
+  getProjectsAtRiskBudget: async (filters = {}) => {
+    try {
+      const response = await axiosInstance.get('/reports/projects-at-risk-budget', { params: filters });
+      return response.data;
+    } catch (error) {
+      console.error("Failed to fetch projects at risk budget:", error);
+      throw error;
+    }
+  },
+
+  // New function to fetch project status trends over time
+  getProjectStatusOverTime: async (filters = {}) => {
+    try {
+      const response = await axiosInstance.get('/reports/project-status-over-time', { params: filters });
+      return response.data;
+    } catch (error) {
+      console.error("Failed to fetch project status over time:", error);
+      throw error;
+    }
+  },
+
   // --- Project List & Location Reports ---
   getDetailedProjectList: async (filters = {}) => {
     try {
@@ -85,7 +107,7 @@ const reportsService = {
       throw error;
     }
   },
-  
+
   // --- Other Reports ---
   getYearlyTrendsReport: async (filters = {}) => {
     try {
@@ -106,6 +128,24 @@ const reportsService = {
       throw error;
     }
   },
+  getProjectsByStatusAndYear: async (filters = {}) => {
+  try {
+    const response = await axiosInstance.get('/reports/projects-by-status-and-year', { params: filters });
+    return response.data;
+  } catch (error) {
+    console.error("Failed to fetch projects by status and year:", error);
+    throw error;
+  }
+},
+getFinancialStatusByProjectStatus: async (filters = {}) => {
+  try {
+    const response = await axiosInstance.get('/reports/financial-status-by-project-status', { params: filters });
+    return response.data;
+  } catch (error) {
+    console.error("Failed to fetch financial status by project status:", error);
+    throw error;
+  }
+},
 };
 
 export default reportsService;

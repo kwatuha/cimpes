@@ -2,25 +2,35 @@ import React from 'react';
 import { Box, Typography } from '@mui/material';
 import {
   ResponsiveContainer,
-  BarChart,
+  BarChart as RechartsBarChart,
   Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
-  Cell
+  Legend
 } from 'recharts';
 
-const COLORS = ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6f42c1', '#17a2b8', '#fd7e14', '#6610f2'];
+// Color palette for multiple bars
+const BAR_COLORS = ['#3f51b5', '#4caf50', '#ff9800', '#f44336', '#9c27b0'];
 
-const GenericBarChart = ({ title, data, xDataKey, yDataKey, yAxisLabel, showLegend = true }) => {
+// Function to format large numbers for the Y-axis
+const formatLargeNumber = (value) => {
+  if (value === null) return 'N/A';
+  if (value >= 1000000000) {
+    return `${(value / 1000000000).toFixed(1)}B`;
+  }
+  if (value >= 1000000) {
+    return `${(value / 1000000).toFixed(1)}M`;
+  }
+  return value.toLocaleString();
+};
+
+const BarChart = ({ title, data, xDataKey, yDataKey, yAxisLabel, horizontal = false }) => {
   if (!data || data.length === 0) {
     return (
       <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
-        <Typography variant="h6" align="center" gutterBottom>
-          {title}
-        </Typography>
+        <Typography variant="h6" align="center" gutterBottom>{title}</Typography>
         <Typography variant="body2" align="center" color="text.secondary">
           No data available.
         </Typography>
@@ -28,46 +38,54 @@ const GenericBarChart = ({ title, data, xDataKey, yDataKey, yAxisLabel, showLege
     );
   }
 
-  const formatYAxis = (value) => {
-    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-    if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
-    return value;
-  };
+  // Determine if we are using a single or multiple bars
+  const dataKeys = Array.isArray(yDataKey) ? yDataKey : [yDataKey];
 
   return (
     <Box sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 2, bgcolor: 'background.paper' }}>
       <Typography variant="h6" align="center" gutterBottom>{title}</Typography>
       <ResponsiveContainer width="100%" height={300}>
-        <BarChart
+        <RechartsBarChart
           data={data}
-          // Adjusted bottom margin to give more space for angled labels
+          layout={horizontal ? 'vertical' : 'horizontal'}
           margin={{
             top: 20,
             right: 30,
             left: 20,
-            bottom: 60, // Increased from 5 to 60
+            bottom: 5,
           }}
         >
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis 
-            dataKey={xDataKey} 
-            angle={-45} // Increased angle for more separation
-            textAnchor="end" 
-            height={70} // Increased height for the labels
-            interval={0} 
-          />
-          <YAxis label={{ value: yAxisLabel, angle: -90, position: 'insideLeft' }} tickFormatter={formatYAxis} />
-          <Tooltip />
-          {showLegend && <Legend />}
-          <Bar dataKey={yDataKey}>
-            {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-            ))}
-          </Bar>
-        </BarChart>
+          {horizontal ? (
+            <XAxis type="number" label={{ value: yAxisLabel, angle: 0, position: 'bottom' }} />
+          ) : (
+            <XAxis
+              dataKey={xDataKey}
+              interval={0} // Ensure all labels are displayed
+              angle={-45} // Rotate labels to prevent overlap
+              textAnchor="end" // Align text to the end after rotation
+              height={80} // Increase height to prevent labels from being cut off
+            />
+          )}
+          {horizontal ? (
+            <YAxis dataKey={xDataKey} type="category" />
+          ) : (
+            <YAxis
+              type="number"
+              label={{ value: yAxisLabel, angle: -90, position: 'insideLeft' }}
+              tickFormatter={formatLargeNumber}
+            />
+          )}
+          <Tooltip formatter={(value) => formatLargeNumber(value)} />
+          <Legend />
+          {/* Render a bar for each data key */}
+          {dataKeys.map((key, index) => (
+            <Bar key={key} dataKey={key} fill={BAR_COLORS[index % BAR_COLORS.length]} />
+          ))}
+        </RechartsBarChart>
       </ResponsiveContainer>
     </Box>
   );
 };
 
-export default GenericBarChart;
+export default BarChart;

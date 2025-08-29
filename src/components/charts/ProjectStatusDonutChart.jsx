@@ -5,13 +5,13 @@ import {
   PieChart,
   Pie,
   Cell,
-  Tooltip
+  Tooltip,
+  Legend
 } from 'recharts';
 
 import { getProjectStatusBackgroundColor } from '../../utils/projectStatusColors';
 
 const ProjectStatusDonutChart = ({ title, data }) => {
-  // If there's no data, display a placeholder message
   if (!data || data.length === 0) {
     return (
       <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
@@ -37,14 +37,18 @@ const ProjectStatusDonutChart = ({ title, data }) => {
             fill="#8884d8"
             paddingAngle={5}
             dataKey="value"
-            label
+            nameKey="name" // Important for the Legend to work
+            // Removed the `label` prop to prevent label overlap
           >
             {/* Use the specific color utility for status-based coloring */}
             {data.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={getProjectStatusBackgroundColor(entry.name)} />
             ))}
           </Pie>
-          <Tooltip />
+          {/* Use a custom formatter for a clear tooltip */}
+          <Tooltip formatter={(value, name) => [value, name]} />
+          {/* Add a Legend to clearly identify each segment */}
+          <Legend layout="horizontal" align="center" verticalAlign="bottom" />
         </PieChart>
       </ResponsiveContainer>
     </Box>

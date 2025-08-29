@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Grid, CircularProgress, Alert } from '@mui/material';
+import { Box, Typography, Grid, CircularProgress, Alert, Card, CardContent } from '@mui/material';
 
 import ReportDataTable from './tables/ReportDataTable';
 import apiService from '../api';
 import ExportButtons from './ExportButtons';
 
-// Import the new and updated chart components
-import DonutChart from './charts/DonutChart';
 import ProjectStatusDonutChart from './charts/ProjectStatusDonutChart';
 import BarChart from './charts/BarChart';
 import LineChart from './charts/LineChart';
+import StackedBarChart from './charts/StackedBarChart';
 
 // Define columns for the detailed project list table
 const projectListColumns = [
@@ -28,9 +27,9 @@ const ProjectSummaryReport = ({ filters }) => {
     const [reportData, setReportData] = useState({
         detailedList: [],
         statusSummary: [],
-        categorySummary: [],
-        costByDepartment: [],
-        projectsOverTime: []
+        projectsStatusOverTime: [],
+        projectsByStatusAndYear: [],
+        financialStatusByProjectStatus: [],
     });
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -43,23 +42,23 @@ const ProjectSummaryReport = ({ filters }) => {
                 const [
                     fetchedProjectData,
                     fetchedStatusData,
-                    fetchedCategoryData,
-                    fetchedCostByDepartment,
-                    fetchedProjectsOverTime
+                    fetchedStatusOverTime,
+                    fetchedFinancialStatus,
+                    fetchedStatusAndYear
                 ] = await Promise.all([
                     apiService.reports.getDetailedProjectList(filters),
                     apiService.reports.getProjectStatusSummary(filters),
-                    apiService.reports.getProjectCategorySummary(filters),
-                    apiService.reports.getProjectCostByDepartment(filters),
-                    apiService.reports.getProjectsOverTime(filters)
+                    apiService.reports.getProjectStatusOverTime(filters),
+                    apiService.reports.getFinancialStatusByProjectStatus(filters),
+                    apiService.reports.getProjectsByStatusAndYear(filters)
                 ]);
 
                 setReportData({
                     detailedList: Array.isArray(fetchedProjectData) ? fetchedProjectData : [],
                     statusSummary: Array.isArray(fetchedStatusData) ? fetchedStatusData : [],
-                    categorySummary: Array.isArray(fetchedCategoryData) ? fetchedCategoryData : [],
-                    costByDepartment: Array.isArray(fetchedCostByDepartment) ? fetchedCostByDepartment : [],
-                    projectsOverTime: Array.isArray(fetchedProjectsOverTime) ? fetchedProjectsOverTime : []
+                    projectsStatusOverTime: Array.isArray(fetchedStatusOverTime) ? fetchedStatusOverTime : [],
+                    financialStatusByProjectStatus: Array.isArray(fetchedFinancialStatus) ? fetchedFinancialStatus : [],
+                    projectsByStatusAndYear: Array.isArray(fetchedStatusAndYear) ? fetchedStatusAndYear : [],
                 });
             } catch (err) {
                 setError("Failed to load project summary report data.");
@@ -86,9 +85,9 @@ const ProjectSummaryReport = ({ filters }) => {
 
     const hasData = reportData.detailedList.length > 0 ||
                     reportData.statusSummary.length > 0 ||
-                    reportData.categorySummary.length > 0 ||
-                    reportData.costByDepartment.length > 0 ||
-                    reportData.projectsOverTime.length > 0;
+                    reportData.projectsStatusOverTime.length > 0 ||
+                    reportData.financialStatusByProjectStatus.length > 0 ||
+                    reportData.projectsByStatusAndYear.length > 0;
 
     if (!hasData) {
         return <Alert severity="info" sx={{ mt: 2 }}>No data found for the selected filters.</Alert>;
@@ -100,22 +99,19 @@ const ProjectSummaryReport = ({ filters }) => {
         value: item.value || item.count 
     }));
     
-    const categoryBarChartData = reportData.categorySummary.map(item => ({ 
-        name: item.name || item.categoryName, 
-        value: item.value || item.count 
-    }));
+    const stackedBarChartData = reportData.projectsByStatusAndYear;
 
-    const costByDepartmentChartData = reportData.costByDepartment
-        .filter(item => item.departmentName !== null)
-        .map(item => ({ 
-            name: item.departmentName || 'Unknown Department', 
-            value: parseFloat(item.totalBudget || 0)
-        }));
-    
-    const projectsOverTimeChartData = reportData.projectsOverTime.map(item => ({ 
-        name: item.name || item.period || item.date, 
-        value: item.value || item.count || item.projectCount || 0
-    }));
+    const allStatuses = [...new Set(stackedBarChartData.map(item => item.status))];
+
+    const transformedData = Object.values(
+      stackedBarChartData.reduce((acc, item) => {
+        if (!acc[item.year]) {
+          acc[item.year] = { year: item.year };
+        }
+        acc[item.year][item.status] = item.projectCount;
+        return acc;
+      }, {})
+    );
 
 return (
     <Box sx={{ p: 3 }}>
@@ -124,88 +120,91 @@ return (
         </Typography>
 
         <Grid container spacing={4} sx={{ mb: 4 }} justifyContent="center">
-    {/* Projects by Status - Donut Chart (Use a larger grid size) */}
-    <Grid item xs={12} md={6} lg={4}>
-        {donutChartData.length > 0 ? (
-            <ProjectStatusDonutChart title="# of Projects by Status" data={donutChartData} />
-        ) : (
-            <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
-                <Typography variant="h6" align="center" gutterBottom>
-                    # of Projects by Status
-                </Typography>
-                <Typography variant="body2" align="center" color="text.secondary">
-                    No status data available.
-                </Typography>
-            </Box>
-        )}
-    </Grid>
+            {/* Projects by Status - Donut Chart (smaller container) */}
+            <Grid item xs={12} md={6} lg={4}>
+                <Card sx={{ height: '100%', width: '100%' }}> {/* Add width: '100%' */}
+                    <CardContent>
+                        {donutChartData.length > 0 ? (
+                            <ProjectStatusDonutChart title="# of Projects by Status" data={donutChartData} />
+                        ) : (
+                            <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
+                                <Typography variant="h6" align="center" gutterBottom># of Projects by Status</Typography>
+                                <Typography variant="body2" align="center" color="text.secondary">No status data available.</Typography>
+                            </Box>
+                        )}
+                    </CardContent>
+                </Card>
+            </Grid>
 
-    {/* Projects by Category - Bar Chart (Use a larger grid size) */}
-    <Grid item xs={12} md={6} lg={4}>
-        {categoryBarChartData.length > 0 ? (
-            <BarChart
-                title="# of Projects by Category"
-                data={categoryBarChartData}
-                xDataKey="name"
-                yDataKey="value"
-            />
-        ) : (
-            <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
-                <Typography variant="h6" align="center" gutterBottom>
-                    # of Projects by Category
-                </Typography>
-                <Typography variant="body2" align="center" color="text.secondary">
-                    No category data available.
-                </Typography>
-            </Box>
-        )}
-    </Grid>
-
-    {/* Total Budget by Department - Bar Chart (Use a larger grid size) */}
-    <Grid item xs={12} md={6} lg={4}>
-        {costByDepartmentChartData.length > 0 ? (
-            <BarChart
-                title="Total Budget by Department (Ksh)"
-                data={costByDepartmentChartData}
-                xDataKey="name"
-                yDataKey="value"
-                yAxisLabel="Budget (Ksh)"
-            />
-        ) : (
-            <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
-                <Typography variant="h6" align="center" gutterBottom>
-                    Total Budget by Department (Ksh)
-                </Typography>
-                <Typography variant="body2" align="center" color="text.secondary">
-                    No cost by department data available.
-                </Typography>
-            </Box>
-        )}
-    </Grid>
-
-    {/* Projects Over Time - Line Chart (Use a larger grid size) */}
-    <Grid item xs={12} md={6} lg={4}>
-        {projectsOverTimeChartData.length > 0 ? (
-            <LineChart
-                title="Projects Over Time"
-                data={projectsOverTimeChartData}
-                xDataKey="name"
-                yDataKey="value"
-                yAxisLabel="Projects"
-            />
-        ) : (
-            <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
-                <Typography variant="h6" align="center" gutterBottom>
-                    Projects Over Time
-                </Typography>
-                <Typography variant="body2" align="center" color="text.secondary">
-                    No projects over time data available.
-                </Typography>
-            </Box>
-        )}
-    </Grid>
-</Grid>
-
+            {/* Budget & Paid by Status (wider container) */}
+            <Grid item xs={12} md={6} lg={8}>
+                <Card sx={{ height: '100%', width: '100%', bgcolor: '#f5f5dc' }}> {/* Add width: '100%' and background color */}
+                    <CardContent>
+                        {reportData.financialStatusByProjectStatus.length > 0 ? (
+                            <BarChart
+                                title="Budget & Paid by Status"
+                                data={reportData.financialStatusByProjectStatus}
+                                xDataKey="status"
+                                yDataKey={['totalBudget', 'totalPaid']}
+                                yAxisLabel="Amount (Ksh)"
+                            />
+                        ) : (
+                            <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
+                                <Typography variant="h6" align="center" gutterBottom>Budget & Paid by Status</Typography>
+                                <Typography variant="body2" align="center" color="text.secondary">No financial data available.</Typography>
+                            </Box>
+                        )}
+                    </CardContent>
+                </Card>
+            </Grid>
+        </Grid>
+        
+        {/* Second Row for other charts */}
+        <Grid container spacing={4} sx={{ mb: 4 }} justifyContent="center">
+            {/* Projects by Status and Year (50% width) */}
+            <Grid item xs={12} md={6} lg={6}>
+                <Card sx={{ height: '100%', width: '100%' }}> {/* Add width: '100%' */}
+                    <CardContent>
+                        {transformedData.length > 0 ? (
+                            <StackedBarChart
+                                title="Projects by Status and Year"
+                                data={transformedData}
+                                xDataKey="year"
+                                barKeys={allStatuses}
+                                yAxisLabel="Projects"
+                            />
+                        ) : (
+                            <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
+                                <Typography variant="h6" align="center" gutterBottom>Projects by Status and Year</Typography>
+                                <Typography variant="body2" align="center" color="text.secondary">No data available for this chart.</Typography>
+                            </Box>
+                        )}
+                    </CardContent>
+                </Card>
+            </Grid>
+            {/* Projects Over Time (50% width) */}
+            <Grid item xs={12} md={6} lg={6}>
+                <Card sx={{ height: '100%', width: '100%' }}> {/* Add width: '100%' */}
+                    <CardContent>
+                        {reportData.projectsStatusOverTime.length > 0 ? (
+                            <LineChart
+                                title="Projects Over Time"
+                                data={reportData.projectsStatusOverTime}
+                                xDataKey="year"
+                                yDataKey="projectCount"
+                                yAxisLabel="Projects"
+                            />
+                        ) : (
+                            <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
+                                <Typography variant="h6" align="center" gutterBottom>Projects Over Time</Typography>
+                                <Typography variant="body2" align="center" color="text.secondary">No trend data available.</Typography>
+                            </Box>
+                        )}
+                    </CardContent>
+                </Card>
+            </Grid>
+        </Grid>
+        
         <ExportButtons tableData={reportData.detailedList} columns={projectListColumns} />
 
         <Box sx={{ mt: 4 }}>
