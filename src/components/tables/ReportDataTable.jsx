@@ -1,10 +1,14 @@
 // src/components/tables/ReportDataTable.jsx
 
 import React from 'react';
-import { Box, Typography } from '@mui/material';
+import { Box, Typography, useTheme } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
+import { tokens } from '../../pages/dashboard/theme';
 
 const ReportDataTable = ({ data, columns, getRowId }) => {
+  const theme = useTheme();
+  const colors = tokens(theme.palette.mode);
+
   // Define dataGridColumns here, at the top level of the function
   const dataGridColumns = columns.map(col => ({
     field: col.id,
@@ -25,7 +29,30 @@ const ReportDataTable = ({ data, columns, getRowId }) => {
   }
 
   return (
-    <Box sx={{ height: 400, width: '100%', mt: 2 }}>
+    <Box 
+      sx={{ 
+        height: 400, 
+        width: '100%', 
+        mt: 2,
+        "& .MuiDataGrid-root": {
+          border: "none",
+        },
+        "& .MuiDataGrid-cell": {
+          borderBottom: "none",
+        },
+        "& .MuiDataGrid-columnHeaders": {
+          backgroundColor: `${colors.blueAccent[700]} !important`,
+          borderBottom: "none",
+        },
+        "& .MuiDataGrid-virtualScroller": {
+          backgroundColor: colors.primary[400],
+        },
+        "& .MuiDataGrid-footerContainer": {
+          borderTop: "none",
+          backgroundColor: `${colors.blueAccent[700]} !important`,
+        },
+      }}
+    >
       <DataGrid
         rows={data}
         columns={dataGridColumns}

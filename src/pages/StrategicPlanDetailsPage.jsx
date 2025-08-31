@@ -449,13 +449,13 @@ function StrategicPlanDetailsPage() {
                               "& .MuiDataGrid-root": { border: "none" },
                               "& .MuiDataGrid-cell": { borderBottom: "none", color: theme.palette.text.primary },
                               "& .MuiDataGrid-columnHeaders": {
-                                  backgroundColor: colors.blueAccent[700],
+                                  backgroundColor: `${colors.blueAccent[700]} !important`,
                                   borderBottom: "none",
                               },
                               "& .MuiDataGrid-virtualScroller": { backgroundColor: colors.primary[400] },
                               "& .MuiDataGrid-footerContainer": {
                                   borderTop: "none",
-                                  backgroundColor: colors.blueAccent[700],
+                                  backgroundColor: `${colors.blueAccent[700]} !important`,
                               },
                           }}
                       >

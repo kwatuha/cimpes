@@ -7,6 +7,7 @@ import {
 } from '@mui/material';
 import { FilterList as FilterListIcon, Clear as ClearIcon, ExpandMore as ExpandMoreIcon } from '@mui/icons-material';
 import { getProjectStatusBackgroundColor, getProjectStatusTextColor } from '../utils/tableHelpers';
+import { tokens } from '../pages/dashboard/theme';
 
 const ProjectFilters = ({
   filterState,
@@ -16,6 +17,7 @@ const ProjectFilters = ({
   allMetadata, // Now receives metadata as a prop
 }) => {
   const theme = useTheme();
+  const colors = tokens(theme.palette.mode);
   const [filtersExpanded, setFiltersExpanded] = useState(true);
 
   const projectStatuses = [
@@ -62,17 +64,37 @@ const ProjectFilters = ({
 
   return (
     <>
-      <Accordion expanded={filtersExpanded} onChange={() => setFiltersExpanded(!filtersExpanded)} sx={{ mb: 3, borderRadius: '8px', boxShadow: theme.shadows[2] }}>
-        <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ backgroundColor: theme.palette.background.paper, borderRadius: '8px 8px 0 0' }}>
+      <Accordion expanded={filtersExpanded} onChange={() => setFiltersExpanded(!filtersExpanded)} sx={{ 
+        mb: 3, 
+        borderRadius: '12px', 
+        boxShadow: theme.shadows[3],
+        backgroundColor: colors.primary[400],
+        border: `1px solid ${colors.blueAccent[700]}`,
+      }}>
+        <AccordionSummary 
+          expandIcon={<ExpandMoreIcon sx={{ color: colors.blueAccent[700] }} />} 
+          sx={{ 
+            backgroundColor: colors.blueAccent[700], 
+            borderRadius: '12px 12px 0 0',
+            color: 'white',
+            '&:hover': {
+              backgroundColor: colors.blueAccent[600],
+            }
+          }}
+        >
           <Stack direction="row" spacing={1} alignItems="center">
-            <FilterListIcon sx={{ color: theme.palette.primary.main }} />
-            <Typography variant="h6" sx={{ color: theme.palette.primary.main }}>Filter Projects</Typography>
+            <FilterListIcon sx={{ color: 'white' }} />
+            <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold' }}>Filter Projects</Typography>
             {!filtersExpanded && (
-              <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', ml: 1 }}>{getFilterSummary()}</Typography>
+              <Typography variant="body2" sx={{ fontStyle: 'italic', ml: 1, color: 'white' }}>{getFilterSummary()}</Typography>
             )}
           </Stack>
         </AccordionSummary>
-        <AccordionDetails sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
+        <AccordionDetails sx={{ 
+          p: 3, 
+          borderTop: `1px solid ${colors.blueAccent[700]}`,
+          backgroundColor: colors.primary[400],
+        }}>
           <Grid container spacing={2} alignItems="flex-end">
             {/* Filter Text Fields */}
             <Grid item xs={12} sm={6} md={3}><TextField fullWidth label="Project Name" name="projectName" value={filterState.projectName} onChange={handleFilterChange} variant="outlined" size="small" /></Grid>
@@ -80,21 +102,51 @@ const ProjectFilters = ({
             <Grid item xs={12} sm={6} md={3}><TextField fullWidth label="End Date" name="endDate" type="date" value={filterState.endDate} onChange={handleFilterChange} InputLabelProps={{ shrink: true }} variant="outlined" size="small" /></Grid>
 
             {/* Filter Selects */}
-            <Grid item xs={12} sm={6} md={3}><FormControl fullWidth variant="outlined" size="small"><InputLabel shrink color="primary" sx={{ fontWeight: 'bold' }}>Status</InputLabel><Select label="Status" name="status" value={filterState.status} onChange={handleFilterChange}><MenuItem value=""><em>All</em></MenuItem>{projectStatuses.map(status => (<MenuItem key={status} value={status}><Box component="span" sx={{ backgroundColor: getProjectStatusBackgroundColor(status), color: getProjectStatusTextColor(status), padding: '4px 8px', borderRadius: '4px', display: 'inline-block', minWidth: '80px', textAlign: 'center', fontWeight: 'bold' }}>{status}</Box></MenuItem>))}</Select></FormControl></Grid>
-            <Grid item xs={12} sm={6} md={3}><FormControl fullWidth variant="outlined" size="small"><InputLabel shrink color="primary" sx={{ fontWeight: 'bold' }}>Department</InputLabel><Select label="Department" name="departmentId" value={filterState.departmentId} onChange={handleFilterChange}><MenuItem value=""><em>All</em></MenuItem>{departments.map(dept => (<MenuItem key={dept.departmentId} value={String(dept.departmentId)}>{dept.name}</MenuItem>))}</Select></FormControl></Grid>
-            <Grid item xs={12} sm={6} md={3}><FormControl fullWidth variant="outlined" size="small" disabled={!filterState.departmentId}><InputLabel shrink color="primary" sx={{ fontWeight: 'bold' }}>Section</InputLabel><Select label="Section" name="sectionId" value={filterState.sectionId} onChange={handleFilterChange}><MenuItem value=""><em>All</em></MenuItem>{sections.map(sec => (<MenuItem key={sec.sectionId} value={String(sec.sectionId)}>{sec.name}</MenuItem>))}</Select></FormControl></Grid>
-            <Grid item xs={12} sm={6} md={3}><FormControl fullWidth variant="outlined" size="small"><InputLabel shrink color="primary" sx={{ fontWeight: 'bold' }}>Financial Year</InputLabel><Select label="Financial Year" name="finYearId" value={filterState.finYearId} onChange={handleFilterChange}><MenuItem value=""><em>All</em></MenuItem>{financialYears.map(fy => (<MenuItem key={fy.finYearId} value={String(fy.finYearId)}>{fy.finYearName}</MenuItem>))}</Select></FormControl></Grid>
-            <Grid item xs={12} sm={6} md={3}><FormControl fullWidth variant="outlined" size="small"><InputLabel shrink color="primary" sx={{ fontWeight: 'bold' }}>Program</InputLabel><Select label="Program" name="programId" value={filterState.programId} onChange={handleFilterChange}><MenuItem value=""><em>All</em></MenuItem>{programs.map(prog => (<MenuItem key={prog.programId} value={String(prog.programId)}>{prog.programme}</MenuItem>))}</Select></FormControl></Grid>
-            <Grid item xs={12} sm={6} md={3}><FormControl fullWidth variant="outlined" size="small" disabled={!filterState.programId}><InputLabel shrink color="primary" sx={{ fontWeight: 'bold' }}>Sub-Program</InputLabel><Select label="Sub-Program" name="subProgramId" value={filterState.subProgramId} onChange={handleFilterChange}><MenuItem value=""><em>All</em></MenuItem>{subPrograms.map(subProg => (<MenuItem key={subProg.subProgramId} value={String(subProg.subProgramId)}>{subProg.subProgramme}</MenuItem>))}</Select></FormControl></Grid>
-            <Grid item xs={12} sm={6} md={3}><FormControl fullWidth variant="outlined" size="small"><InputLabel shrink color="primary" sx={{ fontWeight: 'bold' }}>County</InputLabel><Select label="County" name="countyId" value={filterState.countyId} onChange={handleFilterChange}><MenuItem value=""><em>All</em></MenuItem>{counties.map(county => (<MenuItem key={county.countyId} value={String(county.countyId)}>{county.name}</MenuItem>))}</Select></FormControl></Grid>
-            <Grid item xs={12} sm={6} md={3}><FormControl fullWidth variant="outlined" size="small" disabled={!filterState.countyId}><InputLabel shrink color="primary" sx={{ fontWeight: 'bold' }}>Sub-County</InputLabel><Select label="Sub-County" name="subcountyId" value={filterState.subcountyId} onChange={handleFilterChange}><MenuItem value=""><em>All</em></MenuItem>{subcounties.map(subc => (<MenuItem key={subc.subcountyId} value={String(subc.subcountyId)}>{subc.name}</MenuItem>))}</Select></FormControl></Grid>
-            <Grid item xs={12} sm={6} md={3}><FormControl fullWidth variant="outlined" size="small" disabled={!filterState.subcountyId}><InputLabel shrink color="primary" sx={{ fontWeight: 'bold' }}>Ward</InputLabel><Select label="Ward" name="wardId" value={filterState.wardId} onChange={handleFilterChange}><MenuItem value=""><em>All</em></MenuItem>{wards.map(ward => (<MenuItem key={ward.wardId} value={String(ward.wardId)}>{ward.name}</MenuItem>))}</Select></FormControl></Grid>
+            <Grid item xs={12} sm={6} md={3}><FormControl fullWidth variant="outlined" size="small" sx={{ minWidth: '120px' }}><InputLabel sx={{ fontWeight: 'bold' }}>Status</InputLabel><Select label="Status" name="status" value={filterState.status} onChange={handleFilterChange}><MenuItem value=""><em>All</em></MenuItem>{projectStatuses.map(status => (<MenuItem key={status} value={status}><Box component="span" sx={{ backgroundColor: getProjectStatusBackgroundColor(status), color: getProjectStatusTextColor(status), padding: '4px 8px', borderRadius: '4px', display: 'inline-block', minWidth: '80px', textAlign: 'center', fontWeight: 'bold' }}>{status}</Box></MenuItem>))}</Select></FormControl></Grid>
+            <Grid item xs={12} sm={6} md={3}><FormControl fullWidth variant="outlined" size="small" sx={{ minWidth: '140px' }}><InputLabel sx={{ fontWeight: 'bold' }}>Department</InputLabel><Select label="Department" name="departmentId" value={filterState.departmentId} onChange={handleFilterChange}><MenuItem value=""><em>All</em></MenuItem>{departments.map(dept => (<MenuItem key={dept.departmentId} value={String(dept.departmentId)}>{dept.name}</MenuItem>))}</Select></FormControl></Grid>
+            <Grid item xs={12} sm={6} md={3}><FormControl fullWidth variant="outlined" size="small" disabled={!filterState.departmentId} sx={{ minWidth: '120px' }}><InputLabel sx={{ fontWeight: 'bold' }}>Section</InputLabel><Select label="Section" name="sectionId" value={filterState.sectionId} onChange={handleFilterChange}><MenuItem value=""><em>All</em></MenuItem>{sections.map(sec => (<MenuItem key={sec.sectionId} value={String(sec.sectionId)}>{sec.name}</MenuItem>))}</Select></FormControl></Grid>
+            <Grid item xs={12} sm={6} md={3}><FormControl fullWidth variant="outlined" size="small" sx={{ minWidth: '140px' }}><InputLabel sx={{ fontWeight: 'bold' }}>Financial Year</InputLabel><Select label="Financial Year" name="finYearId" value={filterState.finYearId} onChange={handleFilterChange}><MenuItem value=""><em>All</em></MenuItem>{financialYears.map(fy => (<MenuItem key={fy.finYearId} value={String(fy.finYearId)}>{fy.finYearName}</MenuItem>))}</Select></FormControl></Grid>
+            <Grid item xs={12} sm={6} md={3}><FormControl fullWidth variant="outlined" size="small" sx={{ minWidth: '120px' }}><InputLabel sx={{ fontWeight: 'bold' }}>Program</InputLabel><Select label="Program" name="programId" value={filterState.programId} onChange={handleFilterChange}><MenuItem value=""><em>All</em></MenuItem>{programs.map(prog => (<MenuItem key={prog.programId} value={String(prog.programId)}>{prog.programme}</MenuItem>))}</Select></FormControl></Grid>
+            <Grid item xs={12} sm={6} md={3}><FormControl fullWidth variant="outlined" size="small" disabled={!filterState.programId} sx={{ minWidth: '140px' }}><InputLabel sx={{ fontWeight: 'bold' }}>Sub-Program</InputLabel><Select label="Sub-Program" name="subProgramId" value={filterState.subProgramId} onChange={handleFilterChange}><MenuItem value=""><em>All</em></MenuItem>{subPrograms.map(subProg => (<MenuItem key={subProg.subProgramId} value={String(subProg.subProgramId)}>{subProg.subProgramme}</MenuItem>))}</Select></FormControl></Grid>
+            <Grid item xs={12} sm={6} md={3}><FormControl fullWidth variant="outlined" size="small" sx={{ minWidth: '120px' }}><InputLabel sx={{ fontWeight: 'bold' }}>County</InputLabel><Select label="County" name="countyId" value={filterState.countyId} onChange={handleFilterChange}><MenuItem value=""><em>All</em></MenuItem>{counties.map(county => (<MenuItem key={county.countyId} value={String(county.countyId)}>{county.name}</MenuItem>))}</Select></FormControl></Grid>
+            <Grid item xs={12} sm={6} md={3}><FormControl fullWidth variant="outlined" size="small" disabled={!filterState.countyId} sx={{ minWidth: '140px' }}><InputLabel sx={{ fontWeight: 'bold' }}>Sub-County</InputLabel><Select label="Sub-County" name="subcountyId" value={filterState.subcountyId} onChange={handleFilterChange}><MenuItem value=""><em>All</em></MenuItem>{subcounties.map(subc => (<MenuItem key={subc.subcountyId} value={String(subc.subcountyId)}>{subc.name}</MenuItem>))}</Select></FormControl></Grid>
+            <Grid item xs={12} sm={6} md={3}><FormControl fullWidth variant="outlined" size="small" disabled={!filterState.subcountyId} sx={{ minWidth: '120px' }}><InputLabel sx={{ fontWeight: 'bold' }}>Ward</InputLabel><Select label="Ward" name="wardId" value={filterState.wardId} onChange={handleFilterChange}><MenuItem value=""><em>All</em></MenuItem>{wards.map(ward => (<MenuItem key={ward.wardId} value={String(ward.wardId)}>{ward.name}</MenuItem>))}</Select></FormControl></Grid>
             
             {/* Action Buttons */}
             <Grid item xs={12} sm={6} md={3}>
               <Stack direction="row" spacing={1}>
-                <Button variant="contained" startIcon={<FilterListIcon />} onClick={handleApplyFilters} sx={{ flexGrow: 1, backgroundColor: theme.palette.primary.main }} >Apply Filters</Button>
-                <Button variant="outlined" startIcon={<ClearIcon />} onClick={handleClearFilters} sx={{ flexGrow: 1 }} >Clear</Button>
+                <Button 
+                  variant="contained" 
+                  startIcon={<FilterListIcon />} 
+                  onClick={handleApplyFilters} 
+                  sx={{ 
+                    flexGrow: 1, 
+                    backgroundColor: colors.blueAccent[700],
+                    color: 'white',
+                    fontWeight: 'bold',
+                    '&:hover': {
+                      backgroundColor: colors.blueAccent[600],
+                    }
+                  }}
+                >
+                  Apply Filters
+                </Button>
+                <Button 
+                  variant="outlined" 
+                  startIcon={<ClearIcon />} 
+                  onClick={handleClearFilters} 
+                  sx={{ 
+                    flexGrow: 1,
+                    borderColor: colors.blueAccent[700],
+                    color: colors.blueAccent[700],
+                    '&:hover': {
+                      backgroundColor: colors.blueAccent[700],
+                      color: 'white',
+                    }
+                  }}
+                >
+                  Clear
+                </Button>
               </Stack>
             </Grid>
           </Grid>

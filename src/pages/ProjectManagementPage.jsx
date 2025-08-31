@@ -43,10 +43,10 @@ function ProjectManagementPage() {
   } = useProjectData(user, authLoading, filterState);
 
   // Custom hook for table sorting
-  const { order, orderBy, handleRequestSort, sortedData: sortedProjects } = useTableSort(projects);
+  const { order, orderBy, handleRequestSort, sortedData: sortedProjects } = useTableSort(projects || []);
 
   // Custom hook for table scroll shadows (no longer needed for DataGrid)
-  const { tableContainerRef, showLeftShadow, showRightShadow, handleScrollRight, handleScrollLeft } = useTableScrollShadows(projects);
+  const { tableContainerRef, showLeftShadow, showRightShadow, handleScrollRight, handleScrollLeft } = useTableScrollShadows(projects || []);
 
   // States for column visibility and menu
   const [visibleColumnIds, setVisibleColumnIds] = useState(() => {
@@ -101,7 +101,6 @@ function ProjectManagementPage() {
       setSelectedProjectForAssignment(null);
       fetchProjects(); // Refresh projects list after a change
   };
-
 
   const handleFormSuccess = () => {
     handleCloseFormDialog();
@@ -174,29 +173,41 @@ function ProjectManagementPage() {
 
     switch (col.id) {
       case 'status':
-        dataGridColumn.renderCell = (params) => (
-          <Box sx={{ backgroundColor: getProjectStatusBackgroundColor(params.value), color: getProjectStatusTextColor(params.value), padding: '4px 8px', borderRadius: '4px', minWidth: '80px', textAlign: 'center', fontWeight: 'bold' }}>
-            {params.value}
-          </Box>
-        );
+        dataGridColumn.renderCell = (params) => {
+          if (!params) return null;
+          return (
+            <Box sx={{ backgroundColor: getProjectStatusBackgroundColor(params.value), color: getProjectStatusTextColor(params.value), padding: '4px 8px', borderRadius: '4px', minWidth: '80px', textAlign: 'center', fontWeight: 'bold' }}>
+              {params.value}
+            </Box>
+          );
+        };
         break;
       case 'costOfProject':
       case 'paidOut':
-        dataGridColumn.renderCell = (params) => (
-          !isNaN(parseFloat(params.value)) ? currencyFormatter.format(parseFloat(params.value)) : 'N/A'
-        );
+        dataGridColumn.renderCell = (params) => {
+          if (!params) return 'N/A';
+          return !isNaN(parseFloat(params.value)) ? currencyFormatter.format(parseFloat(params.value)) : 'N/A';
+        };
         break;
       case 'startDate':
       case 'endDate':
-        dataGridColumn.renderCell = (params) => (
-          params.value ? new Date(params.value).toLocaleDateString() : 'N/A'
-        );
+        dataGridColumn.renderCell = (params) => {
+          if (!params) return 'N/A';
+          return params.value ? new Date(params.value).toLocaleDateString() : 'N/A';
+        };
         break;
       case 'principalInvestigator':
-        dataGridColumn.valueGetter = (params) => params.row.pi_firstName || params.row.principalInvestigator || 'N/A';
+        dataGridColumn.valueGetter = (params) => {
+          if (!params) return 'N/A';
+          if (!params.row) return 'N/A';
+          return params.row.pi_firstName || params.row.principalInvestigator || 'N/A';
+        };
         break;
       case 'actions':
-        dataGridColumn.renderCell = (params) => (
+        dataGridColumn.renderCell = (params) => {
+          if (!params) return null;
+          if (!params.row) return null;
+          return (
           <Stack direction="row" spacing={1} justifyContent="flex-end">
             {checkUserPrivilege(user, 'projects.assign_contractor') && (
               <Tooltip title="Assign Contractors">
@@ -239,14 +250,18 @@ function ProjectManagementPage() {
               </Tooltip>
             )}
           </Stack>
-        );
+          );
+        };
         dataGridColumn.sortable = false;
         dataGridColumn.filterable = false;
         dataGridColumn.headerAlign = 'right';
         dataGridColumn.align = 'right';
         break;
       default:
-        dataGridColumn.valueGetter = (params) => params.value || 'N/A';
+        dataGridColumn.valueGetter = (params) => {
+          if (!params) return 'N/A';
+          return params.value || 'N/A';
+        };
         break;
     }
     return dataGridColumn;
@@ -309,11 +324,13 @@ function ProjectManagementPage() {
       {!loading && !error && projects.length === 0 && checkUserPrivilege(user, 'project.read_all') && (<Alert severity="info" sx={{ mt: 2 }}>No projects found. Adjust filters or add a new project.</Alert>)}
       {!loading && !error && projects.length === 0 && !checkUserPrivilege(user, 'project.read_all') && (<Alert severity="warning" sx={{ mt: 2 }}>You do not have the necessary permissions to view any projects.</Alert>)}
 
-      {!loading && !error && projects.length > 0 && (
+      {!loading && !error && projects && projects.length > 0 && columns && columns.length > 0 && (
         <Box
           m="40px 0 0 0"
           height="75vh"
+          width="100%"
           sx={{
+            overflow: "hidden",
             "& .MuiDataGrid-root": {
               border: "none",
             },
@@ -321,15 +338,23 @@ function ProjectManagementPage() {
               borderBottom: "none",
             },
             "& .MuiDataGrid-columnHeaders": {
-              backgroundColor: colors.blueAccent[700],
+              backgroundColor: `${colors.blueAccent[700]} !important`,
               borderBottom: "none",
+              minHeight: "56px",
+            },
+            "& .MuiDataGrid-columnHeader": {
+              backgroundColor: `${colors.blueAccent[700]} !important`,
+            },
+            "& .MuiDataGrid-columnHeaderTitle": {
+              color: "white !important",
+              fontWeight: "bold",
             },
             "& .MuiDataGrid-virtualScroller": {
               backgroundColor: colors.primary[400],
             },
             "& .MuiDataGrid-footerContainer": {
               borderTop: "none",
-              backgroundColor: colors.blueAccent[700],
+              backgroundColor: `${colors.blueAccent[700]} !important`,
             },
             "& .MuiCheckbox-root": {
               color: `${colors.greenAccent[200]} !important`,
@@ -340,14 +365,15 @@ function ProjectManagementPage() {
           }}
         >
           <DataGrid
-            rows={projects}
+            rows={projects || []}
             columns={columns}
-            getRowId={(row) => row.id}
+            getRowId={(row) => row?.id || Math.random()}
             initialState={{
               sorting: {
                 sortModel: [{ field: orderBy, sort: order }],
               },
             }}
+            disableRowSelectionOnClick
           />
         </Box>
       )}

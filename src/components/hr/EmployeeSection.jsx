@@ -205,7 +205,7 @@ export default function EmployeeSection({
                         borderBottom: "none",
                     },
                     "& .MuiDataGrid-columnHeaders": {
-                        backgroundColor: colors.blueAccent[700],
+                        backgroundColor: `${colors.blueAccent[700]} !important`,
                         borderBottom: "none",
                     },
                     "& .MuiDataGrid-virtualScroller": {
@@ -213,7 +213,7 @@ export default function EmployeeSection({
                     },
                     "& .MuiDataGrid-footerContainer": {
                         borderTop: "none",
-                        backgroundColor: colors.blueAccent[700],
+                        backgroundColor: `${colors.blueAccent[700]} !important`,
                     },
                     "& .MuiCheckbox-root": {
                         color: `${colors.greenAccent[200]} !important`,

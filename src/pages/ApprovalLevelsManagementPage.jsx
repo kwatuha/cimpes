@@ -416,7 +416,7 @@ const levelColumns = [
                         color: theme.palette.text.primary,
                     },
                     "& .MuiDataGrid-columnHeaders": {
-                        backgroundColor: colors.blueAccent[700],
+                        backgroundColor: `${colors.blueAccent[700]} !important`,
                         borderBottom: "none",
                     },
                     "& .MuiDataGrid-virtualScroller": {
@@ -424,7 +424,7 @@ const levelColumns = [
                     },
                     "& .MuiDataGrid-footerContainer": {
                         borderTop: "none",
-                        backgroundColor: colors.blueAccent[700],
+                        backgroundColor: `${colors.blueAccent[700]} !important`,
                     },
                     "& .MuiCheckbox-root": {
                         color: `${colors.greenAccent[200]} !important`,
@@ -478,7 +478,7 @@ const levelColumns = [
                             color: theme.palette.text.primary,
                         },
                         "& .MuiDataGrid-columnHeaders": {
-                            backgroundColor: colors.blueAccent[700],
+                            backgroundColor: `${colors.blueAccent[700]} !important`,
                             borderBottom: "none",
                         },
                         "& .MuiDataGrid-virtualScroller": {
@@ -486,7 +486,7 @@ const levelColumns = [
                         },
                         "& .MuiDataGrid-footerContainer": {
                             borderTop: "none",
-                            backgroundColor: colors.blueAccent[700],
+                            backgroundColor: `${colors.blueAccent[700]} !important`,
                         },
                         "& .MuiCheckbox-root": {
                             color: `${colors.greenAccent[200]} !important`,

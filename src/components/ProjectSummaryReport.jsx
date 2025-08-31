@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Grid, CircularProgress, Alert, Card, CardContent } from '@mui/material';
+import { Box, Typography, Grid, CircularProgress, Alert, Card, CardContent, useTheme } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
+import { tokens } from '../pages/dashboard/theme';
 
 import apiService from '../api';
 
@@ -45,6 +46,9 @@ const projectListColumns = [
 ];
 
 const ProjectSummaryReport = ({ filters }) => {
+    const theme = useTheme();
+    const colors = tokens(theme.palette.mode);
+    
     const [reportData, setReportData] = useState({
         detailedList: [],
         statusSummary: [],
@@ -104,13 +108,10 @@ const ProjectSummaryReport = ({ filters }) => {
         return <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>;
     }
 
-    // `DataGrid` requires an `id` field, so we must add it if it doesn't exist
-    const detailedListWithIds = reportData.detailedList.map((row, index) => ({
-        ...row,
-        id: row.projectId || index,
-    }));
+    // Create a unique ID for each row
+    const getRowId = (row) => `${row.projectName}-${row.financialYearName}-${row.departmentName}-${row.countyName}`;
 
-    const hasData = detailedListWithIds.length > 0 ||
+    const hasData = reportData.detailedList.length > 0 ||
                     reportData.statusSummary.length > 0 ||
                     reportData.projectsStatusOverTime.length > 0 ||
                     reportData.financialStatusByProjectStatus.length > 0 ||
@@ -244,12 +245,35 @@ const ProjectSummaryReport = ({ filters }) => {
                 <Typography variant="h5" component="h2" gutterBottom>
                     Detailed Project List
                 </Typography>
-                <Box sx={{ height: 600, width: '100%' }}>
+                <Box 
+                    sx={{ 
+                        height: 600, 
+                        width: '100%',
+                        "& .MuiDataGrid-root": {
+                            border: "none",
+                        },
+                        "& .MuiDataGrid-cell": {
+                            borderBottom: "none",
+                        },
+                        "& .MuiDataGrid-columnHeaders": {
+                            backgroundColor: `${colors.blueAccent[700]} !important`,
+                            borderBottom: "none",
+                        },
+                        "& .MuiDataGrid-virtualScroller": {
+                            backgroundColor: colors.primary[400],
+                        },
+                        "& .MuiDataGrid-footerContainer": {
+                            borderTop: "none",
+                            backgroundColor: `${colors.blueAccent[700]} !important`,
+                        },
+                    }}
+                >
                     <DataGrid
-                        rows={detailedListWithIds}
+                        rows={reportData.detailedList}
                         columns={projectListColumns}
                         pageSizeOptions={[5, 10, 25]}
                         disableRowSelectionOnClick
+                        getRowId={getRowId}
                         initialState={{
                             pagination: {
                                 paginationModel: {

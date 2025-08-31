@@ -821,7 +821,7 @@ function UserManagementPage() {
               color: colors.greenAccent[300],
             },
             "& .MuiDataGrid-columnHeaders": {
-              backgroundColor: colors.blueAccent[700],
+              backgroundColor: `${colors.blueAccent[700]} !important`,
               borderBottom: "none",
             },
             "& .MuiDataGrid-virtualScroller": {
@@ -829,7 +829,7 @@ function UserManagementPage() {
             },
             "& .MuiDataGrid-footerContainer": {
               borderTop: "none",
-              backgroundColor: colors.blueAccent[700],
+              backgroundColor: `${colors.blueAccent[700]} !important`,
             },
             "& .MuiCheckbox-root": {
               color: `${colors.greenAccent[200]} !important`,
@@ -914,7 +914,7 @@ function UserManagementPage() {
                   color: colors.greenAccent[300],
                 },
                 "& .MuiDataGrid-columnHeaders": {
-                  backgroundColor: colors.blueAccent[700],
+                  backgroundColor: `${colors.blueAccent[700]} !important`,
                   borderBottom: "none",
                 },
                 "& .MuiDataGrid-virtualScroller": {
@@ -922,7 +922,7 @@ function UserManagementPage() {
                 },
                 "& .MuiDataGrid-footerContainer": {
                   borderTop: "none",
-                  backgroundColor: colors.blueAccent[700],
+                  backgroundColor: `${colors.blueAccent[700]} !important`,
                 },
                 "& .MuiCheckbox-root": {
                   color: `${colors.greenAccent[200]} !important`,
@@ -1014,7 +1014,7 @@ function UserManagementPage() {
                   color: colors.greenAccent[300],
                 },
                 "& .MuiDataGrid-columnHeaders": {
-                  backgroundColor: colors.blueAccent[700],
+                  backgroundColor: `${colors.blueAccent[700]} !important`,
                   borderBottom: "none",
                 },
                 "& .MuiDataGrid-virtualScroller": {
@@ -1022,7 +1022,7 @@ function UserManagementPage() {
                 },
                 "& .MuiDataGrid-footerContainer": {
                   borderTop: "none",
-                  backgroundColor: colors.blueAccent[700],
+                  backgroundColor: `${colors.blueAccent[700]} !important`,
                 },
                 "& .MuiCheckbox-root": {
                   color: `${colors.greenAccent[200]} !important`,

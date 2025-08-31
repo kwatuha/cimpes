@@ -85,17 +85,17 @@ export default function JobGroupsSection({ jobGroups, showNotification, refreshD
                     "& .MuiDataGrid-cell": {
                         borderBottom: "none",
                     },
-                    "& .MuiDataGrid-columnHeaders": {
-                        backgroundColor: colors.blueAccent[700],
-                        borderBottom: "none",
-                    },
-                    "& .MuiDataGrid-virtualScroller": {
-                        backgroundColor: colors.primary[400],
-                    },
-                    "& .MuiDataGrid-footerContainer": {
-                        borderTop: "none",
-                        backgroundColor: colors.blueAccent[700],
-                    },
+                                "& .MuiDataGrid-columnHeaders": {
+                backgroundColor: `${colors.blueAccent[700]} !important`,
+                borderBottom: "none",
+            },
+            "& .MuiDataGrid-virtualScroller": {
+                backgroundColor: colors.primary[400],
+            },
+            "& .MuiDataGrid-footerContainer": {
+                borderTop: "none",
+                backgroundColor: `${colors.blueAccent[700]} !important`,
+            },
                     "& .MuiCheckbox-root": {
                         color: `${colors.greenAccent[200]} !important`,
                     },

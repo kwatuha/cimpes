@@ -1,8 +1,9 @@
 // src/components/WardSummaryReport.jsx
 
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Grid, CircularProgress, Alert } from '@mui/material';
+import { Box, Typography, Grid, CircularProgress, Alert, useTheme } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
+import { tokens } from '../pages/dashboard/theme';
 
 import DonutChart from './charts/DonutChart';
 import BarLineChart from './charts/BarLineChart';
@@ -42,6 +43,9 @@ const wardTableColumns = [
 ];
 
 const WardSummaryReport = ({ filters }) => {
+    const theme = useTheme();
+    const colors = tokens(theme.palette.mode);
+    
     const [reportData, setReportData] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -83,11 +87,8 @@ const WardSummaryReport = ({ filters }) => {
         return <Alert severity="info" sx={{ mt: 2 }}>No data found for the selected filters.</Alert>;
     }
 
-    // `DataGrid` requires an `id` field. We will use the `wardId` as a unique identifier.
-    const reportDataWithIds = reportData.map((row) => ({
-        ...row,
-        id: row.wardId,
-    }));
+    // Create a unique ID for each row
+    const getRowId = (row) => `${row.name}-${row.subcountyName}-${row.countyName}-${row.projectCount}`;
 
     const donutChartData = reportData.map(item => ({
         name: item.name,
@@ -111,12 +112,36 @@ const WardSummaryReport = ({ filters }) => {
                 </Grid>
             </Grid>
 
-            <Box sx={{ height: 600, width: '100%', mt: 4 }}>
+            <Box 
+                sx={{ 
+                    height: 600, 
+                    width: '100%', 
+                    mt: 4,
+                    "& .MuiDataGrid-root": {
+                        border: "none",
+                    },
+                    "& .MuiDataGrid-cell": {
+                        borderBottom: "none",
+                    },
+                    "& .MuiDataGrid-columnHeaders": {
+                        backgroundColor: `${colors.blueAccent[700]} !important`,
+                        borderBottom: "none",
+                    },
+                    "& .MuiDataGrid-virtualScroller": {
+                        backgroundColor: colors.primary[400],
+                    },
+                    "& .MuiDataGrid-footerContainer": {
+                        borderTop: "none",
+                        backgroundColor: `${colors.blueAccent[700]} !important`,
+                    },
+                }}
+            >
                 <DataGrid
-                    rows={reportDataWithIds}
+                    rows={reportData}
                     columns={wardTableColumns}
                     pageSizeOptions={[5, 10, 25]}
                     disableRowSelectionOnClick
+                    getRowId={getRowId}
                     initialState={{
                         pagination: {
                             paginationModel: {

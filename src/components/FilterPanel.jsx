@@ -14,11 +14,13 @@ import {
   AccordionSummary,
   AccordionDetails,
   CircularProgress,
+  useTheme,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import ClearAllIcon from '@mui/icons-material/ClearAll';
 import apiService from '../api';
+import { tokens } from '../pages/dashboard/theme';
 
 const initialFilters = {
   county: 'All',
@@ -42,6 +44,9 @@ const initialFilters = {
 };
 
 function FilterPanel({ onApplyFilters }) {
+  const theme = useTheme();
+  const colors = tokens(theme.palette.mode);
+  
   const [filters, setFilters] = useState(initialFilters);
   const [filterOptions, setFilterOptions] = useState({});
   const [loadingOptions, setLoadingOptions] = useState(true);
@@ -88,18 +93,41 @@ function FilterPanel({ onApplyFilters }) {
   }
 
   return (
-    <Accordion defaultExpanded sx={{ mb: 3, boxShadow: 3 }}>
+    <Accordion 
+      defaultExpanded 
+      sx={{ 
+        mb: 3, 
+        boxShadow: 3,
+        "& .MuiAccordion-root": {
+          backgroundColor: colors.primary[400],
+        }
+      }}
+    >
       <AccordionSummary
-        expandIcon={<ExpandMoreIcon />}
+        expandIcon={<ExpandMoreIcon sx={{ color: 'white' }} />}
         aria-controls="filter-panel-content"
         id="filter-panel-header"
-        sx={{ backgroundColor: 'primary.main', color: 'white' }}
+        sx={{ 
+          backgroundColor: colors.blueAccent[700],
+          color: 'white',
+          '&:hover': {
+            backgroundColor: colors.blueAccent[600],
+          },
+          '&.Mui-expanded': {
+            backgroundColor: colors.blueAccent[700],
+          }
+        }}
       >
-        <FilterListIcon sx={{ mr: 1 }} />
-        <Typography variant="h6" sx={{ color: 'white' }}>Filter Data</Typography>
+        <FilterListIcon sx={{ mr: 1, color: 'white' }} />
+        <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold' }}>Filter Data</Typography>
       </AccordionSummary>
-      <AccordionDetails sx={{ p: 2 }}>
-        <Grid container spacing={2}>
+      <AccordionDetails sx={{ 
+        p: 2, 
+        backgroundColor: colors.primary[400],
+        borderTop: `2px solid ${colors.blueAccent[700]}`,
+        borderRadius: '0 0 8px 8px'
+      }}>
+        <Grid container spacing={1.5}>
           {/* Search by Individual ID */}
           <Grid item xs={12} md={6}>
             <TextField
@@ -109,12 +137,13 @@ function FilterPanel({ onApplyFilters }) {
               value={filters.searchIndividualId}
               onChange={handleChange}
               variant="outlined"
+              size="small"
             />
           </Grid>
 
           {/* Geographic Filters */}
           <Grid item xs={12} sm={6} md={3}>
-            <FormControl fullWidth variant="outlined">
+            <FormControl fullWidth variant="outlined" size="small" sx={{ minWidth: '140px' }}>
               <InputLabel>County</InputLabel>
               <Select
                 name="county"
@@ -130,7 +159,7 @@ function FilterPanel({ onApplyFilters }) {
             </FormControl>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <FormControl fullWidth variant="outlined">
+            <FormControl fullWidth variant="outlined" size="small" sx={{ minWidth: '140px' }}>
               <InputLabel>Sub-County</InputLabel>
               <Select
                 name="subCounty"
@@ -148,7 +177,7 @@ function FilterPanel({ onApplyFilters }) {
 
           {/* Demographic Filters */}
           <Grid item xs={12} sm={6} md={3}>
-            <FormControl fullWidth variant="outlined">
+            <FormControl fullWidth variant="outlined" size="small" sx={{ minWidth: '120px' }}>
               <InputLabel>Gender</InputLabel>
               <Select
                 name="gender"
@@ -172,6 +201,7 @@ function FilterPanel({ onApplyFilters }) {
               value={filters.minAge}
               onChange={handleChange}
               variant="outlined"
+              size="small"
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
@@ -183,10 +213,11 @@ function FilterPanel({ onApplyFilters }) {
               value={filters.maxAge}
               onChange={handleChange}
               variant="outlined"
+              size="small"
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <FormControl fullWidth variant="outlined">
+            <FormControl fullWidth variant="outlined" size="small" sx={{ minWidth: '140px' }}>
               <InputLabel>Occupation</InputLabel>
               <Select
                 name="occupation"
@@ -202,7 +233,7 @@ function FilterPanel({ onApplyFilters }) {
             </FormControl>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <FormControl fullWidth variant="outlined">
+            <FormControl fullWidth variant="outlined" size="small" sx={{ minWidth: '160px' }}>
               <InputLabel>Education Level</InputLabel>
               <Select
                 name="educationLevel"
@@ -220,7 +251,7 @@ function FilterPanel({ onApplyFilters }) {
 
           {/* Health Status Filters */}
           <Grid item xs={12} sm={6} md={3}>
-            <FormControl fullWidth variant="outlined">
+            <FormControl fullWidth variant="outlined" size="small" sx={{ minWidth: '140px' }}>
               <InputLabel>Malaria Status</InputLabel>
               <Select
                 name="malariaStatus"
@@ -236,7 +267,7 @@ function FilterPanel({ onApplyFilters }) {
             </FormControl>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <FormControl fullWidth variant="outlined">
+            <FormControl fullWidth variant="outlined" size="small" sx={{ minWidth: '140px' }}>
               <InputLabel>Dengue Status</InputLabel>
               <Select
                 name="dengueStatus"
@@ -252,7 +283,7 @@ function FilterPanel({ onApplyFilters }) {
             </FormControl>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <FormControl fullWidth variant="outlined">
+            <FormControl fullWidth variant="outlined" size="small" sx={{ minWidth: '160px' }}>
               <InputLabel>Mosquito Net Use</InputLabel>
               <Select
                 name="mosquitoNetUse"
@@ -278,6 +309,7 @@ function FilterPanel({ onApplyFilters }) {
               value={filters.minRainfall}
               onChange={handleChange}
               variant="outlined"
+              size="small"
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
@@ -289,6 +321,7 @@ function FilterPanel({ onApplyFilters }) {
               value={filters.maxRainfall}
               onChange={handleChange}
               variant="outlined"
+              size="small"
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
@@ -300,6 +333,7 @@ function FilterPanel({ onApplyFilters }) {
               value={filters.minTemp}
               onChange={handleChange}
               variant="outlined"
+              size="small"
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
@@ -311,6 +345,7 @@ function FilterPanel({ onApplyFilters }) {
               value={filters.maxTemp}
               onChange={handleChange}
               variant="outlined"
+              size="small"
             />
           </Grid>
 
@@ -324,6 +359,7 @@ function FilterPanel({ onApplyFilters }) {
               value={filters.minHouseholdSize}
               onChange={handleChange}
               variant="outlined"
+              size="small"
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
@@ -335,10 +371,11 @@ function FilterPanel({ onApplyFilters }) {
               value={filters.maxHouseholdSize}
               onChange={handleChange}
               variant="outlined"
+              size="small"
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <FormControl fullWidth variant="outlined">
+            <FormControl fullWidth variant="outlined" size="small" sx={{ minWidth: '160px' }}>
               <InputLabel>Healthcare Access</InputLabel>
               <Select
                 name="healthcareAccess"
@@ -355,12 +392,25 @@ function FilterPanel({ onApplyFilters }) {
           </Grid>
 
           {/* Action Buttons */}
-          <Grid item xs={12} display="flex" justifyContent="flex-end" gap={2}>
+          <Grid item xs={12} display="flex" justifyContent="flex-end" gap={1.5}>
             <Button
               variant="contained"
               onClick={handleApply}
               startIcon={<FilterListIcon />}
-              sx={{ backgroundColor: '#4CAF50', '&:hover': { backgroundColor: '#45a049' } }}
+              sx={{ 
+                backgroundColor: colors.blueAccent[700],
+                color: 'white',
+                borderColor: colors.blueAccent[700],
+                '&:hover': { 
+                  backgroundColor: colors.blueAccent[600],
+                  borderColor: colors.blueAccent[600]
+                },
+                fontWeight: 'bold',
+                borderRadius: '8px',
+                px: 3,
+                py: 1.5,
+                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+              }}
             >
               Apply Filters
             </Button>
@@ -368,7 +418,19 @@ function FilterPanel({ onApplyFilters }) {
               variant="outlined"
               onClick={handleReset}
               startIcon={<ClearAllIcon />}
-              color="secondary"
+              sx={{
+                borderColor: colors.grey[400],
+                color: colors.grey[100],
+                '&:hover': {
+                  backgroundColor: colors.primary[500],
+                  borderColor: colors.grey[100],
+                  color: colors.grey[100]
+                },
+                fontWeight: 'bold',
+                borderRadius: '8px',
+                px: 3,
+                py: 1.5
+              }}
             >
               Reset Filters
             </Button>

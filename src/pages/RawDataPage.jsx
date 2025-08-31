@@ -176,19 +176,41 @@ function RawDataPage() {
       <Stack direction="row" spacing={2} sx={{ my: 2, justifyContent: 'flex-end' }}>
         <Button
           variant="contained"
-          color="primary"
           onClick={handleExportExcel}
           disabled={loading || participants.length === 0 || exportingExcel}
           startIcon={exportingExcel ? <CircularProgress size={20} color="inherit" /> : <FileDownloadIcon />}
+          sx={{
+            backgroundColor: colors.blueAccent[700],
+            color: 'white',
+            '&:hover': {
+              backgroundColor: colors.blueAccent[600],
+            },
+            fontWeight: 'bold',
+            borderRadius: '8px',
+            px: 3,
+            py: 1.5,
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+          }}
         >
           {exportingExcel ? 'Exporting...' : 'Export to Excel'}
         </Button>
         <Button
           variant="contained"
-          color="secondary"
           onClick={handleExportPdf}
           disabled={loading || participants.length === 0 || exportingPdf}
           startIcon={exportingPdf ? <CircularProgress size={20} color="inherit" /> : <PictureAsPdfIcon />}
+          sx={{
+            backgroundColor: colors.greenAccent[600],
+            color: 'white',
+            '&:hover': {
+              backgroundColor: colors.greenAccent[700],
+            },
+            fontWeight: 'bold',
+            borderRadius: '8px',
+            px: 3,
+            py: 1.5,
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+          }}
         >
           {exportingPdf ? 'Generating PDF...' : 'Export to PDF'}
         </Button>
@@ -213,7 +235,9 @@ function RawDataPage() {
         <Box
           m="40px 0 0 0"
           height="75vh"
+          width="100%"
           sx={{
+            overflow: "hidden",
             "& .MuiDataGrid-root": {
               border: "none",
             },
@@ -221,15 +245,23 @@ function RawDataPage() {
               borderBottom: "none",
             },
             "& .MuiDataGrid-columnHeaders": {
-              backgroundColor: colors.blueAccent[700],
+              backgroundColor: `${colors.blueAccent[700]} !important`,
               borderBottom: "none",
+              minHeight: "56px",
+            },
+            "& .MuiDataGrid-columnHeader": {
+              backgroundColor: `${colors.blueAccent[700]} !important`,
+            },
+            "& .MuiDataGrid-columnHeaderTitle": {
+              color: "white !important",
+              fontWeight: "bold",
             },
             "& .MuiDataGrid-virtualScroller": {
               backgroundColor: colors.primary[400],
             },
             "& .MuiDataGrid-footerContainer": {
               borderTop: "none",
-              backgroundColor: colors.blueAccent[700],
+              backgroundColor: `${colors.blueAccent[700]} !important`,
             },
             "& .MuiCheckbox-root": {
               color: `${colors.greenAccent[200]} !important`,
@@ -249,6 +281,7 @@ function RawDataPage() {
             onSortModelChange={setSortModel}
             sortModel={sortModel}
             getRowId={(row) => row.individualId}
+            disableRowSelectionOnClick
           />
         </Box>
       )}

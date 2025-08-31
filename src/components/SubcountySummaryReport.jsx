@@ -1,12 +1,13 @@
 // src/components/SubcountySummaryReport.jsx
 
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Grid, CircularProgress, Alert } from '@mui/material';
+import { Box, Typography, Grid, CircularProgress, Alert, useTheme } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 
 import DonutChart from './charts/DonutChart';
 import BarLineChart from './charts/BarLineChart';
 import apiService from '../api';
+import { tokens } from '../pages/dashboard/theme';
 
 // Define columns for the detailed project list table
 const subcountyTableColumns = [
@@ -44,6 +45,9 @@ const subcountyTableColumns = [
 ];
 
 const SubcountySummaryReport = ({ filters }) => {
+    const theme = useTheme();
+    const colors = tokens(theme.palette.mode);
+    
     const [reportData, setReportData] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -54,12 +58,7 @@ const SubcountySummaryReport = ({ filters }) => {
             setError(null);
             try {
                 const fetchedData = await apiService.reports.getSubcountySummaryReport(filters);
-                // Map over the fetched data to add a unique 'id' field
-                const dataWithIds = fetchedData.map((row, index) => ({
-                    ...row,
-                    id: row.subcountyId ? row.subcountyId : index,
-                }));
-                setReportData(dataWithIds);
+                setReportData(fetchedData);
             } catch (err) {
                 setError("Failed to load subcounty summary report data.");
                 console.error(err);
@@ -87,6 +86,9 @@ const SubcountySummaryReport = ({ filters }) => {
         return <Alert severity="info" sx={{ mt: 2 }}>No data found for the selected filters.</Alert>;
     }
 
+    // Create a unique ID for each row
+    const getRowId = (row) => `${row.name}-${row.countyName}-${row.projectCount}`;
+
     // Process the data for the charts
     const donutChartData = reportData.map(item => ({
         name: item.name,
@@ -110,12 +112,36 @@ const SubcountySummaryReport = ({ filters }) => {
                 </Grid>
             </Grid>
 
-            <Box sx={{ height: 600, width: '100%', mt: 4 }}>
+            <Box 
+                sx={{ 
+                    height: 600, 
+                    width: '100%', 
+                    mt: 4,
+                    "& .MuiDataGrid-root": {
+                        border: "none",
+                    },
+                    "& .MuiDataGrid-cell": {
+                        borderBottom: "none",
+                    },
+                    "& .MuiDataGrid-columnHeaders": {
+                        backgroundColor: `${colors.blueAccent[700]} !important`,
+                        borderBottom: "none",
+                    },
+                    "& .MuiDataGrid-virtualScroller": {
+                        backgroundColor: colors.primary[400],
+                    },
+                    "& .MuiDataGrid-footerContainer": {
+                        borderTop: "none",
+                        backgroundColor: `${colors.blueAccent[700]} !important`,
+                    },
+                }}
+            >
                 <DataGrid
                     rows={reportData}
                     columns={subcountyTableColumns}
                     pageSizeOptions={[5, 10, 25]}
                     disableRowSelectionOnClick
+                    getRowId={getRowId}
                     initialState={{
                         pagination: {
                             paginationModel: {

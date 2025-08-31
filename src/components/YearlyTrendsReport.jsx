@@ -1,8 +1,9 @@
 // src/components/YearlyTrendsReport.jsx
 
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Grid, CircularProgress, Alert } from '@mui/material';
+import { Box, Typography, Grid, CircularProgress, Alert, useTheme } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
+import { tokens } from '../pages/dashboard/theme';
 
 import BarLineChart from './charts/BarLineChart';
 import apiService from '../api';
@@ -39,6 +40,9 @@ const yearlyTrendsTableColumns = [
 ];
 
 const YearlyTrendsReport = ({ filters }) => {
+    const theme = useTheme();
+    const colors = tokens(theme.palette.mode);
+    
     const [reportData, setReportData] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -84,11 +88,8 @@ const YearlyTrendsReport = ({ filters }) => {
         paid: parseFloat(item.totalPaid),
     }));
 
-    // DataGrid requires a unique 'id' field for each row.
-    const reportDataWithIds = reportData.map((row, index) => ({
-        ...row,
-        id: row.financialYearId || index,
-    }));
+    // Create a unique ID for each row
+    const getRowId = (row) => `${row.name}-${row.projectCount}-${row.totalBudget}`;
 
     return (
         <Box>
@@ -97,12 +98,36 @@ const YearlyTrendsReport = ({ filters }) => {
                 <BarLineChart data={chartData} />
             </Box>
 
-            <Box sx={{ height: 600, width: '100%', mt: 4 }}>
+            <Box 
+                sx={{ 
+                    height: 600, 
+                    width: '100%', 
+                    mt: 4,
+                    "& .MuiDataGrid-root": {
+                        border: "none",
+                    },
+                    "& .MuiDataGrid-cell": {
+                        borderBottom: "none",
+                    },
+                    "& .MuiDataGrid-columnHeaders": {
+                        backgroundColor: `${colors.blueAccent[700]} !important`,
+                        borderBottom: "none",
+                    },
+                    "& .MuiDataGrid-virtualScroller": {
+                        backgroundColor: colors.primary[400],
+                    },
+                    "& .MuiDataGrid-footerContainer": {
+                        borderTop: "none",
+                        backgroundColor: `${colors.blueAccent[700]} !important`,
+                    },
+                }}
+            >
                 <DataGrid
-                    rows={reportDataWithIds}
+                    rows={reportData}
                     columns={yearlyTrendsTableColumns}
                     pageSizeOptions={[5, 10, 25]}
                     disableRowSelectionOnClick
+                    getRowId={getRowId}
                     initialState={{
                         pagination: {
                             paginationModel: {
