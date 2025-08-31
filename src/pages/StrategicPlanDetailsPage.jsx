@@ -1,4 +1,3 @@
-// src/pages/StrategicPlanDetailsPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box, Typography, CircularProgress, Alert, Button,
@@ -8,10 +7,11 @@ import {
   Divider, ListItemButton, Stack, Tooltip, useTheme
 } from '@mui/material';
 import { useParams, useNavigate } from 'react-router-dom';
+import { DataGrid } from '@mui/x-data-grid';
 import {
   ArrowBack as ArrowBackIcon, FileDownload as FileDownloadIcon,
   Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon, CloudUpload as CloudUploadIcon,
-  ExpandMore as ExpandMoreIcon, Star as StarIcon
+  ExpandMore as ExpandMoreIcon, Star as StarIcon, Visibility as ViewIcon
 } from '@mui/icons-material';
 
 // Hooks
@@ -40,6 +40,7 @@ import {
 } from '../utils/helpers';
 // Labels
 import strategicPlanningLabels from '../configs/strategicPlanningLabels';
+import { tokens } from './dashboard/theme';
 
 
 function StrategicPlanDetailsPage() {
@@ -47,12 +48,11 @@ function StrategicPlanDetailsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const theme = useTheme();
+  const colors = tokens(theme.palette.mode);
 
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [activeTab, setActiveTab] = useState(0);
   const [expandedProgram, setExpandedProgram] = useState(false);
-  const [expandedSubprogram, setExpandedSubprogram] = useState(false);
-  const [expandedWorkPlan, setExpandedWorkPlan] = useState(false);
   const [parentEntityId, setParentEntityId] = useState(null);
 
   const {
@@ -71,14 +71,13 @@ function StrategicPlanDetailsPage() {
 
   const loading = dataLoading || crudLoading;
 
-  // 💡 FIX: Wrap handleFormChange with useCallback to prevent memoized form components from re-rendering on every keystroke
   const handleFormChange = useCallback((e) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({
         ...prev,
         [name]: type === 'checkbox' ? checked : value,
     }));
-  }, [setFormData]); // setFormData is a stable function, so this callback is stable
+  }, [setFormData]);
 
   const handleCloseSnackbar = (event, reason) => {
     if (reason === 'clickaway') return;
@@ -91,14 +90,6 @@ function StrategicPlanDetailsPage() {
 
   const handleProgramAccordionChange = (programId) => (event, isExpanded) => {
     setExpandedProgram(isExpanded ? programId : false);
-  };
-
-  const handleSubprogramAccordionChange = (subProgramId) => (event, isExpanded) => {
-    setExpandedSubprogram(isExpanded ? subProgramId : false);
-  };
-
-  const handleWorkPlanAccordionChange = (workplanId) => (event, isExpanded) => {
-      setExpandedWorkPlan(isExpanded ? workplanId : false);
   };
 
   const handleOpenCreateProgramDialog = (parentId) => {
@@ -120,6 +111,7 @@ function StrategicPlanDetailsPage() {
       setParentEntityId(subProgramId);
       handleOpenCreateDialog('workplan');
   };
+
   const handleOpenEditWorkPlanDialog = (workplan) => {
       setParentEntityId(workplan.subProgramId);
       handleOpenEditDialog('workplan', workplan);
@@ -157,7 +149,6 @@ function StrategicPlanDetailsPage() {
   };
 
   const renderDialogForm = () => {
-    // 💡 Pass the memoized handleFormChange here
     const commonFormProps = { formData, handleFormChange, setFormData };
     switch (dialogType) {
       case 'strategicPlan': return <StrategicPlanForm {...commonFormProps} />;
@@ -168,6 +159,34 @@ function StrategicPlanDetailsPage() {
       default: return <Typography>No form available for this type.</Typography>;
     }
   };
+
+  // DataGrid Columns Definitions
+  const subprogramColumns = [
+    { field: 'subProgramme', headerName: strategicPlanningLabels.subprogram.fields.subProgramme, flex: 1.5, minWidth: 200 },
+    { field: 'kpi', headerName: strategicPlanningLabels.subprogram.fields.kpi, flex: 1, minWidth: 150 },
+    { field: 'totalBudget', headerName: strategicPlanningLabels.subprogram.fields.totalBudget, flex: 1, minWidth: 150, valueFormatter: (params) => formatCurrency(params.value) },
+    {
+      field: 'actions',
+      headerName: 'Actions',
+      sortable: false,
+      filterable: false,
+      flex: 1,
+      minWidth: 150,
+      renderCell: (params) => (
+        <Stack direction="row" spacing={1}>
+          <Tooltip title="View Details">
+            <IconButton color="info" onClick={() => navigate(`/strategic-planning/subprogram/${params.row.subProgramId}`)}><ViewIcon /></IconButton>
+          </Tooltip>
+          {checkUserPrivilege(user, 'subprogram.update') && (
+            <Tooltip title="Edit"><IconButton color="primary" onClick={() => handleOpenEditSubprogramDialog(params.row)}><EditIcon /></IconButton></Tooltip>
+          )}
+          {checkUserPrivilege(user, 'subprogram.delete') && (
+            <Tooltip title="Delete"><IconButton color="error" onClick={() => handleDelete('subprogram', params.row.subProgramId)}><DeleteIcon /></IconButton></Tooltip>
+          )}
+        </Stack>
+      ),
+    },
+  ];
 
   if (loading && !strategicPlan) {
     return (
@@ -256,6 +275,68 @@ function StrategicPlanDetailsPage() {
         </Tabs>
       </Box>
 
+      {/* Strategic Plan Tab */}
+      <TabPanel value={activeTab} index={0}>
+          <Box mb={2}>
+              <Grid container spacing={3}>
+                  <Grid item xs={12}>
+                      <DataDisplayCard title="Strategic Plan Information" onAdd={() => handleOpenEditDialog('strategicPlan', strategicPlan)} showAdd={checkUserPrivilege(user, 'strategic_plan.update')} addLabel="Edit">
+                          <Grid container spacing={2}>
+                              <Grid item xs={12} sm={6} md={4}>
+                                  <JsonInputList label="Objectives" items={strategicPlan.objectives} />
+                              </Grid>
+                              <Grid item xs={12} sm={6} md={4}>
+                                  <JsonInputList label="Strategies" items={strategicPlan.strategies} />
+                              </Grid>
+                              <Grid item xs={12} sm={6} md={4}>
+                                  <JsonInputList label="Key Result Areas" items={strategicPlan.keyResultAreas} />
+                              </Grid>
+                              <Grid item xs={12} sm={6} md={4}>
+                                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Is Active:</Typography>
+                                  <Chip label={formatBooleanForDisplay(strategicPlan.isActive)} color={strategicPlan.isActive ? "success" : "default"} />
+                              </Grid>
+                              <Grid item xs={12} sm={6} md={4}>
+                                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Remarks:</Typography>
+                                  <MultiLineTextAsList text={strategicPlan.remarks} />
+                              </Grid>
+                          </Grid>
+                      </DataDisplayCard>
+                  </Grid>
+                  <Grid item xs={12}>
+                      <DataDisplayCard title="Milestones" showAdd={checkUserPrivilege(user, 'milestone.create')} onAdd={() => handleOpenCreateDialog('milestone')}>
+                          {milestones && milestones.length > 0 ? (
+                              <List dense sx={{ maxHeight: CARD_CONTENT_MAX_HEIGHT, overflowY: 'auto' }}>
+                                  {milestones.map(milestone => (
+                                      <ListItem
+                                          key={milestone.milestoneId}
+                                          secondaryAction={
+                                              <Stack direction="row" spacing={1}>
+                                                  {checkUserPrivilege(user, 'milestone.update') && (
+                                                      <IconButton edge="end" aria-label="edit" onClick={() => handleOpenEditDialog('milestone', milestone)} size="small"><EditIcon fontSize="small" /></IconButton>
+                                                  )}
+                                                  {checkUserPrivilege(user, 'milestone.delete') && (
+                                                      <IconButton edge="end" aria-label="delete" onClick={() => handleDelete('milestone', milestone.milestoneId)} size="small"><DeleteIcon fontSize="small" /></IconButton>
+                                                  )}
+                                              </Stack>
+                                          }
+                                      >
+                                          <ListItemText
+                                              primary={milestone.title}
+                                              secondary={`Target Date: ${milestone.targetDate}`}
+                                          />
+                                      </ListItem>
+                                  ))}
+                              </List>
+                          ) : (
+                              <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>No milestones defined for this plan.</Typography>
+                          )}
+                      </DataDisplayCard>
+                  </Grid>
+              </Grid>
+          </Box>
+      </TabPanel>
+
+      {/* Programs Tab */}
       <TabPanel value={activeTab} index={1}>
         <Box mb={2}>
             {checkUserPrivilege(user, 'program.create') && (
@@ -286,7 +367,9 @@ function StrategicPlanDetailsPage() {
                   aria-controls={`panel-${program.programId}-content`}
                   id={`panel-${program.programId}-header`}
                   sx={{
-                    bgcolor: 'grey.100',
+                    // Removed the hardcoded bgcolor to ensure theme consistency
+                    // Instead, use an action color for visual distinction
+                    bgcolor: theme.palette.action.hover, 
                     border: '1px solid',
                     borderColor: 'divider',
                     borderRadius: 1,
@@ -360,147 +443,30 @@ function StrategicPlanDetailsPage() {
                   </Box>
                   <Divider sx={{ mb: 1 }} />
                   {subprograms.filter(sub => sub.programId === program.programId).length > 0 ? (
-                    subprograms.filter(sub => sub.programId === program.programId).map(item => (
-                      <Accordion
-                          key={item.subProgramId}
-                          expanded={expandedSubprogram === item.subProgramId}
-                          onChange={handleSubprogramAccordionChange(item.subProgramId)}
-                          sx={{ my: 1, boxShadow: 1 }}
+                      <Box
+                          height="auto"
+                          sx={{
+                              "& .MuiDataGrid-root": { border: "none" },
+                              "& .MuiDataGrid-cell": { borderBottom: "none", color: theme.palette.text.primary },
+                              "& .MuiDataGrid-columnHeaders": {
+                                  backgroundColor: colors.blueAccent[700],
+                                  borderBottom: "none",
+                              },
+                              "& .MuiDataGrid-virtualScroller": { backgroundColor: colors.primary[400] },
+                              "& .MuiDataGrid-footerContainer": {
+                                  borderTop: "none",
+                                  backgroundColor: colors.blueAccent[700],
+                              },
+                          }}
                       >
-                        <AccordionSummary
-                          expandIcon={<ExpandMoreIcon />}
-                          aria-controls={`subprogram-panel-${item.subProgramId}-content`}
-                          id={`subprogram-panel-${item.subProgramId}-header`}
-                          sx={{ bgcolor: 'grey.50', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}
-                        >
-                          <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                            {strategicPlanningLabels.subprogram.fields.subProgramme}: {item.subProgramme || 'N/A'}
-                          </Typography>
-                        </AccordionSummary>
-                        <AccordionDetails>
-                          <Box sx={{ pl: 2, borderLeft: '2px solid', borderColor: 'primary.main' }}>
-                            <Box display="flex" justifyContent="flex-end" mb={1}>
-                                {checkUserPrivilege(user, 'subprogram.update') && (
-                                    <Tooltip title="Edit Subprogram">
-                                        <IconButton size="small" color="primary" onClick={(e) => { e.stopPropagation(); handleOpenEditSubprogramDialog(item); }}><EditIcon /></IconButton>
-                                    </Tooltip>
-                                )}
-                                {checkUserPrivilege(user, 'subprogram.delete') && (
-                                    <Tooltip title="Delete Subprogram">
-                                        <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); handleDelete('subprogram', item.subProgramId); }}><DeleteIcon /></IconButton>
-                                    </Tooltip>
-                                )}
-                            </Box>
-                            
-                            <Box sx={{ mb: 2 }}>
-                                <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>Annual Work Plans</Typography>
-                                    {checkUserPrivilege(user, 'workplan.create') && (
-                                        <Button startIcon={<AddIcon />} variant="contained" size="small" onClick={() => handleOpenCreateWorkPlanDialog(item.subProgramId)}>
-                                            Add Work Plan
-                                        </Button>
-                                    )}
-                                </Box>
-                                <Divider sx={{ mb: 1 }} />
-                                {(annualWorkPlans || []).filter(wp => wp.subProgramId === item.subProgramId).length > 0 ? (
-                                    (annualWorkPlans || []).filter(wp => wp.subProgramId === item.subProgramId).map(workplan => (
-                                        <Accordion
-                                            key={workplan.workplanId}
-                                            expanded={expandedWorkPlan === workplan.workplanId}
-                                            onChange={handleWorkPlanAccordionChange(workplan.workplanId)}
-                                            sx={{ my: 1, boxShadow: 1 }}
-                                        >
-                                            <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: 'grey.100', border: '1px solid', borderColor: 'divider' }}>
-                                                <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                                                    {workplan.workplanName} ({workplan.financialYear})
-                                                </Typography>
-                                            </AccordionSummary>
-                                            <AccordionDetails>
-                                                <Box sx={{ pl: 2, borderLeft: '2px solid', borderColor: 'secondary.main' }}>
-                                                    <Box display="flex" justifyContent="flex-end" mb={1}>
-                                                        {checkUserPrivilege(user, 'workplan.update') && (
-                                                            <Tooltip title="Edit Work Plan">
-                                                                <IconButton size="small" color="primary" onClick={(e) => { e.stopPropagation(); handleOpenEditWorkPlanDialog(workplan); }}><EditIcon /></IconButton>
-                                                            </Tooltip>
-                                                        )}
-                                                        {checkUserPrivilege(user, 'workplan.delete') && (
-                                                            <Tooltip title="Delete Work Plan">
-                                                                <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); handleDelete('workplan', workplan.workplanId); }}><DeleteIcon /></IconButton>
-                                                            </Tooltip>
-                                                        )}
-                                                    </Box>
-                                                    <Typography variant="body2"><strong>Description:</strong> {workplan.workplanDescription}</Typography>
-                                                    <Typography variant="body2"><strong>Total Budget:</strong> {formatCurrency(workplan.totalBudget)}</Typography>
-                                                    <Typography variant="body2"><strong>Approval Status:</strong> <Chip label={workplan.approvalStatus} color={workplan.approvalStatus === 'approved' ? 'success' : 'warning'} size="small" /></Typography>
-
-                                                    <Divider sx={{ my: 2 }} />
-                                                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                                                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Activities</Typography>
-                                                        {/* Removed the 'Add Activity' button from here */}
-                                                    </Box>
-                                                    {(activities || []).filter(a => a.workplanId === workplan.workplanId).length > 0 ? (
-                                                        <List dense sx={{ ml: 2, py: 0 }}>
-                                                            {(activities || []).filter(a => a.workplanId === workplan.workplanId).map(activity => (
-                                                                <ListItem key={activity.activityId} disablePadding sx={{ py: 0.5 }}>
-                                                                    <ListItemText primary={activity.activityName} secondary={`Budget: ${formatCurrency(activity.budgetAllocated)} | Status: ${activity.activityStatus}`} />
-                                                                    <Box>
-                                                                        {/* Removed the edit and delete activity buttons from here */}
-                                                                    </Box>
-                                                                </ListItem>
-                                                            ))}
-                                                        </List>
-                                                    ) : (
-                                                        <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', ml: 2 }}>
-                                                            No activities found.
-                                                        </Typography>
-                                                    )}
-                                                </Box>
-                                            </AccordionDetails>
-                                        </Accordion>
-                                    ))
-                                ) : (
-                                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                                        No work plans available for this subprogram.
-                                    </Typography>
-                                )}
-                            </Box>
-
-                            <Typography variant="body2" sx={{ display: 'block' }}>
-                              <strong>{strategicPlanningLabels.subprogram.fields.kpi}:</strong> {item.kpi || 'N/A'}
-                            </Typography>
-                            <Typography variant="body2" sx={{ display: 'block' }}>
-                              <strong>{strategicPlanningLabels.subprogram.fields.totalBudget}:</strong> {formatCurrency(item.totalBudget)}
-                            </Typography>
-                            <Box sx={{ mt: 1 }}>
-                              <Grid container spacing={1}>
-                                <Grid item xs={12} sm={6}>
-                                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Yearly Targets:</Typography>
-                                  <List disablePadding dense>
-                                    <ListItem disableGutters><ListItemText primary={`Year 1: ${item.yr1Targets || 'N/A'}`} /></ListItem>
-                                    <ListItem disableGutters><ListItemText primary={`Year 2: ${item.yr2Targets || 'N/A'}`} /></ListItem>
-                                    <ListItem disableGutters><ListItemText primary={`Year 3: ${item.yr3Targets || 'N/A'}`} /></ListItem>
-                                    <ListItem disableGutters><ListItemText primary={`Year 4: ${item.yr4Targets || 'N/A'}`} /></ListItem>
-                                    <ListItem disableGutters><ListItemText primary={`Year 5: ${item.yr5Targets || 'N/A'}`} /></ListItem>
-                                  </List>
-                                </Grid>
-                                <Grid item xs={12} sm={6}>
-                                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Yearly Budgets:</Typography>
-                                  <List disablePadding dense>
-                                    <ListItem disableGutters><ListItemText primary={`Year 1: ${formatCurrency(item.yr1Budget)}`} /></ListItem>
-                                    <ListItem disableGutters><ListItemText primary={`Year 2: ${formatCurrency(item.yr2Budget)}`} /></ListItem>
-                                    <ListItem disableGutters><ListItemText primary={`Year 3: ${formatCurrency(item.yr3Budget)}`} /></ListItem>
-                                    <ListItem disableGutters><ListItemText primary={`Year 4: ${formatCurrency(item.yr4Budget)}`} /></ListItem>
-                                    <ListItem disableGutters><ListItemText primary={`Year 5: ${formatCurrency(item.yr5Budget)}`} /></ListItem>
-                                  </List>
-                                </Grid>
-                              </Grid>
-                            </Box>
-                            <MultiLineTextAsList text={item.keyOutcome} label={strategicPlanningLabels.subprogram.fields.keyOutcome} />
-                            <MultiLineTextAsList text={item.remarks} label={strategicPlanningLabels.subprogram.fields.remarks} />
-                          </Box>
-                        </AccordionDetails>
-                      </Accordion>
-                    ))
+                          <DataGrid
+                              rows={subprograms.filter(sub => sub.programId === program.programId)}
+                              columns={subprogramColumns}
+                              getRowId={(row) => row.subProgramId}
+                              autoHeight
+                              hideFooter
+                          />
+                      </Box>
                   ) : (
                     <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', mt: 2 }}>
                       No subprograms available for this program.
@@ -517,6 +483,7 @@ function StrategicPlanDetailsPage() {
         )}
       </TabPanel>
 
+      {/* Attachments Tab */}
       <TabPanel value={activeTab} index={2}>
         <Grid container spacing={4}>
           <Grid item xs={12}>
@@ -561,6 +528,7 @@ function StrategicPlanDetailsPage() {
         </Grid>
       </TabPanel>
 
+      {/* Shared Dialog for all Forms */}
       <Dialog open={openDialog} onClose={handleCloseDialogWithReset} fullWidth maxWidth="md">
         <DialogTitle>
           {currentRecord ? `Edit ${getDialogLabel(dialogType).singular}` : `Add ${getDialogLabel(dialogType).singular}`}

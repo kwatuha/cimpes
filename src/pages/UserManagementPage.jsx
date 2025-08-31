@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box, Typography, Button, TextField, Dialog, DialogTitle,
-  DialogContent, DialogActions, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, Paper, CircularProgress, IconButton,
+  DialogContent, DialogActions, Paper, CircularProgress, IconButton,
   Select, MenuItem, FormControl, InputLabel, Snackbar, Alert, Stack, useTheme,
-  OutlinedInput, Chip, ListSubheader
+  OutlinedInput, Chip, ListSubheader, Checkbox, ListItemText,
 } from '@mui/material';
+import { DataGrid } from "@mui/x-data-grid";
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, PersonAdd as PersonAddIcon, Settings as SettingsIcon, Lock as LockIcon } from '@mui/icons-material';
 import apiService from '../api/userService';
 import { useAuth } from '../context/AuthContext.jsx';
+import { tokens } from "./dashboard/theme";
 
 
 // --- Utility function for case conversion (Copied from ProjectDetailsPage for consistency) ---
@@ -33,6 +34,7 @@ const snakeToCamelCase = (obj) => {
 function UserManagementPage() {
   const { user, logout, hasPrivilege } = useAuth();
   const theme = useTheme();
+  const colors = tokens(theme.palette.mode);
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -55,7 +57,7 @@ function UserManagementPage() {
   // Delete Confirmation Dialog States
   const [openDeleteConfirmDialog, setOpenDeleteConfirmDialog] = useState(false);
   const [userToDeleteId, setUserToDeleteId] = useState(null);
-  const [userToDeleteName, setUserToDeleteName] = useState(''); // Corrected state initialization
+  const [userToDeleteName, setUserToDeleteName] = useState('');
 
   // Role Management States
   const [openRoleManagementDialog, setOpenRoleManagementDialog] = useState(false);
@@ -93,7 +95,7 @@ function UserManagementPage() {
     try {
       if (hasPrivilege('user.read_all')) {
         const data = await apiService.getUsers();
-        const camelCaseData = data.map(u => snakeToCamelCase(u)); // NEW: Convert data to camelCase
+        const camelCaseData = data.map(u => snakeToCamelCase(u));
         setUsers(camelCaseData);
       } else {
         setError("You do not have permission to view user management.");
@@ -104,7 +106,7 @@ function UserManagementPage() {
       if (err.response?.status === 401) {
         logout();
       }
-      setError(err.message || "Failed to load users.");
+      setError(err.response?.data?.message || err.message || "Failed to load users.");
     } finally {
       setLoading(false);
     }
@@ -169,6 +171,10 @@ function UserManagementPage() {
 
   // --- User Management Handlers ---
   const handleOpenCreateUserDialog = () => {
+    if (!hasPrivilege('user.create')) {
+        setSnackbar({ open: true, message: 'Permission denied to create users.', severity: 'error' });
+        return;
+    }
     setCurrentUserToEdit(null);
     setUserFormData({
       username: '', email: '', password: '', firstName: '', lastName: '',
@@ -179,6 +185,10 @@ function UserManagementPage() {
   };
 
   const handleOpenEditUserDialog = (userItem) => {
+    if (!hasPrivilege('user.update')) {
+        setSnackbar({ open: true, message: 'Permission denied to edit users.', severity: 'error' });
+        return;
+    }
     setCurrentUserToEdit(userItem);
     setUserFormData({
       username: userItem.username || '',
@@ -235,7 +245,6 @@ function UserManagementPage() {
             setLoading(false);
             return;
         }
-        // Corrected call to pass camelCase userId
         await apiService.updateUser(currentUserToEdit.userId, userFormData);
         setSnackbar({ open: true, message: 'User updated successfully!', severity: 'success' });
       } else {
@@ -258,6 +267,10 @@ function UserManagementPage() {
   };
 
   const handleOpenDeleteConfirmDialog = (userId, username) => {
+    if (!hasPrivilege('user.delete')) {
+        setSnackbar({ open: true, message: 'Permission denied to delete users.', severity: 'error' });
+        return;
+    }
     setUserToDeleteId(userId);
     setUserToDeleteName(username);
     setOpenDeleteConfirmDialog(true);
@@ -278,7 +291,6 @@ function UserManagementPage() {
           setLoading(false);
           return;
       }
-      // Corrected call to pass camelCase userId
       await apiService.deleteUser(userToDeleteId);
       setSnackbar({ open: true, message: 'User deleted successfully!', severity: 'success' });
       fetchUsers();
@@ -599,6 +611,130 @@ function UserManagementPage() {
     }
   };
 
+  const userColumns = [
+    { field: "userId", headerName: "ID" },
+    {
+      field: "username",
+      headerName: "Username",
+      flex: 1,
+      cellClassName: "username-column--cell",
+    },
+    {
+      field: "email",
+      headerName: "Email",
+      flex: 1,
+    },
+    {
+      field: "firstName",
+      headerName: "First Name",
+      flex: 1,
+    },
+    {
+      field: "lastName",
+      headerName: "Last Name",
+      flex: 1,
+    },
+    {
+      field: "role",
+      headerName: "Role",
+      flex: 1,
+      renderCell: ({ row: { role } }) => {
+        return (
+          <Box
+            width="60%"
+            m="0 auto"
+            p="5px"
+            display="flex"
+            justifyContent="center"
+            backgroundColor={
+              role === "admin"
+                ? colors.greenAccent[600]
+                : colors.greenAccent[700]
+            }
+            borderRadius="4px"
+          >
+            <Typography color={colors.grey[100]} sx={{ ml: "5px" }}>
+              {role}
+            </Typography>
+          </Box>
+        );
+      },
+    },
+    {
+      field: "actions",
+      headerName: "Actions",
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => (
+        <Stack direction="row" spacing={1}>
+          {hasPrivilege('user.update') && (
+            <IconButton sx={{ color: colors.grey[100] }} onClick={() => handleOpenEditUserDialog(params.row)}>
+              <EditIcon />
+            </IconButton>
+          )}
+          {hasPrivilege('user.delete') && params.row.userId !== user.id && (
+            <IconButton sx={{ color: colors.redAccent[500] }} onClick={() => handleOpenDeleteConfirmDialog(params.row.userId, params.row.username)}>
+              <DeleteIcon />
+            </IconButton>
+          )}
+        </Stack>
+      ),
+    },
+  ];
+
+  const roleColumns = [
+    { field: "roleId", headerName: "ID", width: 90 },
+    { field: "roleName", headerName: "Role Name", flex: 1, cellClassName: "username-column--cell" },
+    { field: "description", headerName: "Description", flex: 2 },
+    {
+      field: "actions",
+      headerName: "Actions",
+      width: 150,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => (
+        <Stack direction="row" spacing={1}>
+          {hasPrivilege('role.update') && (
+            <IconButton sx={{ color: colors.grey[100] }} onClick={() => handleOpenEditRoleDialog(params.row)}>
+              <EditIcon />
+            </IconButton>
+          )}
+          {hasPrivilege('role.delete') && (
+            <IconButton sx={{ color: colors.redAccent[500] }} onClick={() => handleDeleteRole(params.row.roleId, params.row.roleName)}>
+              <DeleteIcon />
+            </IconButton>
+          )}
+        </Stack>
+      ),
+    },
+  ];
+
+  const privilegeColumns = [
+    { field: "privilegeId", headerName: "ID", width: 90 },
+    { field: "privilegeName", headerName: "Privilege Name", flex: 1, cellClassName: "username-column--cell" },
+    { field: "description", headerName: "Description", flex: 2 },
+    {
+      field: "actions",
+      headerName: "Actions",
+      width: 150,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => (
+        <Stack direction="row" spacing={1}>
+          {hasPrivilege('privilege.update') && (
+            <IconButton sx={{ color: colors.grey[100] }} onClick={() => handleOpenEditPrivilegeDialog(params.row)}>
+              <EditIcon />
+            </IconButton>
+          )}
+          {hasPrivilege('privilege.delete') && (
+            <IconButton sx={{ color: colors.redAccent[500] }} onClick={() => handleDeletePrivilege(params.row.privilegeId, params.row.privilegeName)}>
+              <DeleteIcon />
+            </IconButton>
+          )}
+        </Stack>
+      ),
+    },
+  ];
 
   if (loading && !error) {
     return (
@@ -631,7 +767,7 @@ function UserManagementPage() {
   return (
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1" sx={{ color: theme.palette.primary.main, fontWeight: 'bold' }}>
+        <Typography variant="h4" component="h1" sx={{ color: colors.grey[100], fontWeight: 'bold' }}>
           User Management
         </Typography>
         <Stack direction="row" spacing={2}>
@@ -640,7 +776,7 @@ function UserManagementPage() {
               variant="contained"
               startIcon={<PersonAddIcon />}
               onClick={handleOpenCreateUserDialog}
-              sx={{ backgroundColor: '#16a34a', '&:hover': { backgroundColor: '#15803d' }, color: 'white', fontWeight: 'semibold', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' }}
+              sx={{ backgroundColor: colors.greenAccent[600], '&:hover': { backgroundColor: colors.greenAccent[700] }, color: 'white', fontWeight: 'semibold', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' }}
             >
               Add New User
             </Button>
@@ -650,7 +786,7 @@ function UserManagementPage() {
               variant="outlined"
               startIcon={<SettingsIcon />}
               onClick={handleOpenRoleManagementDialog}
-              sx={{ borderColor: theme.palette.primary.main, color: theme.palette.primary.main, '&:hover': { backgroundColor: theme.palette.primary.light, color: 'white' }, fontWeight: 'semibold', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' }}
+              sx={{ borderColor: colors.blueAccent[500], color: colors.blueAccent[500], '&:hover': { backgroundColor: colors.blueAccent[700], color: 'white' }, fontWeight: 'semibold', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' }}
             >
               Manage Roles
             </Button>
@@ -660,7 +796,7 @@ function UserManagementPage() {
               variant="outlined"
               startIcon={<LockIcon />}
               onClick={handleOpenPrivilegeManagementDialog}
-              sx={{ borderColor: theme.palette.primary.main, color: theme.palette.primary.main, '&:hover': { backgroundColor: theme.palette.primary.light, color: 'white' }, fontWeight: 'semibold', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' }}
+              sx={{ borderColor: colors.blueAccent[500], color: colors.blueAccent[500], '&:hover': { backgroundColor: colors.blueAccent[700], color: 'white' }, fontWeight: 'semibold', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' }}
             >
               Manage Privileges
             </Button>
@@ -671,55 +807,49 @@ function UserManagementPage() {
       {users.length === 0 && hasPrivilege('user.read_all') ? (
         <Alert severity="info">No users found. Add a new user to get started.</Alert>
       ) : (
-        <TableContainer component={Paper} sx={{ borderRadius: '8px', overflow: 'hidden', boxShadow: theme.shadows[2] }}>
-          <Table aria-label="users table">
-            <TableHead>
-              <TableRow sx={{ backgroundColor: theme.palette.primary.main }}>
-                <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>ID</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Username</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Email</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>First Name</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Last Name</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Role</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {users.map((userItem) => (
-                <TableRow key={userItem.userId} sx={{ '&:nth-of-type(odd)': { backgroundColor: theme.palette.action.hover } }}>
-                  <TableCell>{userItem.userId}</TableCell>
-                  <TableCell>{userItem.username}</TableCell>
-                  <TableCell>{userItem.email}</TableCell>
-                  <TableCell>{userItem.firstName}</TableCell>
-                  <TableCell>{userItem.lastName}</TableCell>
-                  <TableCell>{userItem.role}</TableCell>
-                  <TableCell>
-                    <Stack direction="row" spacing={1}>
-                      {hasPrivilege('user.update') && (
-                        <IconButton color="primary" onClick={() => handleOpenEditUserDialog(userItem)}>
-                          <EditIcon />
-                        </IconButton>
-                      )}
-                      {hasPrivilege('user.delete') && userItem.userId !== user.id && (
-                        <IconButton color="error" onClick={() => handleOpenDeleteConfirmDialog(userItem.userId, userItem.username)}>
-                          <DeleteIcon />
-                        </IconButton>
-                      )}
-                    </Stack>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <Box
+          m="40px 0 0 0"
+          height="75vh"
+          sx={{
+            "& .MuiDataGrid-root": {
+              border: "none",
+            },
+            "& .MuiDataGrid-cell": {
+              borderBottom: "none",
+            },
+            "& .username-column--cell": {
+              color: colors.greenAccent[300],
+            },
+            "& .MuiDataGrid-columnHeaders": {
+              backgroundColor: colors.blueAccent[700],
+              borderBottom: "none",
+            },
+            "& .MuiDataGrid-virtualScroller": {
+              backgroundColor: colors.primary[400],
+            },
+            "& .MuiDataGrid-footerContainer": {
+              borderTop: "none",
+              backgroundColor: colors.blueAccent[700],
+            },
+            "& .MuiCheckbox-root": {
+              color: `${colors.greenAccent[200]} !important`,
+            },
+          }}
+        >
+          <DataGrid
+            rows={users}
+            columns={userColumns}
+            getRowId={(row) => row.userId}
+          />
+        </Box>
       )}
 
       {/* Create/Edit User Dialog */}
       <Dialog open={openUserDialog} onClose={handleCloseUserDialog} fullWidth maxWidth="sm">
-        <DialogTitle sx={{ backgroundColor: theme.palette.primary.main, color: 'white' }}>
+        <DialogTitle sx={{ backgroundColor: colors.blueAccent[700], color: 'white' }}>
           {currentUserToEdit ? 'Edit User' : 'Add New User'}
         </DialogTitle>
-        <DialogContent dividers sx={{ backgroundColor: theme.palette.background.default }}>
+        <DialogContent dividers sx={{ backgroundColor: colors.primary[400] }}>
           <TextField autoFocus margin="dense" name="username" label="Username" type="text" fullWidth variant="outlined" value={userFormData.username} onChange={handleUserFormChange} error={!!userFormErrors.username} helperText={userFormErrors.username} disabled={!!currentUserToEdit} sx={{ mb: 2 }} />
           <TextField margin="dense" name="email" label="Email" type="email" fullWidth variant="outlined" value={userFormData.email} onChange={handleUserFormChange} error={!!userFormErrors.email} helperText={userFormErrors.email} disabled={!!currentUserToEdit} sx={{ mb: 2 }} />
           <TextField margin="dense" name="firstName" label="First Name" type="text" fullWidth variant="outlined" value={userFormData.firstName} onChange={handleUserFormChange} error={!!userFormErrors.firstName} helperText={userFormErrors.firstName} disabled={!!currentUserToEdit} sx={{ mb: 2 }} />
@@ -727,7 +857,7 @@ function UserManagementPage() {
           {!currentUserToEdit && (
             <TextField margin="dense" name="password" label="Password" type="password" fullWidth variant="outlined" value={userFormData.password} onChange={handleUserFormChange} error={!!userFormErrors.password} helperText={userFormErrors.password} sx={{ mb: 2 }} />
           )}
-          <FormControl fullWidth margin="dense" variant="outlined" sx={{ mb: 2 }}>
+          <FormControl fullWidth margin="dense" variant="outlined" sx={{ mb: 2, minWidth: 120 }}>
             <InputLabel>Role</InputLabel>
             <Select
               name="role"
@@ -741,7 +871,7 @@ function UserManagementPage() {
             </Select>
           </FormControl>
         </DialogContent>
-        <DialogActions sx={{ padding: '16px 24px', borderTop: `1px solid ${theme.palette.divider}` }}>
+        <DialogActions sx={{ padding: '16px 24px', borderTop: `1px solid ${theme.palette.divider}`, backgroundColor: colors.primary[400] }}>
           <Button onClick={handleCloseUserDialog} color="primary" variant="outlined">Cancel</Button>
           <Button onClick={handleUserSubmit} color="primary" variant="contained">{currentUserToEdit ? 'Update User' : 'Create User'}</Button>
         </DialogActions>
@@ -759,100 +889,99 @@ function UserManagementPage() {
 
       {/* Role Management Dialog */}
       <Dialog open={openRoleManagementDialog} onClose={handleCloseRoleManagementDialog} fullWidth maxWidth="md">
-        <DialogTitle sx={{ backgroundColor: theme.palette.primary.main, color: 'white' }}>
+        <DialogTitle sx={{ backgroundColor: colors.blueAccent[700], color: 'white' }}>
           Role Management
         </DialogTitle>
-        <DialogContent dividers sx={{ backgroundColor: theme.palette.background.default }}>
+        <DialogContent dividers sx={{ backgroundColor: colors.primary[400] }}>
           {hasPrivilege('role.create') && (
-            <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenCreateRoleDialog} sx={{ mb: 2 }}>
+            <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenCreateRoleDialog} sx={{ mb: 2, backgroundColor: colors.greenAccent[600], '&:hover': { backgroundColor: colors.greenAccent[700] }, color: 'white' }}>
               Add New Role
             </Button>
           )}
           {roles.length === 0 ? (
             <Alert severity="info">No roles found. Add a new role to get started.</Alert>
           ) : (
-            <TableContainer component={Paper} sx={{ borderRadius: '8px', overflow: 'hidden', boxShadow: theme.shadows[2] }}>
-              <Table aria-label="roles table">
-                <TableHead>
-                  <TableRow sx={{ backgroundColor: theme.palette.secondary.main }}>
-                    <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>ID</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Role Name</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Description</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {roles.map((roleItem) => (
-                    <TableRow key={roleItem.roleId} sx={{ '&:nth-of-type(odd)': { backgroundColor: theme.palette.action.hover } }}>
-                      <TableCell>{roleItem.roleId}</TableCell>
-                      <TableCell>{roleItem.roleName}</TableCell>
-                      <TableCell>{roleItem.description}</TableCell>
-                      <TableCell>
-                        <Stack direction="row" spacing={1}>
-                          {hasPrivilege('role.update') && (
-                            <IconButton color="primary" onClick={() => handleOpenEditRoleDialog(roleItem)}>
-                              <EditIcon />
-                            </IconButton>
-                          )}
-                          {hasPrivilege('role.delete') && (
-                            <IconButton color="error" onClick={() => handleDeleteRole(roleItem.roleId, roleItem.roleName)}>
-                              <DeleteIcon />
-                            </IconButton>
-                          )}
-                        </Stack>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            <Box
+              height="400px"
+              sx={{
+                "& .MuiDataGrid-root": {
+                  border: "none",
+                },
+                "& .MuiDataGrid-cell": {
+                  borderBottom: "none",
+                },
+                "& .username-column--cell": {
+                  color: colors.greenAccent[300],
+                },
+                "& .MuiDataGrid-columnHeaders": {
+                  backgroundColor: colors.blueAccent[700],
+                  borderBottom: "none",
+                },
+                "& .MuiDataGrid-virtualScroller": {
+                  backgroundColor: colors.primary[400],
+                },
+                "& .MuiDataGrid-footerContainer": {
+                  borderTop: "none",
+                  backgroundColor: colors.blueAccent[700],
+                },
+                "& .MuiCheckbox-root": {
+                  color: `${colors.greenAccent[200]} !important`,
+                },
+              }}
+            >
+              <DataGrid
+                rows={roles}
+                columns={roleColumns}
+                getRowId={(row) => row.roleId}
+              />
+            </Box>
           )}
         </DialogContent>
-        <DialogActions sx={{ padding: '16px 24px', borderTop: `1px solid ${theme.palette.divider}` }}>
+        <DialogActions sx={{ padding: '16px 24px', borderTop: `1px solid ${theme.palette.divider}`, backgroundColor: colors.primary[400] }}>
           <Button onClick={handleCloseRoleManagementDialog} color="primary" variant="outlined">Close</Button>
         </DialogActions>
       </Dialog>
-
-      {/* Add/Edit Role Dialog */}
+      
+      {/* Create/Edit Role Dialog */}
       <Dialog open={openRoleDialog} onClose={handleCloseRoleDialog} fullWidth maxWidth="sm">
-        <DialogTitle sx={{ backgroundColor: theme.palette.primary.main, color: 'white' }}>
+        <DialogTitle sx={{ backgroundColor: colors.blueAccent[700], color: 'white' }}>
           {currentRoleToEdit ? 'Edit Role' : 'Add New Role'}
         </DialogTitle>
-        <DialogContent dividers sx={{ backgroundColor: theme.palette.background.default }}>
-          <TextField autoFocus margin="dense" name="roleName" label="Role Name" type="text" fullWidth variant="outlined" value={roleFormData.roleName} onChange={handleRoleFormChange} error={!!roleFormErrors.roleName} helperText={roleFormErrors.roleName} sx={{ mb: 2 }} />
-          <TextField margin="dense" name="description" label="Description" type="text" fullWidth multiline rows={2} variant="outlined" value={roleFormData.description} onChange={handleRoleFormChange} sx={{ mb: 2 }} />
-          
-          <FormControl fullWidth margin="dense" variant="outlined" sx={{ mb: 2 }}>
-            <InputLabel id="privileges-multi-select-label">Assign Privileges</InputLabel>
+        <DialogContent dividers sx={{ backgroundColor: colors.primary[400] }}>
+          <TextField autoFocus margin="dense" name="roleName" label="Role Name" type="text" fullWidth variant="outlined" value={roleFormData.roleName} onChange={handleRoleFormChange} error={!!roleFormErrors.roleName} helperText={roleFormErrors.roleName} disabled={!!currentRoleToEdit} sx={{ mb: 2 }} />
+          <TextField margin="dense" name="description" label="Description" type="text" fullWidth variant="outlined" value={roleFormData.description} onChange={handleRoleFormChange} sx={{ mb: 2 }} />
+          <FormControl fullWidth margin="dense" variant="outlined" sx={{ minWidth: 120 }}>
+            <InputLabel id="privileges-label">Privileges</InputLabel>
             <Select
-              labelId="privileges-multi-select-label"
-              multiple
+              labelId="privileges-label"
+              id="privileges-select"
               name="privilegeIds"
+              multiple
               value={roleFormData.privilegeIds}
               onChange={handleRolePrivilegeMultiSelectChange}
-              input={<OutlinedInput id="select-multiple-chip-privileges" label="Assign Privileges" />}
+              input={<OutlinedInput id="select-multiple-chip" label="Privileges" />}
               renderValue={(selected) => (
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                  {selected.map((value) => (
-                    <Chip key={value} label={privileges.find(p => String(p.privilegeId) === String(value))?.privilegeName || value} />
-                  ))}
+                  {selected.map((value) => {
+                    const privilege = privileges.find(p => String(p.privilegeId) === value);
+                    return <Chip key={value} label={privilege ? privilege.privilegeName : value} />;
+                  })}
                 </Box>
               )}
             >
-              {Object.keys(groupedPrivileges).map(groupName => [
-                <ListSubheader key={groupName} sx={{ fontWeight: 'bold', color: theme.palette.primary.main }}>
-                  {groupName.charAt(0).toUpperCase() + groupName.slice(1)} Privileges
-                </ListSubheader>,
-                groupedPrivileges[groupName].map(privilege => (
+              {Object.keys(groupedPrivileges).map((groupName) => [
+                <ListSubheader key={groupName}>{groupName}</ListSubheader>,
+                groupedPrivileges[groupName].map((privilege) => (
                   <MenuItem key={privilege.privilegeId} value={String(privilege.privilegeId)}>
-                    {privilege.privilegeName}
+                    <Checkbox checked={roleFormData.privilegeIds.indexOf(String(privilege.privilegeId)) > -1} />
+                    <ListItemText primary={privilege.privilegeName} />
                   </MenuItem>
                 ))
               ])}
             </Select>
           </FormControl>
         </DialogContent>
-        <DialogActions sx={{ padding: '16px 24px', borderTop: `1px solid ${theme.palette.divider}` }}>
+        <DialogActions sx={{ padding: '16px 24px', borderTop: `1px solid ${theme.palette.divider}`, backgroundColor: colors.primary[400] }}>
           <Button onClick={handleCloseRoleDialog} color="primary" variant="outlined">Cancel</Button>
           <Button onClick={handleRoleSubmit} color="primary" variant="contained">{currentRoleToEdit ? 'Update Role' : 'Create Role'}</Button>
         </DialogActions>
@@ -860,76 +989,74 @@ function UserManagementPage() {
 
       {/* Privilege Management Dialog */}
       <Dialog open={openPrivilegeManagementDialog} onClose={handleClosePrivilegeManagementDialog} fullWidth maxWidth="md">
-        <DialogTitle sx={{ backgroundColor: theme.palette.primary.main, color: 'white' }}>
+        <DialogTitle sx={{ backgroundColor: colors.blueAccent[700], color: 'white' }}>
           Privilege Management
         </DialogTitle>
-        <DialogContent dividers sx={{ backgroundColor: theme.palette.background.default }}>
+        <DialogContent dividers sx={{ backgroundColor: colors.primary[400] }}>
           {hasPrivilege('privilege.create') && (
-            <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenCreatePrivilegeDialog} sx={{ mb: 2 }}>
+            <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenCreatePrivilegeDialog} sx={{ mb: 2, backgroundColor: colors.greenAccent[600], '&:hover': { backgroundColor: colors.greenAccent[700] }, color: 'white' }}>
               Add New Privilege
             </Button>
           )}
           {privileges.length === 0 ? (
             <Alert severity="info">No privileges found. Add a new privilege to get started.</Alert>
           ) : (
-            <TableContainer component={Paper} sx={{ borderRadius: '8px', overflow: 'hidden', boxShadow: theme.shadows[2] }}>
-              <Table aria-label="privileges table">
-                <TableHead>
-                  <TableRow sx={{ backgroundColor: theme.palette.secondary.main }}>
-                    <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>ID</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Privilege Name</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Description</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {privileges.map((privilegeItem) => (
-                    <TableRow key={privilegeItem.privilegeId} sx={{ '&:nth-of-type(odd)': { backgroundColor: theme.palette.action.hover } }}>
-                      <TableCell>{privilegeItem.privilegeId}</TableCell>
-                      <TableCell>{privilegeItem.privilegeName}</TableCell>
-                      <TableCell>{privilegeItem.description}</TableCell>
-                      <TableCell>
-                        <Stack direction="row" spacing={1}>
-                          {hasPrivilege('privilege.update') && (
-                            <IconButton color="primary" onClick={() => handleOpenEditPrivilegeDialog(privilegeItem)}>
-                              <EditIcon />
-                            </IconButton>
-                          )}
-                          {hasPrivilege('privilege.delete') && (
-                            <IconButton color="error" onClick={() => handleDeletePrivilege(privilegeItem.privilegeId, privilegeItem.privilegeName)}>
-                              <DeleteIcon />
-                            </IconButton>
-                          )}
-                        </Stack>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            <Box
+              height="400px"
+              sx={{
+                "& .MuiDataGrid-root": {
+                  border: "none",
+                },
+                "& .MuiDataGrid-cell": {
+                  borderBottom: "none",
+                },
+                "& .username-column--cell": {
+                  color: colors.greenAccent[300],
+                },
+                "& .MuiDataGrid-columnHeaders": {
+                  backgroundColor: colors.blueAccent[700],
+                  borderBottom: "none",
+                },
+                "& .MuiDataGrid-virtualScroller": {
+                  backgroundColor: colors.primary[400],
+                },
+                "& .MuiDataGrid-footerContainer": {
+                  borderTop: "none",
+                  backgroundColor: colors.blueAccent[700],
+                },
+                "& .MuiCheckbox-root": {
+                  color: `${colors.greenAccent[200]} !important`,
+                },
+              }}
+            >
+              <DataGrid
+                rows={privileges}
+                columns={privilegeColumns}
+                getRowId={(row) => row.privilegeId}
+              />
+            </Box>
           )}
         </DialogContent>
-        <DialogActions sx={{ padding: '16px 24px', borderTop: `1px solid ${theme.palette.divider}` }}>
+        <DialogActions sx={{ padding: '16px 24px', borderTop: `1px solid ${theme.palette.divider}`, backgroundColor: colors.primary[400] }}>
           <Button onClick={handleClosePrivilegeManagementDialog} color="primary" variant="outlined">Close</Button>
         </DialogActions>
       </Dialog>
 
-      {/* Add/Edit Privilege Dialog */}
+      {/* Create/Edit Privilege Dialog */}
       <Dialog open={openPrivilegeDialog} onClose={handleClosePrivilegeDialog} fullWidth maxWidth="sm">
-        <DialogTitle sx={{ backgroundColor: theme.palette.primary.main, color: 'white' }}>
+        <DialogTitle sx={{ backgroundColor: colors.blueAccent[700], color: 'white' }}>
           {currentPrivilegeToEdit ? 'Edit Privilege' : 'Add New Privilege'}
         </DialogTitle>
-        <DialogContent dividers sx={{ backgroundColor: theme.palette.background.default }}>
-          <TextField autoFocus margin="dense" name="privilegeName" label="Privilege Name" type="text" fullWidth variant="outlined" value={privilegeFormData.privilegeName} onChange={handlePrivilegeFormChange} error={!!privilegeFormErrors.privilegeName} helperText={privilegeFormErrors.privilegeName} sx={{ mb: 2 }} />
-          <TextField margin="dense" name="description" label="Description" type="text" fullWidth multiline rows={2} variant="outlined" value={privilegeFormData.description} onChange={handlePrivilegeFormChange} sx={{ mb: 2 }} />
+        <DialogContent dividers sx={{ backgroundColor: colors.primary[400] }}>
+          <TextField autoFocus margin="dense" name="privilegeName" label="Privilege Name" type="text" fullWidth variant="outlined" value={privilegeFormData.privilegeName} onChange={handlePrivilegeFormChange} error={!!privilegeFormErrors.privilegeName} helperText={privilegeFormErrors.privilegeName} disabled={!!currentPrivilegeToEdit} sx={{ mb: 2 }} />
+          <TextField margin="dense" name="description" label="Description" type="text" fullWidth variant="outlined" value={privilegeFormData.description} onChange={handlePrivilegeFormChange} sx={{ mb: 2 }} />
         </DialogContent>
-        <DialogActions sx={{ padding: '16px 24px', borderTop: `1px solid ${theme.palette.divider}` }}>
+        <DialogActions sx={{ padding: '16px 24px', borderTop: `1px solid ${theme.palette.divider}`, backgroundColor: colors.primary[400] }}>
           <Button onClick={handleClosePrivilegeDialog} color="primary" variant="outlined">Cancel</Button>
           <Button onClick={handlePrivilegeSubmit} color="primary" variant="contained">{currentPrivilegeToEdit ? 'Update Privilege' : 'Create Privilege'}</Button>
         </DialogActions>
       </Dialog>
 
-      {/* Snackbar for notifications */}
       <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar}>
         <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
           {snackbar.message}

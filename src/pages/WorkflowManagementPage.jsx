@@ -11,9 +11,11 @@ import {
   Settings as SettingsIcon, Reorder as ReorderIcon
 } from '@mui/icons-material';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { DataGrid } from '@mui/x-data-grid'; // Added DataGrid import
 import apiService from '../api';
 import { useAuth } from '../context/AuthContext.jsx';
 import PropTypes from 'prop-types';
+import { tokens } from './dashboard/theme'; // Added tokens import for dark mode consistency
 
 const snakeToCamelCase = (obj) => {
     if (obj === null || typeof obj !== 'object' || Array.isArray(obj)) {
@@ -35,6 +37,7 @@ const snakeToCamelCase = (obj) => {
 function WorkflowManagementPage() {
     const { hasPrivilege } = useAuth();
     const theme = useTheme();
+    const colors = tokens(theme.palette.mode);
 
     const [workflows, setWorkflows] = useState([]);
     const [stages, setStages] = useState([]);
@@ -53,7 +56,7 @@ function WorkflowManagementPage() {
 
     // Stages Management States
     const [openStageDialog, setOpenStageDialog] = useState(false);
-    const [openAddEditStageDialog, setOpenAddEditStageDialog] = useState(false); // Fix: New state for the add/edit dialog
+    const [openAddEditStageDialog, setOpenAddEditStageDialog] = useState(false);
     const [currentStageToEdit, setCurrentStageToEdit] = useState(null);
     const [stageFormData, setStageFormData] = useState({
         stageName: '',
@@ -200,7 +203,7 @@ function WorkflowManagementPage() {
         setCurrentStageToEdit(null);
         setStageFormData({ stageName: '', description: '' });
         setStageFormErrors({});
-        setOpenAddEditStageDialog(true); // Fix: Use the new state variable
+        setOpenAddEditStageDialog(true);
     };
 
     const handleOpenEditStageDialog = (stage) => {
@@ -210,16 +213,16 @@ function WorkflowManagementPage() {
             description: stage.description || '',
         });
         setStageFormErrors({});
-        setOpenAddEditStageDialog(true); // Fix: Use the new state variable
+        setOpenAddEditStageDialog(true);
     };
 
-    const handleCloseAddEditStageDialog = () => { // Fix: New handler for the inner dialog
+    const handleCloseAddEditStageDialog = () => {
         setOpenAddEditStageDialog(false);
         setCurrentStageToEdit(null);
         setStageFormErrors({});
     };
 
-    const handleCloseMainStageDialog = () => { // Fix: New handler for the outer dialog
+    const handleCloseMainStageDialog = () => {
         setOpenStageDialog(false);
     };
 
@@ -258,7 +261,7 @@ function WorkflowManagementPage() {
                 await apiService.workflow.createStage(stageFormData);
                 setSnackbar({ open: true, message: 'Stage created successfully!', severity: 'success' });
             }
-            handleCloseAddEditStageDialog(); // Fix: Close the inner dialog
+            handleCloseAddEditStageDialog();
             fetchStages();
         } catch (err) {
             setSnackbar({ open: true, message: err.response?.data?.message || 'Failed to save stage.', severity: 'error' });
@@ -366,6 +369,44 @@ function WorkflowManagementPage() {
         }
     };
 
+    // DataGrid column definitions
+    const workflowColumns = [
+        { field: 'workflowId', headerName: 'ID', flex: 0.5, minWidth: 50 },
+        { field: 'workflowName', headerName: 'Workflow Name', flex: 1.5, minWidth: 200 },
+        { field: 'description', headerName: 'Description', flex: 2, minWidth: 250 },
+        {
+            field: 'actions',
+            headerName: 'Actions',
+            flex: 1,
+            minWidth: 150,
+            sortable: false,
+            filterable: false,
+            renderCell: (params) => (
+                <Stack direction="row" spacing={1}>
+                    <Tooltip title="Manage Steps">
+                        <IconButton color="primary" onClick={() => handleOpenStepsDialog(params.row)}>
+                            <ReorderIcon />
+                        </IconButton>
+                    </Tooltip>
+                    {hasPrivilege('project_workflow.update') && (
+                        <Tooltip title="Edit">
+                            <IconButton color="primary" onClick={() => handleOpenEditWorkflowDialog(params.row)}>
+                                <EditIcon />
+                            </IconButton>
+                        </Tooltip>
+                    )}
+                    {hasPrivilege('project_workflow.delete') && (
+                        <Tooltip title="Delete">
+                            <IconButton color="error" onClick={() => handleDeleteWorkflow(params.row.workflowId, params.row.workflowName)}>
+                                <DeleteIcon />
+                            </IconButton>
+                        </Tooltip>
+                    )}
+                </Stack>
+            ),
+        },
+    ];
+
     if (loading && !error) {
         return (
             <Box display="flex" justifyContent="center" alignItems="center" height="80vh">
@@ -401,7 +442,7 @@ function WorkflowManagementPage() {
                         <Button
                             variant="outlined"
                             startIcon={<SettingsIcon />}
-                            onClick={() => setOpenStageDialog(true)} // Fix: Open the main stages dialog
+                            onClick={() => setOpenStageDialog(true)}
                             sx={{ borderColor: theme.palette.primary.main, color: theme.palette.primary.main }}
                         >
                             Manage Stages
@@ -423,46 +464,46 @@ function WorkflowManagementPage() {
             {workflows.length === 0 ? (
                 <Alert severity="info">No workflows found. Add a new workflow to get started.</Alert>
             ) : (
-                <TableContainer component={Paper} sx={{ borderRadius: '8px', overflow: 'hidden' }}>
-                    <Table aria-label="workflows table">
-                        <TableHead>
-                            <TableRow sx={{ backgroundColor: theme.palette.primary.main }}>
-                                <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>ID</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Workflow Name</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Description</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Actions</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {workflows.map((workflow) => (
-                                <TableRow key={workflow.workflowId} sx={{ '&:nth-of-type(odd)': { backgroundColor: theme.palette.action.hover } }}>
-                                    <TableCell>{workflow.workflowId}</TableCell>
-                                    <TableCell>{workflow.workflowName}</TableCell>
-                                    <TableCell>{workflow.description}</TableCell>
-                                    <TableCell>
-                                        <Stack direction="row" spacing={1}>
-                                            <Tooltip title="Manage Steps">
-                                                <IconButton color="primary" onClick={() => handleOpenStepsDialog(workflow)}>
-                                                    <ReorderIcon />
-                                                </IconButton>
-                                            </Tooltip>
-                                            {hasPrivilege('project_workflow.update') && (
-                                                <IconButton color="primary" onClick={() => handleOpenEditWorkflowDialog(workflow)}>
-                                                    <EditIcon />
-                                                </IconButton>
-                                            )}
-                                            {hasPrivilege('project_workflow.delete') && (
-                                                <IconButton color="error" onClick={() => handleDeleteWorkflow(workflow.workflowId, workflow.workflowName)}>
-                                                    <DeleteIcon />
-                                                </IconButton>
-                                            )}
-                                        </Stack>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
+                <Box
+                    sx={{
+                        height: 500, // Fixed height is required for DataGrid to work properly
+                        width: '100%',
+                        "& .MuiDataGrid-root": {
+                            border: "none",
+                            color: theme.palette.text.primary,
+                        },
+                        "& .MuiDataGrid-cell": {
+                            borderBottom: "none",
+                            color: theme.palette.text.primary,
+                        },
+                        "& .MuiDataGrid-columnHeaders": {
+                            backgroundColor: colors.blueAccent[700],
+                            borderBottom: "none",
+                        },
+                        "& .MuiDataGrid-virtualScroller": {
+                            backgroundColor: colors.primary[400],
+                        },
+                        "& .MuiDataGrid-footerContainer": {
+                            borderTop: "none",
+                            backgroundColor: colors.blueAccent[700],
+                        },
+                        "& .MuiCheckbox-root": {
+                            color: `${colors.greenAccent[200]} !important`,
+                        },
+                    }}
+                >
+                    <DataGrid
+                        rows={workflows}
+                        columns={workflowColumns}
+                        getRowId={(row) => row.workflowId}
+                        initialState={{
+                            pagination: {
+                                paginationModel: { pageSize: 10, page: 0 },
+                            },
+                        }}
+                        pageSizeOptions={[10, 25, 50]}
+                    />
+                </Box>
             )}
 
             {/* Workflow CRUD Dialog */}
@@ -541,7 +582,7 @@ function WorkflowManagementPage() {
                 </DialogTitle>
                 <DialogContent dividers sx={{ backgroundColor: theme.palette.background.default }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                        <FormControl sx={{ flexGrow: 1, mr: 2 }}>
+                        <FormControl sx={{ flexGrow: 1, mr: 2, minWidth: 150 }}>
                             <InputLabel id="add-stage-label">Add a Stage</InputLabel>
                             <Select
                                 labelId="add-stage-label"

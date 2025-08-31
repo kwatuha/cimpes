@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import {
-    Box, Typography, Button, Table, TableBody, TableCell,
-    TableContainer, TableHead, TableRow, Paper, Stack, IconButton
+    Box, Typography, Button, Stack, IconButton, CircularProgress, Tooltip
 } from '@mui/material';
+import { DataGrid } from '@mui/x-data-grid';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../api';
 import AddEditPublicHolidayModal from './modals/AddEditPublicHolidayModal';
+import { useTheme } from '@mui/material';
+import { tokens } from "../../pages/dashboard/theme";
 
 export default function PublicHolidaysSection({ showNotification, handleOpenDeleteConfirmModal }) {
+    const theme = useTheme();
+    const colors = tokens(theme.palette.mode);
     const { hasPrivilege } = useAuth();
     const [holidays, setHolidays] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -46,6 +50,30 @@ export default function PublicHolidaysSection({ showNotification, handleOpenDele
         setEditedItem(null);
     };
 
+const columns = [
+    { field: 'holidayName', headerName: 'Holiday Name', flex: 1, minWidth: 200 },
+    { field: 'holidayDate', headerName: 'Date', flex: 1, minWidth: 150, valueGetter: (params) => params.row?.holidayDate?.slice(0, 10) || 'N/A' },
+    {
+        field: 'actions',
+        headerName: 'Actions',
+        sortable: false,
+        filterable: false,
+        align: 'center',
+        headerAlign: 'center',
+        flex: 1,
+        minWidth: 150,
+        renderCell: (params) => (
+            <Stack direction="row" spacing={1} justifyContent="center">
+                {hasPrivilege('holiday.update') && (
+                    <Tooltip title="Edit"><IconButton color="primary" onClick={() => handleOpenEditModal(params.row)}><EditIcon /></IconButton></Tooltip>
+                )}
+                {hasPrivilege('holiday.delete') && (
+                    <Tooltip title="Delete"><IconButton color="error" onClick={() => handleOpenDeleteConfirmModal(params.row.id, params.row.holidayName, 'holiday')}><DeleteIcon /></IconButton></Tooltip>
+                )}
+            </Stack>
+        ),
+    },
+];
     return (
         <Box>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
@@ -56,45 +84,43 @@ export default function PublicHolidaysSection({ showNotification, handleOpenDele
                     </Button>
                 )}
             </Box>
-            <TableContainer component={Paper} elevation={3}>
-                <Table>
-                    <TableHead>
-                        <TableRow sx={{ backgroundColor: 'primary.main' }}>
-                            <TableCell sx={{ color: 'white' }}>Holiday Name</TableCell>
-                            <TableCell sx={{ color: 'white' }}>Date</TableCell>
-                            <TableCell sx={{ color: 'white' }}>Actions</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {loading ? (
-                             <TableRow><TableCell colSpan={3} align="center">Loading...</TableCell></TableRow>
-                        ) : holidays.length > 0 ? (
-                            holidays.map((holiday) => (
-                                <TableRow key={holiday.id}>
-                                    <TableCell>{holiday.holidayName}</TableCell>
-                                    <TableCell>{holiday.holidayDate.slice(0, 10)}</TableCell>
-                                    <TableCell>
-                                        <Stack direction="row" spacing={1}>
-                                            {hasPrivilege('holiday.update') && (
-                                                <IconButton color="primary" onClick={() => handleOpenEditModal(holiday)}>
-                                                    <EditIcon />
-                                                </IconButton>
-                                            )}
-                                            {hasPrivilege('holiday.delete') && (
-                                                <IconButton color="error" onClick={() => handleOpenDeleteConfirmModal(holiday.id, holiday.holidayName, 'holiday')}>
-                                                    <DeleteIcon />
-                                                </IconButton>
-                                            )}
-                                        </Stack>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        ) : (
-                            <TableRow><TableCell colSpan={3} align="center">No public holidays found.</TableCell></TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </TableContainer>
+
+            <Box
+                m="20px 0 0 0"
+                height="75vh"
+                sx={{
+                    "& .MuiDataGrid-root": {
+                        border: "none",
+                    },
+                    "& .MuiDataGrid-cell": {
+                        borderBottom: "none",
+                    },
+                    "& .MuiDataGrid-columnHeaders": {
+                        backgroundColor: colors.blueAccent[700],
+                        borderBottom: "none",
+                    },
+                    "& .MuiDataGrid-virtualScroller": {
+                        backgroundColor: colors.primary[400],
+                    },
+                    "& .MuiDataGrid-footerContainer": {
+                        borderTop: "none",
+                        backgroundColor: colors.blueAccent[700],
+                    },
+                    "& .MuiCheckbox-root": {
+                        color: `${colors.greenAccent[200]} !important`,
+                    },
+                }}
+            >
+                {loading ? (
+                    <Box display="flex" justifyContent="center" alignItems="center" height="100%"><CircularProgress /></Box>
+                ) : (
+                    <DataGrid
+                        rows={holidays}
+                        columns={columns}
+                        getRowId={(row) => row.id}
+                    />
+                )}
+            </Box>
 
             <AddEditPublicHolidayModal
                 isOpen={isModalOpen}

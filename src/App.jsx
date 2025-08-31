@@ -45,9 +45,13 @@ import HrModulePage from './pages/HrModulePage.jsx';
 import WorkflowManagementPage from './pages/WorkflowManagementPage.jsx';
 // ✨ NEW: Import the ApprovalLevelsManagementPage component
 import ApprovalLevelsManagementPage from './pages/ApprovalLevelsManagementPage.jsx';
-// ✨ NEW: Import the new ReportingPage component
+ 
 import ReportingPage from './pages/ReportingPage.jsx';
 
+import ProjectDashboardPage from './pages/ProjectsDashboardPage.jsx';
+// import { tokens } from "./dashboard/theme";
+// import { CssBaseline, ThemeProvider } from "@mui/material";
+import { ColorModeContext, useMode} from "./pages/dashboard/theme";
 
 // Define a custom theme to match KEMRI's blue
 const kemriTheme = createTheme({
@@ -209,6 +213,10 @@ const router = createBrowserRouter([
         path: 'hr-module',
         element: <HrModulePage />,
       },
+      {
+        path: 'projects-dashboard/view',
+        element: <ProjectDashboardPage />,
+      },
     ],
   },
   {
@@ -216,15 +224,19 @@ const router = createBrowserRouter([
     element: <Login />,
   },
 ]);
-
+// <ThemeProvider theme={kemriTheme}>
 function App() {
+   const [theme, colorMode] = useMode();
   return (
-    <ThemeProvider theme={kemriTheme}>
+    <ColorModeContext.Provider value={colorMode}>
+    <ThemeProvider theme={theme}>
       <CssBaseline />
       <AuthProvider>
+        
         <RouterProvider router={router} />
       </AuthProvider>
     </ThemeProvider>
+      </ColorModeContext.Provider>
   );
 }
 

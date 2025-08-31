@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
 import {
-    Box, Typography, Button, Table, TableBody, TableCell,
-    TableContainer, TableHead, TableRow, Paper, Stack, IconButton
+    Box, Typography, Button, Stack, IconButton, CircularProgress, Tooltip
 } from '@mui/material';
+import { DataGrid } from '@mui/x-data-grid';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import AddEditPayrollModal from './modals/AddEditPayrollModal';
+import { useTheme } from '@mui/material';
+import { tokens } from "../../pages/dashboard/theme";
 
 export default function MonthlyPayrollSection({ payrolls, employees, showNotification, refreshData, handleOpenDeleteConfirmModal }) {
+    const theme = useTheme();
+    const colors = tokens(theme.palette.mode);
     const { hasPrivilege } = useAuth();
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -37,6 +41,34 @@ export default function MonthlyPayrollSection({ payrolls, employees, showNotific
         setEditedItem(null);
     };
     
+    const columns = [
+        { field: 'staff', headerName: 'Staff', flex: 1, minWidth: 200, valueGetter: (params) => `${params.row?.staffFirstName || ''} ${params.row?.staffLastName || ''}` },
+        { field: 'payPeriod', headerName: 'Pay Period', flex: 1, minWidth: 150, valueGetter: (params) => new Date(params.row?.payPeriod).toLocaleDateString() },
+        { field: 'grossSalary', headerName: 'Gross Salary', flex: 1, minWidth: 150 },
+        { field: 'netSalary', headerName: 'Net Salary', flex: 1, minWidth: 150 },
+        { field: 'deductions', headerName: 'Deductions', flex: 1, minWidth: 150 },
+        {
+            field: 'actions',
+            headerName: 'Actions',
+            sortable: false,
+            filterable: false,
+            align: 'center',
+            headerAlign: 'center',
+            flex: 1,
+            minWidth: 150,
+            renderCell: (params) => (
+                <Stack direction="row" spacing={1} justifyContent="center">
+                    {hasPrivilege('payroll.update') && (
+                        <Tooltip title="Edit"><IconButton color="primary" onClick={() => handleOpenEditModal(params.row)}><EditIcon /></IconButton></Tooltip>
+                    )}
+                    {hasPrivilege('payroll.delete') && (
+                        <Tooltip title="Delete"><IconButton color="error" onClick={() => handleOpenDeleteConfirmModal(params.row.id, `payroll record for ${params.row.staffFirstName} ${params.row.staffLastName}`, 'payroll')}><DeleteIcon /></IconButton></Tooltip>
+                    )}
+                </Stack>
+            ),
+        },
+    ];
+
     return (
         <Box>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
@@ -47,49 +79,44 @@ export default function MonthlyPayrollSection({ payrolls, employees, showNotific
                     </Button>
                 )}
             </Box>
-            <TableContainer component={Paper} elevation={3}>
-                <Table>
-                    <TableHead>
-                        <TableRow sx={{ backgroundColor: 'primary.main' }}>
-                            <TableCell sx={{ color: 'white' }}>Staff</TableCell>
-                            <TableCell sx={{ color: 'white' }}>Pay Period</TableCell>
-                            <TableCell sx={{ color: 'white' }}>Gross Salary</TableCell>
-                            <TableCell sx={{ color: 'white' }}>Net Salary</TableCell>
-                            <TableCell sx={{ color: 'white' }}>Deductions</TableCell>
-                            <TableCell sx={{ color: 'white' }}>Actions</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {payrolls && payrolls.length > 0 ? (
-                            payrolls.map((payroll) => (
-                                <TableRow key={payroll.id}>
-                                    <TableCell>{payroll.staffFirstName} {payroll.staffLastName}</TableCell>
-                                    <TableCell>{new Date(payroll.payPeriod).toLocaleDateString()}</TableCell>
-                                    <TableCell>{payroll.grossSalary}</TableCell>
-                                    <TableCell>{payroll.netSalary}</TableCell>
-                                    <TableCell>{payroll.deductions}</TableCell>
-                                    <TableCell>
-                                        <Stack direction="row" spacing={1}>
-                                            {hasPrivilege('payroll.update') && (
-                                                <IconButton color="primary" onClick={() => handleOpenEditModal(payroll)}>
-                                                    <EditIcon />
-                                                </IconButton>
-                                            )}
-                                            {hasPrivilege('payroll.delete') && (
-                                                <IconButton color="error" onClick={() => handleOpenDeleteConfirmModal(payroll.id, `payroll record for ${payroll.staffFirstName} ${payroll.staffLastName}`, 'payroll')}>
-                                                    <DeleteIcon />
-                                                </IconButton>
-                                            )}
-                                        </Stack>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        ) : (
-                            <TableRow><TableCell colSpan={6} align="center">No payroll records found.</TableCell></TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </TableContainer>
+            <Box
+                m="20px 0 0 0"
+                height="75vh"
+                sx={{
+                    "& .MuiDataGrid-root": {
+                        border: "none",
+                    },
+                    "& .MuiDataGrid-cell": {
+                        borderBottom: "none",
+                    },
+                    "& .MuiDataGrid-columnHeaders": {
+                        backgroundColor: colors.blueAccent[700],
+                        borderBottom: "none",
+                    },
+                    "& .MuiDataGrid-virtualScroller": {
+                        backgroundColor: colors.primary[400],
+                    },
+                    "& .MuiDataGrid-footerContainer": {
+                        borderTop: "none",
+                        backgroundColor: colors.blueAccent[700],
+                    },
+                    "& .MuiCheckbox-root": {
+                        color: `${colors.greenAccent[200]} !important`,
+                    },
+                }}
+            >
+                {payrolls && payrolls.length > 0 ? (
+                    <DataGrid
+                        rows={payrolls}
+                        columns={columns}
+                        getRowId={(row) => row.id}
+                    />
+                ) : (
+                    <Box display="flex" justifyContent="center" alignItems="center" height="100%">
+                        <Typography variant="h6">No payroll records found.</Typography>
+                    </Box>
+                )}
+            </Box>
             <AddEditPayrollModal
                 isOpen={isAddModalOpen || isEditModalOpen}
                 onClose={handleCloseModal}

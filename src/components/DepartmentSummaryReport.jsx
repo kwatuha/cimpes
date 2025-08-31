@@ -1,18 +1,42 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Box, Typography, Grid, CircularProgress, Alert } from '@mui/material';
 
 import DonutChart from './charts/DonutChart';
 import BarLineChart from './charts/BarLineChart';
 import ReportDataTable from './tables/ReportDataTable';
 import apiService from '../api';
-
+ 
 // Define the columns for the department summary table
 const departmentTableColumns = [
     { id: 'departmentName', label: 'Department Name', minWidth: 170 },
     { id: 'projectCount', label: 'Total Projects', minWidth: 100 },
-    { id: 'totalBudget', label: 'Total Budget', minWidth: 150 },
-    { id: 'totalPaid', label: 'Total Paid', minWidth: 150 },
-    { id: 'absorptionRate', label: 'Absorption Rate', minWidth: 120 },
+    { 
+        id: 'totalBudget', 
+        label: 'Total Budget', 
+        minWidth: 150, 
+        format: (value) => {
+            if (value === null || value === undefined) return 'N/A';
+            return parseFloat(value).toLocaleString('en-KE', { style: 'currency', currency: 'KES' });
+        } 
+    },
+    { 
+        id: 'totalPaid', 
+        label: 'Total Paid', 
+        minWidth: 150, 
+        format: (value) => {
+            if (value === null || value === undefined) return 'N/A';
+            return parseFloat(value).toLocaleString('en-KE', { style: 'currency', currency: 'KES' });
+        }
+    },
+    { 
+        id: 'absorptionRate', 
+        label: 'Absorption Rate', 
+        minWidth: 120, 
+        format: (value) => {
+            if (value === null || value === undefined) return 'N/A';
+            return `${(value * 100).toFixed(2)}%`;
+        } 
+    },
 ];
 
 const DepartmentSummaryReport = ({ filters }) => {
@@ -20,23 +44,41 @@ const DepartmentSummaryReport = ({ filters }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    useEffect(() => {
-        const fetchData = async () => {
-            setIsLoading(true);
-            setError(null);
-            try {
-                const fetchedData = await apiService.reports.getDepartmentSummaryReport(filters);
-                setReportData(fetchedData);
-            } catch (err) {
-                setError("Failed to load department summary report data.");
-                console.error(err);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchData();
+    const fetchData = useCallback(async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const fetchedData = await apiService.reports.getDepartmentSummaryReport(filters);
+            setReportData(fetchedData);
+        } catch (err) {
+            setError("Failed to load department summary report data.");
+            console.error(err);
+        } finally {
+            setIsLoading(false);
+        }
     }, [filters]);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    const prepareProjectCountData = (data) => {
+        return data.map(item => ({
+            name: item.departmentName,
+            value: item.projectCount,
+        }));
+    };
+
+    const prepareBarLineChartData = (data) => {
+        return data.map(item => ({
+            name: item.departmentName,
+            budget: parseFloat(item.totalBudget),
+            paid: parseFloat(item.totalPaid),
+            absorptionRate: parseFloat(item.absorptionRate) * 100, // Convert to percentage
+        }));
+    };
+
+    const getRowId = (row) => `${row.departmentName}-${row.projectCount}`;
 
     if (isLoading) {
         return (
@@ -51,21 +93,12 @@ const DepartmentSummaryReport = ({ filters }) => {
         return <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>;
     }
 
-    if (reportData.length === 0) {
+    if (!reportData || reportData.length === 0) {
         return <Alert severity="info" sx={{ mt: 2 }}>No data found for the selected filters.</Alert>;
     }
 
-    const projectCountData = reportData.map(item => ({
-        name: item.departmentName,
-        value: item.projectCount,
-    }));
-
-    const barLineChartData = reportData.map(item => ({
-        name: item.departmentName,
-        budget: parseFloat(item.totalBudget),
-        paid: parseFloat(item.totalPaid),
-        absorptionRate: parseFloat(item.absorptionRate),
-    }));
+    const projectCountData = prepareProjectCountData(reportData);
+    const barLineChartData = prepareBarLineChartData(reportData);
 
     return (
         <Box>
@@ -81,8 +114,7 @@ const DepartmentSummaryReport = ({ filters }) => {
             </Box>
 
             <Box>
-                {/* Now pass the columns prop to the table */}
-                <ReportDataTable data={reportData} columns={departmentTableColumns} />
+                <ReportDataTable data={reportData} columns={departmentTableColumns} getRowId={getRowId} />
             </Box>
         </Box>
     );

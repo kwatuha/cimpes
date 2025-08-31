@@ -1,32 +1,19 @@
 // src/components/tables/ReportDataTable.jsx
 
 import React from 'react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Typography,
-  Box
-} from '@mui/material';
+import { Box, Typography } from '@mui/material';
+import { DataGrid } from '@mui/x-data-grid';
 
-// Function to format numbers as currency
-const formatCurrency = (amount) => {
-  if (amount === null || amount === undefined || isNaN(amount)) {
-    return 'N/A';
-  }
-  return new Intl.NumberFormat('en-KE', {
-    style: 'currency',
-    currency: 'KES',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
-};
+const ReportDataTable = ({ data, columns, getRowId }) => {
+  // Define dataGridColumns here, at the top level of the function
+  const dataGridColumns = columns.map(col => ({
+    field: col.id,
+    headerName: col.label,
+    minWidth: col.minWidth,
+    flex: 1,
+    valueFormatter: col.format ? (params) => col.format(params.value) : undefined,
+  }));
 
-const ReportDataTable = ({ data, columns }) => {
   if (!data || data.length === 0) {
     return (
       <Box sx={{ mt: 2 }}>
@@ -38,63 +25,17 @@ const ReportDataTable = ({ data, columns }) => {
   }
 
   return (
-    <TableContainer component={Paper} sx={{ overflowX: 'auto', borderRadius: '8px' }}>
-      <Table stickyHeader aria-label="report table">
-        <TableHead>
-          <TableRow>
-            {columns.map((column, index) => (
-              <TableCell
-                key={column.id}
-                sx={{
-                  minWidth: column.minWidth,
-                  fontWeight: 'bold',
-                  backgroundColor: 'white',
-                  color: 'text.primary',
-                  position: 'sticky',
-                  top: 0,
-                  left: index === 0 ? 0 : 'auto',
-                  zIndex: index === 0 ? 3 : 1,
-                  borderRight: '1px solid',
-                  borderColor: 'divider',
-                }}
-              >
-                {column.label}
-              </TableCell>
-            ))}
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {data.map((row, rowIndex) => (
-            <TableRow hover key={rowIndex}>
-              {columns.map((column, colIndex) => {
-                let value = row[column.id] !== undefined && row[column.id] !== null ? row[column.id] : 'N/A';
-
-                // Format financial columns
-                if (column.id === 'costOfProject' || column.id === 'paidOut') {
-                  value = formatCurrency(value);
-                }
-
-                return (
-                  <TableCell
-                    key={column.id}
-                    sx={{
-                      position: colIndex === 0 ? 'sticky' : 'static',
-                      left: colIndex === 0 ? 0 : 'auto',
-                      zIndex: colIndex === 0 ? 2 : 'auto',
-                      bgcolor: 'background.paper',
-                      borderRight: '1px solid',
-                      borderColor: 'divider',
-                    }}
-                  >
-                    {value}
-                  </TableCell>
-                );
-              })}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+    <Box sx={{ height: 400, width: '100%', mt: 2 }}>
+      <DataGrid
+        rows={data}
+        columns={dataGridColumns}
+        pageSize={5}
+        rowsPerPageOptions={[5, 10, 20]}
+        disableSelectionOnClick
+        getRowId={getRowId}
+        autoHeight
+      />
+    </Box>
   );
 };
 

@@ -2,19 +2,43 @@
 
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, Grid, CircularProgress, Alert } from '@mui/material';
+import { DataGrid } from '@mui/x-data-grid';
 
 import DonutChart from './charts/DonutChart';
 import BarLineChart from './charts/BarLineChart';
-import ReportDataTable from './tables/ReportDataTable';
 import apiService from '../api';
 
 const wardTableColumns = [
-    { id: 'name', label: 'Ward Name', minWidth: 150 },
-    { id: 'subcountyName', label: 'Subcounty', minWidth: 150 },
-    { id: 'countyName', label: 'County', minWidth: 150 },
-    { id: 'projectCount', label: 'Total Projects', minWidth: 100 },
-    { id: 'totalBudget', label: 'Total Budget', minWidth: 150 },
-    { id: 'totalPaid', label: 'Total Paid', minWidth: 150 },
+    { field: 'name', headerName: 'Ward Name', minWidth: 150, flex: 1.2 },
+    { field: 'subcountyName', headerName: 'Subcounty', minWidth: 150, flex: 1 },
+    { field: 'countyName', headerName: 'County', minWidth: 150, flex: 1 },
+    { field: 'projectCount', headerName: 'Total Projects', minWidth: 100, type: 'number', flex: 0.8 },
+    {
+        field: 'totalBudget',
+        headerName: 'Total Budget',
+        minWidth: 150,
+        type: 'number',
+        flex: 1,
+        valueFormatter: (params) => {
+            if (params.value == null) {
+                return '';
+            }
+            return `KES ${parseFloat(params.value).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+    },
+    {
+        field: 'totalPaid',
+        headerName: 'Total Paid',
+        minWidth: 150,
+        type: 'number',
+        flex: 1,
+        valueFormatter: (params) => {
+            if (params.value == null) {
+                return '';
+            }
+            return `KES ${parseFloat(params.value).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+    },
 ];
 
 const WardSummaryReport = ({ filters }) => {
@@ -59,6 +83,12 @@ const WardSummaryReport = ({ filters }) => {
         return <Alert severity="info" sx={{ mt: 2 }}>No data found for the selected filters.</Alert>;
     }
 
+    // `DataGrid` requires an `id` field. We will use the `wardId` as a unique identifier.
+    const reportDataWithIds = reportData.map((row) => ({
+        ...row,
+        id: row.wardId,
+    }));
+
     const donutChartData = reportData.map(item => ({
         name: item.name,
         value: item.projectCount,
@@ -81,8 +111,20 @@ const WardSummaryReport = ({ filters }) => {
                 </Grid>
             </Grid>
 
-            <Box>
-                <ReportDataTable data={reportData} columns={wardTableColumns} />
+            <Box sx={{ height: 600, width: '100%', mt: 4 }}>
+                <DataGrid
+                    rows={reportDataWithIds}
+                    columns={wardTableColumns}
+                    pageSizeOptions={[5, 10, 25]}
+                    disableRowSelectionOnClick
+                    initialState={{
+                        pagination: {
+                            paginationModel: {
+                                pageSize: 10,
+                            },
+                        },
+                    }}
+                />
             </Box>
         </Box>
     );

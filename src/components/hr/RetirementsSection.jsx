@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
 import {
-    Box, Typography, Button, Table, TableBody, TableCell,
-    TableContainer, TableHead, TableRow, Paper, Stack, IconButton
+    Box, Typography, Button, Stack, IconButton, CircularProgress, Tooltip
 } from '@mui/material';
+import { DataGrid } from '@mui/x-data-grid';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import AddEditRetirementsModal from './modals/AddEditRetirementsModal';
+import { useTheme } from '@mui/material';
+import { tokens } from "../../pages/dashboard/theme";
 
 export default function RetirementsSection({ retirements, employees, showNotification, refreshData, handleOpenDeleteConfirmModal }) {
+    const theme = useTheme();
+    const colors = tokens(theme.palette.mode);
     const { hasPrivilege } = useAuth();
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -37,6 +41,32 @@ export default function RetirementsSection({ retirements, employees, showNotific
         setEditedItem(null);
     };
     
+    const columns = [
+        { field: 'staff', headerName: 'Staff', flex: 1, minWidth: 200, valueGetter: (params) => `${params.row?.staffFirstName || ''} ${params.row?.staffLastName || ''}` },
+        { field: 'retirementDate', headerName: 'Retirement Date', flex: 1, minWidth: 150, valueGetter: (params) => new Date(params.row?.retirementDate).toLocaleDateString() },
+        { field: 'retirementType', headerName: 'Retirement Type', flex: 1, minWidth: 150 },
+        {
+            field: 'actions',
+            headerName: 'Actions',
+            sortable: false,
+            filterable: false,
+            align: 'center',
+            headerAlign: 'center',
+            flex: 1,
+            minWidth: 150,
+            renderCell: (params) => (
+                <Stack direction="row" spacing={1} justifyContent="center">
+                    {hasPrivilege('retirements.update') && (
+                        <Tooltip title="Edit"><IconButton color="primary" onClick={() => handleOpenEditModal(params.row)}><EditIcon /></IconButton></Tooltip>
+                    )}
+                    {hasPrivilege('retirements.delete') && (
+                        <Tooltip title="Delete"><IconButton color="error" onClick={() => handleOpenDeleteConfirmModal(params.row.id, `retirement for ${params.row.staffFirstName} ${params.row.staffLastName}`, 'retirements')}><DeleteIcon /></IconButton></Tooltip>
+                    )}
+                </Stack>
+            ),
+        },
+    ];
+
     return (
         <Box>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
@@ -47,45 +77,44 @@ export default function RetirementsSection({ retirements, employees, showNotific
                     </Button>
                 )}
             </Box>
-            <TableContainer component={Paper} elevation={3}>
-                <Table>
-                    <TableHead>
-                        <TableRow sx={{ backgroundColor: 'primary.main' }}>
-                            <TableCell sx={{ color: 'white' }}>Staff</TableCell>
-                            <TableCell sx={{ color: 'white' }}>Retirement Date</TableCell>
-                            <TableCell sx={{ color: 'white' }}>Retirement Type</TableCell>
-                            <TableCell sx={{ color: 'white' }}>Actions</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {retirements && retirements.length > 0 ? (
-                            retirements.map((retirement) => (
-                                <TableRow key={retirement.id}>
-                                    <TableCell>{retirement.staffFirstName} {retirement.staffLastName}</TableCell>
-                                    <TableCell>{new Date(retirement.retirementDate).toLocaleDateString()}</TableCell>
-                                    <TableCell>{retirement.retirementType}</TableCell>
-                                    <TableCell>
-                                        <Stack direction="row" spacing={1}>
-                                            {hasPrivilege('retirements.update') && (
-                                                <IconButton color="primary" onClick={() => handleOpenEditModal(retirement)}>
-                                                    <EditIcon />
-                                                </IconButton>
-                                            )}
-                                            {hasPrivilege('retirements.delete') && (
-                                                <IconButton color="error" onClick={() => handleOpenDeleteConfirmModal(retirement.id, `retirement for ${retirement.staffFirstName} ${retirement.staffLastName}`, 'retirements')}>
-                                                    <DeleteIcon />
-                                                </IconButton>
-                                            )}
-                                        </Stack>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        ) : (
-                            <TableRow><TableCell colSpan={4} align="center">No retirement records found.</TableCell></TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </TableContainer>
+            <Box
+                m="20px 0 0 0"
+                height="75vh"
+                sx={{
+                    "& .MuiDataGrid-root": {
+                        border: "none",
+                    },
+                    "& .MuiDataGrid-cell": {
+                        borderBottom: "none",
+                    },
+                    "& .MuiDataGrid-columnHeaders": {
+                        backgroundColor: colors.blueAccent[700],
+                        borderBottom: "none",
+                    },
+                    "& .MuiDataGrid-virtualScroller": {
+                        backgroundColor: colors.primary[400],
+                    },
+                    "& .MuiDataGrid-footerContainer": {
+                        borderTop: "none",
+                        backgroundColor: colors.blueAccent[700],
+                    },
+                    "& .MuiCheckbox-root": {
+                        color: `${colors.greenAccent[200]} !important`,
+                    },
+                }}
+            >
+                {retirements && retirements.length > 0 ? (
+                    <DataGrid
+                        rows={retirements}
+                        columns={columns}
+                        getRowId={(row) => row.id}
+                    />
+                ) : (
+                    <Box display="flex" justifyContent="center" alignItems="center" height="100%">
+                        <Typography variant="h6">No retirement records found.</Typography>
+                    </Box>
+                )}
+            </Box>
             <AddEditRetirementsModal
                 isOpen={isAddModalOpen || isEditModalOpen}
                 onClose={handleCloseModal}

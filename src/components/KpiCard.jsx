@@ -6,12 +6,14 @@ import { Box, Paper, Typography } from '@mui/material';
 const KpiCard = ({ label, value, isCurrency = false }) => {
     // Function to format a number as a currency
     const formatValue = (number) => {
-        if (isCurrency && !isNaN(number)) {
-            return new Intl.NumberFormat('en-KE', {
+        // Check if the value is a valid number before formatting
+        if (isCurrency && typeof number === 'number' && !isNaN(number)) {
+            return number.toLocaleString('en-KE', {
                 style: 'currency',
                 currency: 'KES',
-                maximumFractionDigits: 0, // Optional: No decimals for whole numbers
-            }).format(number);
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2,
+            });
         }
         return number;
     };

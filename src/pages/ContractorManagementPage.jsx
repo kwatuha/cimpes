@@ -1,18 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box, Typography, Button, TextField, Dialog, DialogTitle,
-  DialogContent, DialogActions, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, Paper, CircularProgress, IconButton,
-  Select, MenuItem, FormControl, InputLabel, Snackbar, Alert, Stack, useTheme
+  DialogContent, DialogActions, CircularProgress, IconButton,
+  Select, MenuItem, FormControl, InputLabel, Snackbar, Alert, Stack, useTheme, Tooltip
 } from '@mui/material';
+import { DataGrid } from '@mui/x-data-grid';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import apiService from '../api'; // Use the main api service
 import { useAuth } from '../context/AuthContext.jsx';
+import { tokens } from "../pages/dashboard/theme";
 
 
 function ContractorManagementPage() {
   const { user, hasPrivilege } = useAuth();
   const theme = useTheme();
+  const colors = tokens(theme.palette.mode);
 
   const [contractors, setContractors] = useState([]);
   const [users, setUsers] = useState([]); // All users for linking
@@ -130,29 +132,16 @@ function ContractorManagementPage() {
       setLoading(true);
       try {
           if (currentContractorToEdit) {
-              // Update contractor profile
-            
               await apiService.contractors.updateContractor(currentContractorToEdit.contractorId, formData);
               setSnackbar({ open: true, message: 'Contractor updated successfully!', severity: 'success' });
           } else {
-              // Create new contractor profile
-              
-              // The `formData` object contains the `userId` selected from the dropdown,
-              // which is the user to be linked to the new contractor.
               const dataToSubmit = { ...formData };
-              
-              // This is a safety check: If no user was selected from the dropdown,
-              // we default to the logged-in user's ID for creation.
-              
               if (!dataToSubmit.userId && user?.uid) {
                   dataToSubmit.userId = user.uid;
               }
 
-              // Create the contractor first with the user ID to be linked
               const newContractor = await apiService.contractors.createContractor(dataToSubmit);
               
-              // Then, perform the explicit linking step if a userId was provided
-              // This ensures the link is created correctly in the backend
               if (dataToSubmit.userId) {
                 await apiService.contractors.linkToUser(newContractor.contractorId, dataToSubmit.userId);
               }
@@ -209,6 +198,32 @@ function ContractorManagementPage() {
   };
 
 
+  const columns = [
+      { field: 'contractorId', headerName: 'ID', flex: 0.5, minWidth: 50 },
+      { field: 'companyName', headerName: 'Company Name', flex: 1, minWidth: 200 },
+      { field: 'contactPerson', headerName: 'Contact Person', flex: 1, minWidth: 150 },
+      { field: 'email', headerName: 'Email', flex: 1.5, minWidth: 250 },
+      { field: 'phone', headerName: 'Phone', flex: 1, minWidth: 150 },
+      {
+          field: 'actions',
+          headerName: 'Actions',
+          flex: 1,
+          minWidth: 150,
+          sortable: false,
+          filterable: false,
+          renderCell: (params) => (
+              <Stack direction="row" spacing={1}>
+                  {hasPrivilege('contractors.update') && (
+                      <Tooltip title="Edit"><IconButton color="primary" onClick={() => handleOpenEditDialog(params.row)}><EditIcon /></IconButton></Tooltip>
+                  )}
+                  {hasPrivilege('contractors.delete') && (
+                      <Tooltip title="Delete"><IconButton color="error" onClick={() => handleOpenDeleteConfirmDialog(params.row.contractorId, params.row.companyName)}><DeleteIcon /></IconButton></Tooltip>
+                  )}
+              </Stack>
+          ),
+      },
+  ];
+
   if (loading && !error) {
       return (
           <Box display="flex" justifyContent="center" alignItems="center" height="80vh">
@@ -250,50 +265,44 @@ function ContractorManagementPage() {
                   </Button>
               )}
           </Box>
-
-          {contractors.length === 0 ? (
-              <Alert severity="info">No contractors found. Add a new contractor to get started.</Alert>
-          ) : (
-              <TableContainer component={Paper} sx={{ borderRadius: '8px', overflow: 'hidden', boxShadow: theme.shadows[2] }}>
-                  <Table aria-label="contractors table">
-                      <TableHead>
-                          <TableRow sx={{ backgroundColor: theme.palette.primary.main }}>
-                              <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>ID</TableCell>
-                              <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Company Name</TableCell>
-                              <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Contact Person</TableCell>
-                              <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Email</TableCell>
-                              <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Phone</TableCell>
-                              <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Actions</TableCell>
-                          </TableRow>
-                      </TableHead>
-                      <TableBody>
-                          {contractors.map((contractor) => (
-                              <TableRow key={contractor.contractorId} sx={{ '&:nth-of-type(odd)': { backgroundColor: theme.palette.action.hover } }}>
-                                  <TableCell>{contractor.contractorId}</TableCell>
-                                  <TableCell>{contractor.companyName}</TableCell>
-                                  <TableCell>{contractor.contactPerson}</TableCell>
-                                  <TableCell>{contractor.email}</TableCell>
-                                  <TableCell>{contractor.phone}</TableCell>
-                                  <TableCell>
-                                      <Stack direction="row" spacing={1}>
-                                          {hasPrivilege('contractors.update') && (
-                                              <IconButton color="primary" onClick={() => handleOpenEditDialog(contractor)}>
-                                                  <EditIcon />
-                                              </IconButton>
-                                          )}
-                                          {hasPrivilege('contractors.delete') && (
-                                              <IconButton color="error" onClick={() => handleOpenDeleteConfirmDialog(contractor.contractorId, contractor.companyName)}>
-                                                  <DeleteIcon />
-                                              </IconButton>
-                                          )}
-                                      </Stack>
-                                  </TableCell>
-                              </TableRow>
-                          ))}
-                      </TableBody>
-                  </Table>
-              </TableContainer>
-          )}
+          <Box
+              m="20px 0 0 0"
+              height="75vh"
+              sx={{
+                  "& .MuiDataGrid-root": {
+                      border: "none",
+                  },
+                  "& .MuiDataGrid-cell": {
+                      borderBottom: "none",
+                  },
+                  "& .MuiDataGrid-columnHeaders": {
+                      backgroundColor: colors.blueAccent[700],
+                      borderBottom: "none",
+                  },
+                  "& .MuiDataGrid-virtualScroller": {
+                      backgroundColor: colors.primary[400],
+                  },
+                  "& .MuiDataGrid-footerContainer": {
+                      borderTop: "none",
+                      backgroundColor: colors.blueAccent[700],
+                  },
+                  "& .MuiCheckbox-root": {
+                      color: `${colors.greenAccent[200]} !important`,
+                  },
+              }}
+          >
+              {contractors && contractors.length > 0 ? (
+                  <DataGrid
+                      rows={contractors}
+                      columns={columns}
+                      getRowId={(row) => row.contractorId}
+                  />
+              ) : (
+                  <Box display="flex" justifyContent="center" alignItems="center" height="100%">
+                      <Typography variant="h6">No contractors found. Add a new contractor to get started.</Typography>
+                  </Box>
+              )}
+          </Box>
 
           {/* Create/Edit Contractor Dialog */}
           <Dialog open={openDialog} onClose={handleCloseDialog} fullWidth maxWidth="sm">
@@ -306,7 +315,7 @@ function ContractorManagementPage() {
                   <TextField margin="dense" name="email" label="Email" type="email" fullWidth variant="outlined" value={formData.email} onChange={handleFormChange} error={!!formErrors.email} helperText={formErrors.email} sx={{ mb: 2 }} />
                   <TextField margin="dense" name="phone" label="Phone" type="tel" fullWidth variant="outlined" value={formData.phone} onChange={handleFormChange} sx={{ mb: 2 }} />
                   {!currentContractorToEdit && (
-                      <FormControl fullWidth margin="dense" variant="outlined" sx={{ mb: 2 }}>
+                      <FormControl fullWidth margin="dense" variant="outlined" sx={{ minWidth: 200, mb: 2 }}>
                           <InputLabel>Link to User Account</InputLabel>
                           <Select
                               name="userId"

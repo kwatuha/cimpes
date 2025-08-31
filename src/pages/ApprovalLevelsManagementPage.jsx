@@ -1,15 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box, Typography, Button, TextField, Dialog, DialogTitle,
-  DialogContent, DialogActions, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, Paper, CircularProgress, IconButton,
+  DialogContent, DialogActions, CircularProgress, IconButton,
   Select, MenuItem, FormControl, InputLabel, Snackbar, Alert, Stack, useTheme,
-  Tooltip, Tabs, Tab
+  Tooltip, Tabs, Tab, Paper
 } from '@mui/material';
-import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import {
+  Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon
+} from '@mui/icons-material';
+import { DataGrid } from '@mui/x-data-grid'; // Added DataGrid import
 import { useAuth } from '../context/AuthContext.jsx';
 import apiService from '../api';
 import PropTypes from 'prop-types';
+import { tokens } from './dashboard/theme'; // Added for consistent styling
 
 const DeleteConfirmDialog = ({ open, onClose, onConfirm, itemToDeleteName, itemType }) => (
   <Dialog open={open} onClose={onClose} aria-labelledby="delete-dialog-title">
@@ -27,6 +30,7 @@ const DeleteConfirmDialog = ({ open, onClose, onConfirm, itemToDeleteName, itemT
 const ApprovalLevelsManagementPage = () => {
   const { hasPrivilege } = useAuth();
   const theme = useTheme();
+  const colors = tokens(theme.palette.mode);
 
   const [approvalLevels, setApprovalLevels] = useState([]);
   const [roles, setRoles] = useState([]);
@@ -273,6 +277,84 @@ const ApprovalLevelsManagementPage = () => {
     }
   };
 
+  // DataGrid column definitions for Approval Levels
+// DataGrid column definitions for Approval Levels
+const levelColumns = [
+  { field: 'levelName', headerName: 'Level Name', flex: 1.5, minWidth: 200 },
+  {
+    field: 'roleId',
+    headerName: 'Assigned Role',
+    flex: 1,
+    minWidth: 150,
+    valueGetter: (params) => {
+      // Safely access row properties using optional chaining
+      const role = roles.find(r => r.roleId === params.row?.roleId);
+      return role ? role.roleName : 'N/A';
+    },
+  },
+  { field: 'approvalOrder', headerName: 'Approval Order', type: 'number', flex: 1, minWidth: 150 },
+  {
+    field: 'actions',
+    headerName: 'Actions',
+    type: 'actions',
+    flex: 1,
+    minWidth: 120,
+    sortable: false,
+    filterable: false,
+    renderCell: (params) => (
+      <Stack direction="row" spacing={1}>
+        {hasPrivilege('approval_levels.update') && (
+          <Tooltip title="Edit Level">
+            <IconButton color="primary" onClick={() => handleOpenEditLevelDialog(params.row)}>
+              <EditIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+        {hasPrivilege('approval_levels.delete') && (
+          <Tooltip title="Delete Level">
+            <IconButton color="error" onClick={() => handleOpenDeleteConfirm(params.row, 'level')}>
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Stack>
+    ),
+  },
+];
+  // DataGrid column definitions for Payment Statuses
+  const statusColumns = [
+    { field: 'statusId', headerName: 'ID', flex: 0.5, minWidth: 50 },
+    { field: 'statusName', headerName: 'Status Name', flex: 1.5, minWidth: 200 },
+    { field: 'description', headerName: 'Description', flex: 2, minWidth: 250 },
+    {
+      field: 'actions',
+      headerName: 'Actions',
+      type: 'actions',
+      flex: 1,
+      minWidth: 120,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => (
+        <Stack direction="row" spacing={1} justifyContent="flex-end">
+          {hasPrivilege('payment_status_definitions.update') && (
+            <Tooltip title="Edit Status">
+              <IconButton color="primary" onClick={() => handleOpenEditStatusDialog(params.row)}>
+                <EditIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+          {hasPrivilege('payment_status_definitions.delete') && (
+            <Tooltip title="Delete Status">
+              <IconButton color="error" onClick={() => handleOpenDeleteConfirm(params.row, 'status')}>
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Stack>
+      ),
+    },
+  ];
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="80vh">
@@ -321,45 +403,46 @@ const ApprovalLevelsManagementPage = () => {
             {approvalLevels.length === 0 ? (
               <Alert severity="info">No approval levels found. Add a new level to get started.</Alert>
             ) : (
-              <TableContainer component={Paper} sx={{ borderRadius: '8px', overflow: 'hidden', boxShadow: theme.shadows[2] }}>
-                <Table aria-label="approval levels table">
-                  <TableHead>
-                    <TableRow sx={{ backgroundColor: theme.palette.primary.main }}>
-                      <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Level Name</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Assigned Role</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Approval Order</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 'bold', color: 'white' }}>Actions</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {approvalLevels.map((level) => (
-                      <TableRow key={level.levelId} sx={{ '&:nth-of-type(odd)': { backgroundColor: theme.palette.action.hover } }}>
-                        <TableCell>{level.levelName}</TableCell>
-                        <TableCell>{roles.find(r => r.roleId === level.roleId)?.roleName || 'N/A'}</TableCell>
-                        <TableCell>{level.approvalOrder}</TableCell>
-                        <TableCell align="right">
-                          <Stack direction="row" spacing={1} justifyContent="flex-end">
-                            {hasPrivilege('approval_levels.update') && (
-                              <Tooltip title="Edit Level">
-                                <IconButton color="primary" onClick={() => handleOpenEditLevelDialog(level)}>
-                                  <EditIcon fontSize="small" />
-                                </IconButton>
-                              </Tooltip>
-                            )}
-                            {hasPrivilege('approval_levels.delete') && (
-                              <Tooltip title="Delete Level">
-                                <IconButton color="error" onClick={() => handleOpenDeleteConfirm(level, 'level')}>
-                                  <DeleteIcon fontSize="small" />
-                                </IconButton>
-                              </Tooltip>
-                            )}
-                          </Stack>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+                <Box
+                  sx={{
+                    height: 400,
+                    width: '100%',
+                    "& .MuiDataGrid-root": {
+                        border: "none",
+                        color: theme.palette.text.primary,
+                    },
+                    "& .MuiDataGrid-cell": {
+                        borderBottom: "none",
+                        color: theme.palette.text.primary,
+                    },
+                    "& .MuiDataGrid-columnHeaders": {
+                        backgroundColor: colors.blueAccent[700],
+                        borderBottom: "none",
+                    },
+                    "& .MuiDataGrid-virtualScroller": {
+                        backgroundColor: colors.primary[400],
+                    },
+                    "& .MuiDataGrid-footerContainer": {
+                        borderTop: "none",
+                        backgroundColor: colors.blueAccent[700],
+                    },
+                    "& .MuiCheckbox-root": {
+                        color: `${colors.greenAccent[200]} !important`,
+                    },
+                  }}
+                >
+                  <DataGrid
+                    rows={approvalLevels}
+                    columns={levelColumns}
+                    getRowId={(row) => row.levelId}
+                    initialState={{
+                        pagination: {
+                            paginationModel: { pageSize: 10, page: 0 },
+                        },
+                    }}
+                    pageSizeOptions={[10, 25, 50]}
+                  />
+                </Box>
             )}
           </Box>
       )}
@@ -382,45 +465,46 @@ const ApprovalLevelsManagementPage = () => {
             {paymentStatuses.length === 0 ? (
               <Alert severity="info">No payment statuses found. Add a new one to get started.</Alert>
             ) : (
-              <TableContainer component={Paper} sx={{ borderRadius: '8px', overflow: 'hidden', boxShadow: theme.shadows[2] }}>
-                <Table aria-label="payment statuses table">
-                  <TableHead>
-                    <TableRow sx={{ backgroundColor: theme.palette.primary.main }}>
-                      <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>ID</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Status Name</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Description</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 'bold', color: 'white' }}>Actions</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {paymentStatuses.map((status) => (
-                      <TableRow key={status.statusId} sx={{ '&:nth-of-type(odd)': { backgroundColor: theme.palette.action.hover } }}>
-                        <TableCell>{status.statusId}</TableCell>
-                        <TableCell>{status.statusName}</TableCell>
-                        <TableCell>{status.description}</TableCell>
-                        <TableCell align="right">
-                          <Stack direction="row" spacing={1} justifyContent="flex-end">
-                            {hasPrivilege('payment_status_definitions.update') && (
-                              <Tooltip title="Edit Status">
-                                <IconButton color="primary" onClick={() => handleOpenEditStatusDialog(status)}>
-                                  <EditIcon fontSize="small" />
-                                </IconButton>
-                              </Tooltip>
-                            )}
-                            {hasPrivilege('payment_status_definitions.delete') && (
-                              <Tooltip title="Delete Status">
-                                <IconButton color="error" onClick={() => handleOpenDeleteConfirm(status, 'status')}>
-                                  <DeleteIcon fontSize="small" />
-                                </IconButton>
-                              </Tooltip>
-                            )}
-                          </Stack>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+                <Box
+                    sx={{
+                        height: 400,
+                        width: '100%',
+                        "& .MuiDataGrid-root": {
+                            border: "none",
+                            color: theme.palette.text.primary,
+                        },
+                        "& .MuiDataGrid-cell": {
+                            borderBottom: "none",
+                            color: theme.palette.text.primary,
+                        },
+                        "& .MuiDataGrid-columnHeaders": {
+                            backgroundColor: colors.blueAccent[700],
+                            borderBottom: "none",
+                        },
+                        "& .MuiDataGrid-virtualScroller": {
+                            backgroundColor: colors.primary[400],
+                        },
+                        "& .MuiDataGrid-footerContainer": {
+                            borderTop: "none",
+                            backgroundColor: colors.blueAccent[700],
+                        },
+                        "& .MuiCheckbox-root": {
+                            color: `${colors.greenAccent[200]} !important`,
+                        },
+                    }}
+                >
+                  <DataGrid
+                    rows={paymentStatuses}
+                    columns={statusColumns}
+                    getRowId={(row) => row.statusId}
+                    initialState={{
+                        pagination: {
+                            paginationModel: { pageSize: 10, page: 0 },
+                        },
+                    }}
+                    pageSizeOptions={[10, 25, 50]}
+                  />
+                </Box>
             )}
           </Box>
       )}

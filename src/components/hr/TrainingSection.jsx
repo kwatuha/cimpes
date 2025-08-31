@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
 import {
-    Box, Typography, Button, Table, TableBody, TableCell,
-    TableContainer, TableHead, TableRow, Paper, Stack, IconButton
+    Box, Typography, Button, Stack, IconButton, CircularProgress, Tooltip
 } from '@mui/material';
+import { DataGrid } from '@mui/x-data-grid';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import AddEditTrainingModal from './modals/AddEditTrainingModal';
+import { useTheme } from '@mui/material';
+import { tokens } from "../../pages/dashboard/theme";
 
 export default function TrainingSection({ trainings, employees, showNotification, refreshData, handleOpenDeleteConfirmModal }) {
+    const theme = useTheme();
+    const colors = tokens(theme.palette.mode);
     const { hasPrivilege } = useAuth();
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -37,6 +41,33 @@ export default function TrainingSection({ trainings, employees, showNotification
         setEditedItem(null);
     };
     
+    const columns = [
+        { field: 'staff', headerName: 'Staff', flex: 1, minWidth: 200, valueGetter: (params) => `${params.row?.staffFirstName || ''} ${params.row?.staffLastName || ''}` },
+        { field: 'courseName', headerName: 'Course Name', flex: 1, minWidth: 250 },
+        { field: 'institution', headerName: 'Institution', flex: 1, minWidth: 200 },
+        { field: 'completionDate', headerName: 'Completion Date', flex: 1, minWidth: 150, valueGetter: (params) => new Date(params.row?.completionDate).toLocaleDateString() },
+        {
+            field: 'actions',
+            headerName: 'Actions',
+            sortable: false,
+            filterable: false,
+            align: 'center',
+            headerAlign: 'center',
+            flex: 1,
+            minWidth: 150,
+            renderCell: (params) => (
+                <Stack direction="row" spacing={1} justifyContent="center">
+                    {hasPrivilege('training.update') && (
+                        <Tooltip title="Edit"><IconButton color="primary" onClick={() => handleOpenEditModal(params.row)}><EditIcon /></IconButton></Tooltip>
+                    )}
+                    {hasPrivilege('training.delete') && (
+                        <Tooltip title="Delete"><IconButton color="error" onClick={() => handleOpenDeleteConfirmModal(params.row.id, `training record for ${params.row.staffFirstName} ${params.row.staffLastName}`, 'training')}><DeleteIcon /></IconButton></Tooltip>
+                    )}
+                </Stack>
+            ),
+        },
+    ];
+
     return (
         <Box>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
@@ -47,47 +78,44 @@ export default function TrainingSection({ trainings, employees, showNotification
                     </Button>
                 )}
             </Box>
-            <TableContainer component={Paper} elevation={3}>
-                <Table>
-                    <TableHead>
-                        <TableRow sx={{ backgroundColor: 'primary.main' }}>
-                            <TableCell sx={{ color: 'white' }}>Staff</TableCell>
-                            <TableCell sx={{ color: 'white' }}>Course Name</TableCell>
-                            <TableCell sx={{ color: 'white' }}>Institution</TableCell>
-                            <TableCell sx={{ color: 'white' }}>Completion Date</TableCell>
-                            <TableCell sx={{ color: 'white' }}>Actions</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {trainings && trainings.length > 0 ? (
-                            trainings.map((training) => (
-                                <TableRow key={training.id}>
-                                    <TableCell>{training.staffFirstName} {training.staffLastName}</TableCell>
-                                    <TableCell>{training.courseName}</TableCell>
-                                    <TableCell>{training.institution}</TableCell>
-                                    <TableCell>{new Date(training.completionDate).toLocaleDateString()}</TableCell>
-                                    <TableCell>
-                                        <Stack direction="row" spacing={1}>
-                                            {hasPrivilege('training.update') && (
-                                                <IconButton color="primary" onClick={() => handleOpenEditModal(training)}>
-                                                    <EditIcon />
-                                                </IconButton>
-                                            )}
-                                            {hasPrivilege('training.delete') && (
-                                                <IconButton color="error" onClick={() => handleOpenDeleteConfirmModal(training.id, `training record for ${training.staffFirstName} ${training.staffLastName}`, 'training')}>
-                                                    <DeleteIcon />
-                                                </IconButton>
-                                            )}
-                                        </Stack>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        ) : (
-                            <TableRow><TableCell colSpan={5} align="center">No training records found.</TableCell></TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </TableContainer>
+            <Box
+                m="20px 0 0 0"
+                height="75vh"
+                sx={{
+                    "& .MuiDataGrid-root": {
+                        border: "none",
+                    },
+                    "& .MuiDataGrid-cell": {
+                        borderBottom: "none",
+                    },
+                    "& .MuiDataGrid-columnHeaders": {
+                        backgroundColor: colors.blueAccent[700],
+                        borderBottom: "none",
+                    },
+                    "& .MuiDataGrid-virtualScroller": {
+                        backgroundColor: colors.primary[400],
+                    },
+                    "& .MuiDataGrid-footerContainer": {
+                        borderTop: "none",
+                        backgroundColor: colors.blueAccent[700],
+                    },
+                    "& .MuiCheckbox-root": {
+                        color: `${colors.greenAccent[200]} !important`,
+                    },
+                }}
+            >
+                {trainings && trainings.length > 0 ? (
+                    <DataGrid
+                        rows={trainings}
+                        columns={columns}
+                        getRowId={(row) => row.id}
+                    />
+                ) : (
+                    <Box display="flex" justifyContent="center" alignItems="center" height="100%">
+                        <Typography variant="h6">No training records found.</Typography>
+                    </Box>
+                )}
+            </Box>
             <AddEditTrainingModal
                 isOpen={isAddModalOpen || isEditModalOpen}
                 onClose={handleCloseModal}

@@ -103,7 +103,7 @@ const PaymentRequestForm = ({ open, onClose, projectId, projectName, onSubmit, a
             helperText={formErrors.description}
           />
           
-          <FormControl fullWidth margin="normal" error={!!formErrors.activities}>
+          <FormControl fullWidth margin="normal" error={!!formErrors.activities} sx={{ minWidth: 250 }}>
             <InputLabel>Accomplished Activities</InputLabel>
             <Select
               name="activities"
@@ -120,6 +120,14 @@ const PaymentRequestForm = ({ open, onClose, projectId, projectName, onSubmit, a
                   })}
                 </Box>
               )}
+              displayEmpty
+              MenuProps={{
+                PaperProps: {
+                  style: {
+                    maxHeight: 250,
+                  },
+                },
+              }}
             >
               {accomplishedActivities.map((activity) => (
                 <MenuItem key={activity.activityId} value={activity.activityId}>

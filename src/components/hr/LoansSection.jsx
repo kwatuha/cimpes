@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
 import {
-    Box, Typography, Button, Table, TableBody, TableCell,
-    TableContainer, TableHead, TableRow, Paper, Stack, IconButton
+    Box, Typography, Button, Stack, IconButton, CircularProgress, Tooltip
 } from '@mui/material';
+import { DataGrid } from '@mui/x-data-grid';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import AddEditLoansModal from './modals/AddEditLoansModal';
+import { useTheme } from '@mui/material';
+import { tokens } from "../../pages/dashboard/theme";
 
 export default function LoansSection({ loans, employees, showNotification, refreshData, handleOpenDeleteConfirmModal }) {
+    const theme = useTheme();
+    const colors = tokens(theme.palette.mode);
     const { hasPrivilege } = useAuth();
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -36,6 +40,33 @@ export default function LoansSection({ loans, employees, showNotification, refre
         setIsEditModalOpen(false);
         setEditedItem(null);
     };
+
+    const columns = [
+        { field: 'staff', headerName: 'Staff', flex: 1, minWidth: 200, valueGetter: (params) => `${params.row?.staffFirstName || ''} ${params.row?.staffLastName || ''}` },
+        { field: 'loanAmount', headerName: 'Amount', flex: 1, minWidth: 150 },
+        { field: 'loanDate', headerName: 'Date', flex: 1, minWidth: 150, valueGetter: (params) => new Date(params.row?.loanDate).toLocaleDateString() },
+        { field: 'status', headerName: 'Status', flex: 1, minWidth: 150 },
+        {
+            field: 'actions',
+            headerName: 'Actions',
+            sortable: false,
+            filterable: false,
+            align: 'center',
+            headerAlign: 'center',
+            flex: 1,
+            minWidth: 150,
+            renderCell: (params) => (
+                <Stack direction="row" spacing={1} justifyContent="center">
+                    {hasPrivilege('loans.update') && (
+                        <Tooltip title="Edit"><IconButton color="primary" onClick={() => handleOpenEditModal(params.row)}><EditIcon /></IconButton></Tooltip>
+                    )}
+                    {hasPrivilege('loans.delete') && (
+                        <Tooltip title="Delete"><IconButton color="error" onClick={() => handleOpenDeleteConfirmModal(params.row.id, `loan for ${params.row.staffFirstName} ${params.row.staffLastName}`, 'loans')}><DeleteIcon /></IconButton></Tooltip>
+                    )}
+                </Stack>
+            ),
+        },
+    ];
     
     return (
         <Box>
@@ -47,47 +78,44 @@ export default function LoansSection({ loans, employees, showNotification, refre
                     </Button>
                 )}
             </Box>
-            <TableContainer component={Paper} elevation={3}>
-                <Table>
-                    <TableHead>
-                        <TableRow sx={{ backgroundColor: 'primary.main' }}>
-                            <TableCell sx={{ color: 'white' }}>Staff</TableCell>
-                            <TableCell sx={{ color: 'white' }}>Amount</TableCell>
-                            <TableCell sx={{ color: 'white' }}>Date</TableCell>
-                            <TableCell sx={{ color: 'white' }}>Status</TableCell>
-                            <TableCell sx={{ color: 'white' }}>Actions</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {loans && loans.length > 0 ? (
-                            loans.map((loan) => (
-                                <TableRow key={loan.id}>
-                                    <TableCell>{loan.staffFirstName} {loan.staffLastName}</TableCell>
-                                    <TableCell>{loan.loanAmount}</TableCell>
-                                    <TableCell>{new Date(loan.loanDate).toLocaleDateString()}</TableCell>
-                                    <TableCell>{loan.status}</TableCell>
-                                    <TableCell>
-                                        <Stack direction="row" spacing={1}>
-                                            {hasPrivilege('loans.update') && (
-                                                <IconButton color="primary" onClick={() => handleOpenEditModal(loan)}>
-                                                    <EditIcon />
-                                                </IconButton>
-                                            )}
-                                            {hasPrivilege('loans.delete') && (
-                                                <IconButton color="error" onClick={() => handleOpenDeleteConfirmModal(loan.id, `loan for ${loan.staffFirstName} ${loan.staffLastName}`, 'loans')}>
-                                                    <DeleteIcon />
-                                                </IconButton>
-                                            )}
-                                        </Stack>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        ) : (
-                            <TableRow><TableCell colSpan={5} align="center">No loans found.</TableCell></TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </TableContainer>
+            <Box
+                m="20px 0 0 0"
+                height="75vh"
+                sx={{
+                    "& .MuiDataGrid-root": {
+                        border: "none",
+                    },
+                    "& .MuiDataGrid-cell": {
+                        borderBottom: "none",
+                    },
+                    "& .MuiDataGrid-columnHeaders": {
+                        backgroundColor: colors.blueAccent[700],
+                        borderBottom: "none",
+                    },
+                    "& .MuiDataGrid-virtualScroller": {
+                        backgroundColor: colors.primary[400],
+                    },
+                    "& .MuiDataGrid-footerContainer": {
+                        borderTop: "none",
+                        backgroundColor: colors.blueAccent[700],
+                    },
+                    "& .MuiCheckbox-root": {
+                        color: `${colors.greenAccent[200]} !important`,
+                    },
+                }}
+            >
+                {loans && loans.length > 0 ? (
+                    <DataGrid
+                        rows={loans}
+                        columns={columns}
+                        getRowId={(row) => row.id}
+                    />
+                ) : (
+                    <Box display="flex" justifyContent="center" alignItems="center" height="100%">
+                        <Typography variant="h6">No loans found.</Typography>
+                    </Box>
+                )}
+            </Box>
             <AddEditLoansModal
                 isOpen={isAddModalOpen || isEditModalOpen}
                 onClose={handleCloseModal}

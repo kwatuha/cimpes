@@ -5,36 +5,37 @@ import {
   Box,
   CircularProgress,
   Alert,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  TablePagination,
-  TableSortLabel,
   Button,
   Stack,
+  useTheme,
 } from '@mui/material';
+import { DataGrid } from '@mui/x-data-grid';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
-import apiService from '../api'; // Correctly imports the consolidated apiService
+import apiService from '../api';
 import FilterPanel from '../components/FilterPanel';
+import Header from "./dashboard/Header";
+import { tokens } from "./dashboard/theme";
 
 function RawDataPage() {
+  const theme = useTheme();
+  const colors = tokens(theme.palette.mode);
+  
   const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [totalRows, setTotalRows] = useState(0);
 
   // Pagination states
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-
+  const [paginationModel, setPaginationModel] = useState({
+    page: 0,
+    pageSize: 10,
+  });
+  
   // Sorting states
-  const [orderBy, setOrderBy] = useState('individualId'); // Default sort by individualId
-  const [order, setOrder] = useState('asc');
+  const [sortModel, setSortModel] = useState([
+    { field: 'individualId', sort: 'asc' },
+  ]);
 
   // Filter state
   const [filters, setFilters] = useState({});
@@ -43,41 +44,40 @@ function RawDataPage() {
   const [exportingExcel, setExportingExcel] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
 
-  // Define column headers and their corresponding database keys (now camelCase)
-  const tableColumns = [
-    { id: 'individualId', label: 'Individual ID' },
-    { id: 'householdId', label: 'Household ID' },
-    { id: 'gpsLatitudeIndividual', label: 'Latitude' },
-    { id: 'gpsLongitudeIndividual', label: 'Longitude' },
-    { id: 'county', label: 'County' },
-    { id: 'subCounty', label: 'Sub-County' },
-    { id: 'gender', label: 'Gender' },
-    { id: 'age', label: 'Age' },
-    { id: 'occupation', label: 'Occupation' },
-    { id: 'educationLevel', label: 'Education Level' },
-    { id: 'diseaseStatusMalaria', label: 'Malaria Status' },
-    { id: 'diseaseStatusDengue', label: 'Dengue Status' },
-    { id: 'mosquitoNetUse', label: 'Mosquito Net Use' },
-    { id: 'waterStoragePractices', label: 'Water Storage' },
-    { id: 'climatePerception', label: 'Climate Perception' },
-    { id: 'recentRainfall', label: 'Recent Rainfall' },
-    { id: 'averageTemperatureC', label: 'Avg. Temp (°C)' },
-    { id: 'householdSize', label: 'Household Size' },
-    { id: 'accessToHealthcare', label: 'Healthcare Access' },
-    { id: 'projectId', label: 'Project ID' },
+  // Define columns for DataGrid
+  const columns = [
+    { field: 'individualId', headerName: 'Individual ID', flex: 1, minWidth: 120 },
+    { field: 'householdId', headerName: 'Household ID', flex: 1, minWidth: 120 },
+    { field: 'gpsLatitudeIndividual', headerName: 'Latitude', flex: 1, minWidth: 100 },
+    { field: 'gpsLongitudeIndividual', headerName: 'Longitude', flex: 1, minWidth: 100 },
+    { field: 'county', headerName: 'County', flex: 1, minWidth: 100 },
+    { field: 'subCounty', headerName: 'Sub-County', flex: 1, minWidth: 120 },
+    { field: 'gender', headerName: 'Gender', flex: 1, minWidth: 80 },
+    { field: 'age', headerName: 'Age', type: 'number', flex: 0.5, minWidth: 60 },
+    { field: 'occupation', headerName: 'Occupation', flex: 1, minWidth: 120 },
+    { field: 'educationLevel', headerName: 'Education Level', flex: 1, minWidth: 140 },
+    { field: 'diseaseStatusMalaria', headerName: 'Malaria Status', flex: 1, minWidth: 130 },
+    { field: 'diseaseStatusDengue', headerName: 'Dengue Status', flex: 1, minWidth: 130 },
+    { field: 'mosquitoNetUse', headerName: 'Mosquito Net Use', flex: 1, minWidth: 150 },
+    { field: 'waterStoragePractices', headerName: 'Water Storage', flex: 1, minWidth: 140 },
+    { field: 'climatePerception', headerName: 'Climate Perception', flex: 1, minWidth: 160 },
+    { field: 'recentRainfall', headerName: 'Recent Rainfall', flex: 1, minWidth: 130 },
+    { field: 'averageTemperatureC', headerName: 'Avg. Temp (°C)', type: 'number', flex: 1, minWidth: 150 },
+    { field: 'householdSize', headerName: 'Household Size', type: 'number', flex: 0.5, minWidth: 120 },
+    { field: 'accessToHealthcare', headerName: 'Healthcare Access', flex: 1, minWidth: 160 },
+    { field: 'projectId', headerName: 'Project ID', flex: 1, minWidth: 100 },
   ];
 
-  // Helper function to fetch data with current state
   const fetchRawData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const response = await apiService.participants.getStudyParticipants(
         filters,
-        page + 1, // API expects 1-indexed page
-        rowsPerPage,
-        orderBy,
-        order.toUpperCase() // API expects 'ASC' or 'DESC'
+        paginationModel.page + 1,
+        paginationModel.pageSize,
+        sortModel[0]?.field,
+        sortModel[0]?.sort?.toUpperCase()
       );
       setParticipants(response.data);
       setTotalRows(response.totalCount);
@@ -87,46 +87,29 @@ function RawDataPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters, page, rowsPerPage, orderBy, order]);
+  }, [filters, paginationModel, sortModel]);
 
   useEffect(() => {
     fetchRawData();
   }, [fetchRawData]);
 
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage);
-  };
-
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
-
-  const handleRequestSort = (property) => {
-    const isAsc = orderBy === property && order === 'asc';
-    setOrder(isAsc ? 'desc' : 'asc');
-    setOrderBy(property);
-  };
-
   const handleApplyFilters = (newFilters) => {
     setFilters(newFilters);
-    setPage(0);
+    setPaginationModel(prev => ({ ...prev, page: 0 }));
   };
 
   const handleExportExcel = async () => {
     setExportingExcel(true);
     try {
-      const excelHeadersMapping = tableColumns.reduce((acc, col) => {
-        acc[col.id] = col.label; // Key is the camelCase DB column name, value is the human-readable label
+      const excelHeadersMapping = columns.reduce((acc, col) => {
+        acc[col.field] = col.headerName;
         return acc;
       }, {});
-
-      // Corrected API call: apiService.participants.exportStudyParticipantsToExcel
       const data = await apiService.participants.exportStudyParticipantsToExcel(
         filters,
         excelHeadersMapping,
-        orderBy,
-        order.toUpperCase()
+        sortModel[0]?.field,
+        sortModel[0]?.sort?.toUpperCase()
       );
       const blob = new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = window.URL.createObjectURL(blob);
@@ -148,46 +131,25 @@ function RawDataPage() {
   const handleExportPdf = async () => {
     setExportingPdf(true);
     try {
-      // Fetch all data for PDF export using the participants service
       const allParticipantsResponse = await apiService.participants.getStudyParticipants(
         filters,
-        1, // Start from page 1
-        totalRows > 0 ? totalRows : 100000, // Fetch all rows
-        orderBy,
-        order.toUpperCase()
+        1,
+        totalRows > 0 ? totalRows : 100000,
+        sortModel[0]?.field,
+        sortModel[0]?.sort?.toUpperCase()
       );
       const allParticipants = allParticipantsResponse.data;
 
-      let tableHtml = `
-        <style>
-          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 9pt; }
-          th, td { border: 1px solid #EEEEEE; padding: 8px; text-align: left; }
-          th { background-color: #ADD8E6; color: #0A2342; font-weight: bold; }
-          tr:nth-child(even) { background-color: #F9F9F9; }
-        </style>
-        <table>
-          <thead>
-            <tr>
-              ${tableColumns.map(col => `<th>${col.label}</th>`).join('')}
-            </tr>
-          </thead>
-          <tbody>
-            ${allParticipants.map(participant => `
-              <tr>
-                ${tableColumns.map(col => `<td>${participant[col.id] !== null && participant[col.id] !== undefined ? String(participant[col.id]) : 'N/A'}</td>`).join('')}
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `;
-
-      // Corrected API call: apiService.participants.exportStudyParticipantsToPdf
-      const data = await apiService.participants.exportStudyParticipantsToPdf(
-        filters,
-        tableHtml,
-        orderBy,
-        order.toUpperCase()
+      const headers = columns.map(col => col.headerName);
+      const dataRows = allParticipants.map(participant =>
+        columns.map(col => participant[col.field] !== null && participant[col.field] !== undefined ? String(participant[col.field]) : 'N/A')
       );
+      
+      const data = await apiService.participants.exportStudyParticipantsToPdf(
+        headers,
+        dataRows,
+      );
+
       const blob = new Blob([data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -206,10 +168,8 @@ function RawDataPage() {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>
-        Raw Participant Data
-      </Typography>
+    <Box m="20px">
+      <Header title="RAW DATA" subtitle="List of Raw Participant Data" />
 
       <FilterPanel onApplyFilters={handleApplyFilters} />
 
@@ -250,68 +210,47 @@ function RawDataPage() {
       )}
 
       {!loading && !error && participants.length > 0 && (
-        <Paper sx={{ width: '100%', mb: 2 }}>
-          <TableContainer sx={{ maxHeight: 'calc(100vh - 300px)' }}>
-            <Table stickyHeader aria-label="raw participant data table" size="small">
-              <TableHead>
-                <TableRow>
-                  {tableColumns.map((column) => (
-                    <TableCell
-                      key={column.id}
-                      sortDirection={orderBy === column.id ? order : false}
-                      sx={{ fontWeight: 'bold' }}
-                    >
-                      <TableSortLabel
-                        active={orderBy === column.id}
-                        direction={orderBy === column.id ? order : 'asc'}
-                        onClick={() => handleRequestSort(column.id)}
-                      >
-                        {column.label}
-                        {orderBy === column.id ? (
-                          <Box component="span" sx={{
-                            border: 0,
-                            clip: 'rect(0 0 0 0)',
-                            height: 1,
-                            margin: -1,
-                            overflow: 'hidden',
-                            padding: 0,
-                            position: 'absolute',
-                            top: 20,
-                            width: 1,
-                          }}>
-                            {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
-                          </Box>
-                        ) : null}
-                      </TableSortLabel>
-                    </TableCell>
-                  ))}
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {participants.map((participant, index) => (
-                  <TableRow hover key={participant.individualId || index}>
-                    {tableColumns.map((column) => (
-                      <TableCell key={column.id}>
-                        {participant[column.id] !== null && participant[column.id] !== undefined
-                          ? String(participant[column.id])
-                          : 'N/A'}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          <TablePagination
-            rowsPerPageOptions={[5, 10, 25, 50]}
-            component="div"
-            count={totalRows}
-            rowsPerPage={rowsPerPage}
-            page={page}
-            onPageChange={handleChangePage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
+        <Box
+          m="40px 0 0 0"
+          height="75vh"
+          sx={{
+            "& .MuiDataGrid-root": {
+              border: "none",
+            },
+            "& .MuiDataGrid-cell": {
+              borderBottom: "none",
+            },
+            "& .MuiDataGrid-columnHeaders": {
+              backgroundColor: colors.blueAccent[700],
+              borderBottom: "none",
+            },
+            "& .MuiDataGrid-virtualScroller": {
+              backgroundColor: colors.primary[400],
+            },
+            "& .MuiDataGrid-footerContainer": {
+              borderTop: "none",
+              backgroundColor: colors.blueAccent[700],
+            },
+            "& .MuiCheckbox-root": {
+              color: `${colors.greenAccent[200]} !important`,
+            },
+          }}
+        >
+          <DataGrid
+            rows={participants}
+            columns={columns}
+            rowCount={totalRows}
+            loading={loading}
+            pageSizeOptions={[5, 10, 25, 50]}
+            paginationModel={paginationModel}
+            onPaginationModelChange={setPaginationModel}
+            paginationMode="server"
+            sortingMode="server"
+            onSortModelChange={setSortModel}
+            sortModel={sortModel}
+            getRowId={(row) => row.individualId}
           />
-        </Paper>
+        </Box>
       )}
     </Box>
   );

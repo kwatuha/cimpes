@@ -2,33 +2,36 @@ import React, { useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Menu, MenuItem, ListItemIcon, Checkbox, ListItemText, Box, Typography, Button, CircularProgress, IconButton,
-  Snackbar, Alert, Stack, useTheme, Tooltip, Paper,
-  TableContainer, Table, TableHead, TableBody, TableRow, TableCell, TableSortLabel,
+  Snackbar, Alert, Stack, useTheme, Tooltip,
 } from '@mui/material';
+import { DataGrid } from "@mui/x-data-grid";
 import {
   Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Visibility as ViewDetailsIcon, FilterList as FilterListIcon, BarChart as GanttChartIcon,
   ArrowForward as ArrowForwardIcon, ArrowBack as ArrowBackIcon, Settings as SettingsIcon, Category as CategoryIcon,
-  GroupAdd as GroupAddIcon // NEW: Imported GroupAddIcon
+  GroupAdd as GroupAddIcon
 } from '@mui/icons-material';
 
 import { useAuth } from '../context/AuthContext.jsx';
 import { checkUserPrivilege, currencyFormatter, getProjectStatusBackgroundColor, getProjectStatusTextColor } from '../utils/tableHelpers';
 import projectTableColumnsConfig from '../configs/projectTableConfig';
 import apiService from '../api';
+import { tokens } from "./dashboard/theme"; // Import tokens for color styling
 
 // Import our new, compact components and hooks
+import Header from "./dashboard/Header"; // Import Header component
 import ProjectFilters from '../components/ProjectFilters';
 import ProjectFormDialog from '../components/ProjectFormDialog';
 import useProjectData from '../hooks/useProjectData';
 import useTableSort from '../hooks/useTableSort';
 import useFilter from '../hooks/useFilter';
 import useTableScrollShadows from '../hooks/useTableScrollShadows';
-import AssignContractorModal from '../components/AssignContractorModal.jsx'; // NEW: Import AssignContractorModal
+import AssignContractorModal from '../components/AssignContractorModal.jsx';
 
 function ProjectManagementPage() {
   const { user, loading: authLoading, hasPrivilege } = useAuth();
   const navigate = useNavigate();
   const theme = useTheme();
+  const colors = tokens(theme.palette.mode); // Initialize colors
 
   // Custom hook for filters: state and handlers
   const { filterState, handleFilterChange, handleClearFilters } = useFilter();
@@ -42,7 +45,7 @@ function ProjectManagementPage() {
   // Custom hook for table sorting
   const { order, orderBy, handleRequestSort, sortedData: sortedProjects } = useTableSort(projects);
 
-  // Custom hook for table scroll shadows
+  // Custom hook for table scroll shadows (no longer needed for DataGrid)
   const { tableContainerRef, showLeftShadow, showRightShadow, handleScrollRight, handleScrollLeft } = useTableScrollShadows(projects);
 
   // States for column visibility and menu
@@ -65,7 +68,7 @@ function ProjectManagementPage() {
   const [openFormDialog, setOpenFormDialog] = useState(false);
   const [currentProject, setCurrentProject] = useState(null);
   
-  // NEW: State for Assign Contractor modal
+  // State for Assign Contractor modal
   const [openAssignModal, setOpenAssignModal] = useState(false);
   const [selectedProjectForAssignment, setSelectedProjectForAssignment] = useState(null);
 
@@ -87,7 +90,7 @@ function ProjectManagementPage() {
     setCurrentProject(null);
   };
 
-  // NEW: Handlers for Assign Contractor modal
+  // Handlers for Assign Contractor modal
   const handleOpenAssignModal = (project) => {
       setSelectedProjectForAssignment(project);
       setOpenAssignModal(true);
@@ -158,101 +161,136 @@ function ProjectManagementPage() {
 
   if (authLoading) return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}><CircularProgress /><Typography sx={{ ml: 2 }}>Loading authentication data...</Typography></Box>;
 
-  const visibleColumns = projectTableColumnsConfig.filter(col => visibleColumnIds.includes(col.id));
-  const stickyLeftPositions = visibleColumns.reduce((acc, col, index) => {
-    if (col.sticky === 'left') {
-      const prevSticky = visibleColumns.slice(0, index).filter(c => c.sticky === 'left');
-      acc[col.id] = prevSticky.reduce((sum, c) => sum + (c.minWidth || 150), 0);
-    }
-    return acc;
-  }, {});
+  // Define columns for DataGrid
+  const columns = projectTableColumnsConfig.map(col => {
+    const dataGridColumn = {
+      field: col.id,
+      headerName: col.label,
+      flex: col.flex,
+      width: col.width,
+      minWidth: col.minWidth,
+      sortable: col.sortable,
+    };
 
-  const getCellContent = (project, column) => {
-    switch (column.id) {
+    switch (col.id) {
       case 'status':
-        return <Box sx={{ backgroundColor: getProjectStatusBackgroundColor(project.status), color: getProjectStatusTextColor(project.status), padding: '4px 8px', borderRadius: '4px', minWidth: '80px', textAlign: 'center', fontWeight: 'bold' }}>{project.status}</Box>;
+        dataGridColumn.renderCell = (params) => (
+          <Box sx={{ backgroundColor: getProjectStatusBackgroundColor(params.value), color: getProjectStatusTextColor(params.value), padding: '4px 8px', borderRadius: '4px', minWidth: '80px', textAlign: 'center', fontWeight: 'bold' }}>
+            {params.value}
+          </Box>
+        );
+        break;
       case 'costOfProject':
       case 'paidOut':
-        return !isNaN(parseFloat(project[column.id])) ? currencyFormatter.format(parseFloat(project[column.id])) : 'N/A';
+        dataGridColumn.renderCell = (params) => (
+          !isNaN(parseFloat(params.value)) ? currencyFormatter.format(parseFloat(params.value)) : 'N/A'
+        );
+        break;
       case 'startDate':
       case 'endDate':
-        return project[column.id] ? new Date(project[column.id]).toLocaleDateString() : 'N/A';
+        dataGridColumn.renderCell = (params) => (
+          params.value ? new Date(params.value).toLocaleDateString() : 'N/A'
+        );
+        break;
       case 'principalInvestigator':
-        return project.pi_firstName || project.principalInvestigator || 'N/A';
+        dataGridColumn.valueGetter = (params) => params.row.pi_firstName || params.row.principalInvestigator || 'N/A';
+        break;
       case 'actions':
-        return (
+        dataGridColumn.renderCell = (params) => (
           <Stack direction="row" spacing={1} justifyContent="flex-end">
-            {checkUserPrivilege(user, 'projects.assign_contractor') && ( // NEW: Privilege check for assign button
+            {checkUserPrivilege(user, 'projects.assign_contractor') && (
               <Tooltip title="Assign Contractors">
-                <IconButton color="primary" onClick={() => handleOpenAssignModal(project)}>
+                <IconButton sx={{ color: colors.grey[100] }} onClick={() => handleOpenAssignModal(params.row)}>
                   <GroupAddIcon />
                 </IconButton>
               </Tooltip>
             )}
             {checkUserPrivilege(user, 'project.update') && (
               <Tooltip title="Edit">
-                <IconButton color="primary" onClick={() => handleOpenFormDialog(project)}>
+                <IconButton sx={{ color: colors.grey[100] }} onClick={() => handleOpenFormDialog(params.row)}>
                   <EditIcon />
                 </IconButton>
               </Tooltip>
             )}
             {checkUserPrivilege(user, 'project.delete') && (
               <Tooltip title="Delete">
-                <IconButton color="error" onClick={() => handleDeleteProject(project.id)}>
+                <IconButton sx={{ color: colors.redAccent[500] }} onClick={() => handleDeleteProject(params.row.id)}>
                   <DeleteIcon />
                 </IconButton>
               </Tooltip>
             )}
             {checkUserPrivilege(user, 'project.read_gantt_chart') && (
               <Tooltip title="Gantt Chart">
-                <IconButton color="secondary" onClick={() => handleViewGanttChart(project.id)}>
+                <IconButton sx={{ color: colors.grey[100] }} onClick={() => handleViewGanttChart(params.row.id)}>
                   <GanttChartIcon />
                 </IconButton>
               </Tooltip>
             )}
             <Tooltip title="View Details">
-              <IconButton color="info" onClick={() => handleViewDetails(project.id)}>
+              <IconButton sx={{ color: colors.grey[100] }} onClick={() => handleViewDetails(params.row.id)}>
                 <ViewDetailsIcon />
               </IconButton>
             </Tooltip>
             {checkUserPrivilege(user, 'project.read_kdsp_details') && (
               <Tooltip title="View KDSP Details">
-                <Button variant="outlined" onClick={() => handleViewKdspDetails(project.id)} size="small" sx={{ whiteSpace: 'nowrap' }}>
+                <Button variant="outlined" onClick={() => handleViewKdspDetails(params.row.id)} size="small" sx={{ whiteSpace: 'nowrap', color: colors.grey[100], borderColor: colors.grey[100] }}>
                   KDSP
                 </Button>
               </Tooltip>
             )}
           </Stack>
         );
+        dataGridColumn.sortable = false;
+        dataGridColumn.filterable = false;
+        dataGridColumn.headerAlign = 'right';
+        dataGridColumn.align = 'right';
+        break;
       default:
-        return project[column.id] || 'N/A';
+        dataGridColumn.valueGetter = (params) => params.value || 'N/A';
+        break;
     }
-  };
+    return dataGridColumn;
+  }).filter(col => visibleColumnIds.includes(col.field));
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1" sx={{ color: theme.palette.primary.main, fontWeight: 'bold' }}>Project Management</Typography>
+    <Box m="20px">
+      <Header title="PROJECTS" subtitle="List of Projects" />
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
         <Stack direction="row" spacing={1}>
           {hasPrivilege('projectcategory.read_all') && (
               <Button
                   variant="outlined"
                   startIcon={<CategoryIcon />}
                   onClick={() => navigate('/settings/project-categories')}
-                  sx={{ borderColor: theme.palette.primary.main, color: theme.palette.primary.main, '&:hover': { backgroundColor: theme.palette.primary.light, color: 'white' }, fontWeight: 'semibold', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' }}
+                  sx={{ borderColor: colors.blueAccent[500], color: colors.blueAccent[500], '&:hover': { backgroundColor: colors.blueAccent[700], color: colors.white }, fontWeight: 'semibold', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' }}
               >
                   Manage Categories
               </Button>
           )}
-          <Button variant="outlined" startIcon={<SettingsIcon />} onClick={handleOpenColumnsMenu}>Customize Columns</Button>
-          {checkUserPrivilege(user, 'project.create') && (<Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenFormDialog()}>Add New Project</Button>)}
+          <Button variant="outlined" startIcon={<SettingsIcon />} onClick={handleOpenColumnsMenu}
+            sx={{ color: colors.grey[100], borderColor: colors.grey[400], '&:hover': { backgroundColor: colors.primary[500], borderColor: colors.grey[100] } }}
+          >Customize Columns</Button>
+          {checkUserPrivilege(user, 'project.create') && (
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenFormDialog()}
+              sx={{ backgroundColor: colors.greenAccent[600], '&:hover': { backgroundColor: colors.greenAccent[700] }, color: colors.white }}
+            >
+              Add New Project
+            </Button>
+          )}
         </Stack>
       </Box>
 
-      <Menu anchorEl={anchorElColumnsMenu} open={Boolean(anchorElColumnsMenu)} onClose={handleCloseColumnsMenu} PaperProps={{ style: { maxHeight: 48 * 4.5, width: '25ch' } }}>
+      <Menu anchorEl={anchorElColumnsMenu} open={Boolean(anchorElColumnsMenu)} onClose={handleCloseColumnsMenu} PaperProps={{ style: { maxHeight: 48 * 4.5, width: '25ch', backgroundColor: colors.primary[400], color: colors.grey[100] } }}>
         {projectTableColumnsConfig.map((column) => (
           <MenuItem key={column.id} disableRipple onClick={(e) => e.stopPropagation()}>
-            <ListItemIcon><Checkbox checked={visibleColumnIds.includes(column.id)} onChange={(e) => handleToggleColumn(column.id, e.target.checked)} disabled={column.sticky === 'left' && visibleColumnIds.filter(id => projectTableColumnsConfig.find(c => c.id === id)?.sticky === 'left').length === 1} /></ListItemIcon>
+            <ListItemIcon>
+              <Checkbox
+                checked={visibleColumnIds.includes(column.id)}
+                onChange={(e) => handleToggleColumn(column.id, e.target.checked)}
+                sx={{ color: `${colors.greenAccent[200]} !important` }}
+                disabled={column.sticky === 'left' && visibleColumnIds.filter(id => projectTableColumnsConfig.find(c => c.id === id)?.sticky === 'left').length === 1}
+              />
+            </ListItemIcon>
             <ListItemText primary={column.label} />
           </MenuItem>
         ))}
@@ -272,41 +310,46 @@ function ProjectManagementPage() {
       {!loading && !error && projects.length === 0 && !checkUserPrivilege(user, 'project.read_all') && (<Alert severity="warning" sx={{ mt: 2 }}>You do not have the necessary permissions to view any projects.</Alert>)}
 
       {!loading && !error && projects.length > 0 && (
-        <TableContainer ref={tableContainerRef} component={Paper} sx={{ position: 'relative', overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 300px)' }}>
-          <Table stickyHeader sx={{ minWidth: 1400 }}>
-            <TableHead>
-              <TableRow>
-                {visibleColumns.map((column) => (
-                  <TableCell
-                    key={column.id} sortDirection={orderBy === column.id ? order : false}
-                    sx={{ fontWeight: 'bold', color: 'white', backgroundColor: theme.palette.primary.main, minWidth: column.minWidth, ... (column.sticky === 'left' && { position: 'sticky', left: stickyLeftPositions[column.id], zIndex: 11 }), ... (column.sticky === 'right' && { position: 'sticky', right: 0, zIndex: 11 })}}
-                  >
-                    {column.id === 'actions' ? (
-                      <Stack direction="row" alignItems="center" justifyContent="flex-end">
-                        {showLeftShadow && <IconButton size="small" onClick={handleScrollLeft} sx={{ color: 'white' }}><ArrowBackIcon /></IconButton>}
-                        <Box component="span" sx={{ flexGrow: 1, textAlign: 'right' }}>{column.label}</Box>
-                        {showRightShadow && <IconButton size="small" onClick={handleScrollRight} sx={{ color: 'white' }}><ArrowForwardIcon /></IconButton>}
-                      </Stack>
-                    ) : (
-                      <TableSortLabel active={orderBy === column.id} direction={orderBy === column.id ? order : 'asc'} onClick={(e) => handleRequestSort(e, column.id)}>{column.label}</TableSortLabel>
-                    )}
-                  </TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {sortedProjects.map((project, rowIndex) => (
-                <TableRow key={project.id} sx={{ backgroundColor: rowIndex % 2 === 1 ? '#f9f9f9' : 'white' }}>
-                  {visibleColumns.map((column) => (
-                    <TableCell key={`${project.id}-${column.id}`} sx={{ ... (column.sticky === 'left' && { position: 'sticky', left: stickyLeftPositions[column.id], zIndex: 10, backgroundColor: rowIndex % 2 === 1 ? '#f9f9f9' : 'white' }), ... (column.sticky === 'right' && { position: 'sticky', right: 0, zIndex: 10, backgroundColor: rowIndex % 2 === 1 ? '#f9f9f9' : 'white' }) }}>
-                      {getCellContent(project, column)}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <Box
+          m="40px 0 0 0"
+          height="75vh"
+          sx={{
+            "& .MuiDataGrid-root": {
+              border: "none",
+            },
+            "& .MuiDataGrid-cell": {
+              borderBottom: "none",
+            },
+            "& .MuiDataGrid-columnHeaders": {
+              backgroundColor: colors.blueAccent[700],
+              borderBottom: "none",
+            },
+            "& .MuiDataGrid-virtualScroller": {
+              backgroundColor: colors.primary[400],
+            },
+            "& .MuiDataGrid-footerContainer": {
+              borderTop: "none",
+              backgroundColor: colors.blueAccent[700],
+            },
+            "& .MuiCheckbox-root": {
+              color: `${colors.greenAccent[200]} !important`,
+            },
+            "& .name-column--cell": {
+              color: colors.greenAccent[300],
+            },
+          }}
+        >
+          <DataGrid
+            rows={projects}
+            columns={columns}
+            getRowId={(row) => row.id}
+            initialState={{
+              sorting: {
+                sortModel: [{ field: orderBy, sort: order }],
+              },
+            }}
+          />
+        </Box>
       )}
 
       <ProjectFormDialog
@@ -319,7 +362,6 @@ function ProjectManagementPage() {
         user={user}
       />
       
-      {/* NEW: Assign Contractor modal */}
       <AssignContractorModal
           open={openAssignModal}
           onClose={handleCloseAssignModal}

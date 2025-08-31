@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, Grid, CircularProgress, Alert, Card, CardContent } from '@mui/material';
+import { DataGrid } from '@mui/x-data-grid';
 
-import ReportDataTable from './tables/ReportDataTable';
 import apiService from '../api';
-import ExportButtons from './ExportButtons';
 
 import ProjectStatusDonutChart from './charts/ProjectStatusDonutChart';
 import BarChart from './charts/BarChart';
@@ -12,15 +11,37 @@ import StackedBarChart from './charts/StackedBarChart';
 
 // Define columns for the detailed project list table
 const projectListColumns = [
-    { id: 'projectName', label: 'Project Title', minWidth: 200 },
-    { id: 'financialYearName', label: 'Financial Year', minWidth: 100 },
-    { id: 'departmentName', label: 'Department', minWidth: 150 },
-    { id: 'countyName', label: 'County', minWidth: 120 },
-    { id: 'subcountyName', label: 'Subcounty', minWidth: 120 },
-    { id: 'wardName', label: 'Ward', minWidth: 120 },
-    { id: 'status', label: 'Status', minWidth: 100 },
-    { id: 'costOfProject', label: 'Budget', minWidth: 120 },
-    { id: 'paidOut', label: 'Paid Amount', minWidth: 120 },
+    { field: 'projectName', headerName: 'Project Title', minWidth: 200, flex: 1 },
+    { field: 'financialYearName', headerName: 'Financial Year', minWidth: 100 },
+    { field: 'departmentName', headerName: 'Department', minWidth: 150 },
+    { field: 'countyName', headerName: 'County', minWidth: 120 },
+    { field: 'subcountyName', headerName: 'Subcounty', minWidth: 120 },
+    { field: 'wardName', headerName: 'Ward', minWidth: 120 },
+    { field: 'status', headerName: 'Status', minWidth: 100 },
+    {
+        field: 'costOfProject',
+        headerName: 'Budget',
+        minWidth: 120,
+        type: 'number',
+        valueFormatter: (params) => {
+            if (params.value == null) {
+                return '';
+            }
+            return `KES ${parseFloat(params.value).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+    },
+    {
+        field: 'paidOut',
+        headerName: 'Paid Amount',
+        minWidth: 120,
+        type: 'number',
+        valueFormatter: (params) => {
+            if (params.value == null) {
+                return '';
+            }
+            return `KES ${parseFloat(params.value).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+    },
 ];
 
 const ProjectSummaryReport = ({ filters }) => {
@@ -83,7 +104,13 @@ const ProjectSummaryReport = ({ filters }) => {
         return <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>;
     }
 
-    const hasData = reportData.detailedList.length > 0 ||
+    // `DataGrid` requires an `id` field, so we must add it if it doesn't exist
+    const detailedListWithIds = reportData.detailedList.map((row, index) => ({
+        ...row,
+        id: row.projectId || index,
+    }));
+
+    const hasData = detailedListWithIds.length > 0 ||
                     reportData.statusSummary.length > 0 ||
                     reportData.projectsStatusOverTime.length > 0 ||
                     reportData.financialStatusByProjectStatus.length > 0 ||
@@ -94,11 +121,11 @@ const ProjectSummaryReport = ({ filters }) => {
     }
 
     // Process data for charts
-    const donutChartData = reportData.statusSummary.map(item => ({ 
-        name: item.name || item.statusName, 
-        value: item.value || item.count 
+    const donutChartData = reportData.statusSummary.map(item => ({
+        name: item.name || item.statusName,
+        value: item.value || item.count
     }));
-    
+
     const stackedBarChartData = reportData.projectsByStatusAndYear;
 
     const allStatuses = [...new Set(stackedBarChartData.map(item => item.status))];
@@ -113,108 +140,128 @@ const ProjectSummaryReport = ({ filters }) => {
       }, {})
     );
 
-return (
-    <Box sx={{ p: 3 }}>
-        <Typography variant="h4" component="h1" gutterBottom align="center" sx={{ mb: 4 }}>
-            Comprehensive Project Overview
-        </Typography>
-
-        <Grid container spacing={4} sx={{ mb: 4 }} justifyContent="center">
-            {/* Projects by Status - Donut Chart (smaller container) */}
-            <Grid item xs={12} md={6} lg={4}>
-                <Card sx={{ height: '100%', width: '100%' }}> {/* Add width: '100%' */}
-                    <CardContent>
-                        {donutChartData.length > 0 ? (
-                            <ProjectStatusDonutChart title="# of Projects by Status" data={donutChartData} />
-                        ) : (
-                            <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
-                                <Typography variant="h6" align="center" gutterBottom># of Projects by Status</Typography>
-                                <Typography variant="body2" align="center" color="text.secondary">No status data available.</Typography>
-                            </Box>
-                        )}
-                    </CardContent>
-                </Card>
-            </Grid>
-
-            {/* Budget & Paid by Status (wider container) */}
-            <Grid item xs={12} md={6} lg={8}>
-                <Card sx={{ height: '100%', width: '100%', bgcolor: '#f5f5dc' }}> {/* Add width: '100%' and background color */}
-                    <CardContent>
-                        {reportData.financialStatusByProjectStatus.length > 0 ? (
-                            <BarChart
-                                title="Budget & Paid by Status"
-                                data={reportData.financialStatusByProjectStatus}
-                                xDataKey="status"
-                                yDataKey={['totalBudget', 'totalPaid']}
-                                yAxisLabel="Amount (Ksh)"
-                            />
-                        ) : (
-                            <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
-                                <Typography variant="h6" align="center" gutterBottom>Budget & Paid by Status</Typography>
-                                <Typography variant="body2" align="center" color="text.secondary">No financial data available.</Typography>
-                            </Box>
-                        )}
-                    </CardContent>
-                </Card>
-            </Grid>
-        </Grid>
-        
-        {/* Second Row for other charts */}
-        <Grid container spacing={4} sx={{ mb: 4 }} justifyContent="center">
-            {/* Projects by Status and Year (50% width) */}
-            <Grid item xs={12} md={6} lg={6}>
-                <Card sx={{ height: '100%', width: '100%' }}> {/* Add width: '100%' */}
-                    <CardContent>
-                        {transformedData.length > 0 ? (
-                            <StackedBarChart
-                                title="Projects by Status and Year"
-                                data={transformedData}
-                                xDataKey="year"
-                                barKeys={allStatuses}
-                                yAxisLabel="Projects"
-                            />
-                        ) : (
-                            <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
-                                <Typography variant="h6" align="center" gutterBottom>Projects by Status and Year</Typography>
-                                <Typography variant="body2" align="center" color="text.secondary">No data available for this chart.</Typography>
-                            </Box>
-                        )}
-                    </CardContent>
-                </Card>
-            </Grid>
-            {/* Projects Over Time (50% width) */}
-            <Grid item xs={12} md={6} lg={6}>
-                <Card sx={{ height: '100%', width: '100%' }}> {/* Add width: '100%' */}
-                    <CardContent>
-                        {reportData.projectsStatusOverTime.length > 0 ? (
-                            <LineChart
-                                title="Projects Over Time"
-                                data={reportData.projectsStatusOverTime}
-                                xDataKey="year"
-                                yDataKey="projectCount"
-                                yAxisLabel="Projects"
-                            />
-                        ) : (
-                            <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
-                                <Typography variant="h6" align="center" gutterBottom>Projects Over Time</Typography>
-                                <Typography variant="body2" align="center" color="text.secondary">No trend data available.</Typography>
-                            </Box>
-                        )}
-                    </CardContent>
-                </Card>
-            </Grid>
-        </Grid>
-        
-        <ExportButtons tableData={reportData.detailedList} columns={projectListColumns} />
-
-        <Box sx={{ mt: 4 }}>
-            <Typography variant="h5" component="h2" gutterBottom>
-                Detailed Project List
+    return (
+        <Box sx={{ p: 3, maxWidth: '100%' }}>
+            <Typography variant="h4" component="h1" gutterBottom align="center" sx={{ mb: 4 }}>
+                Comprehensive Project Overview
             </Typography>
-            <ReportDataTable data={reportData.detailedList} columns={projectListColumns} />
+
+            {/* First Row with better width distribution */}
+            <Grid container spacing={3} sx={{ mb: 4 }}>
+                {/* Projects by Status - Donut Chart (1/3 width) */}
+                <Grid item xs={12} md={5} lg={4}>
+                    <Card sx={{ height: '400px' }}>
+                        <CardContent sx={{ height: '100%' }}>
+                            {donutChartData.length > 0 ? (
+                                <ProjectStatusDonutChart title="# of Projects by Status" data={donutChartData} />
+                            ) : (
+                                <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                                    <Typography variant="h6" align="center" gutterBottom># of Projects by Status</Typography>
+                                    <Typography variant="body2" align="center" color="text.secondary">No status data available.</Typography>
+                                </Box>
+                            )}
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                {/* Budget & Paid by Status (2/3 width) */}
+                <Grid item xs={12} md={7} lg={8}>
+                    <Card sx={{ height: '400px', bgcolor: '#f5f5dc' }}>
+                        <CardContent sx={{ height: '100%', p: 2 }}>
+                            {reportData.financialStatusByProjectStatus.length > 0 ? (
+                                <Box sx={{ width: '100%', height: '100%' }}>
+                                    <BarChart
+                                        title="Budget & Paid by Status"
+                                        data={reportData.financialStatusByProjectStatus}
+                                        xDataKey="status"
+                                        yDataKey={['totalBudget', 'totalPaid']}
+                                        yAxisLabel="Amount (Ksh)"
+                                    />
+                                </Box>
+                            ) : (
+                                <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                                    <Typography variant="h6" align="center" gutterBottom>Budget & Paid by Status</Typography>
+                                    <Typography variant="body2" align="center" color="text.secondary">No financial data available.</Typography>
+                                </Box>
+                            )}
+                        </CardContent>
+                    </Card>
+                </Grid>
+            </Grid>
+
+            {/* Second Row for other charts (equal width) */}
+            <Grid container spacing={3} sx={{ mb: 4 }}>
+                {/* Projects by Status and Year */}
+                <Grid item xs={12} md={6}>
+                    <Card sx={{ height: '400px' }}>
+                        <CardContent sx={{ height: '100%', p: 2 }}>
+                            {transformedData.length > 0 ? (
+                                <Box sx={{ width: '100%', height: '100%' }}>
+                                    <StackedBarChart
+                                        title="Projects by Status and Year"
+                                        data={transformedData}
+                                        xDataKey="year"
+                                        barKeys={allStatuses}
+                                        yAxisLabel="Projects"
+                                    />
+                                </Box>
+                            ) : (
+                                <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                                    <Typography variant="h6" align="center" gutterBottom>Projects by Status and Year</Typography>
+                                    <Typography variant="body2" align="center" color="text.secondary">No data available for this chart.</Typography>
+                                </Box>
+                            )}
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                {/* Projects Over Time */}
+                <Grid item xs={12} md={6}>
+                    <Card sx={{ height: '400px' }}>
+                        <CardContent sx={{ height: '100%', p: 2 }}>
+                            {reportData.projectsStatusOverTime.length > 0 ? (
+                                <Box sx={{ width: '100%', height: '100%' }}>
+                                    <LineChart
+                                        title="Projects Over Time"
+                                        data={reportData.projectsStatusOverTime}
+                                        xDataKey="year"
+                                        yDataKey="projectCount"
+                                        yAxisLabel="Projects"
+                                    />
+                                </Box>
+                            ) : (
+                                <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 1, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                                    <Typography variant="h6" align="center" gutterBottom>Projects Over Time</Typography>
+                                    <Typography variant="body2" align="center" color="text.secondary">No trend data available.</Typography>
+                                </Box>
+                            )}
+                        </CardContent>
+                    </Card>
+                </Grid>
+            </Grid>
+
+            <Box sx={{ mt: 4 }}>
+                <Typography variant="h5" component="h2" gutterBottom>
+                    Detailed Project List
+                </Typography>
+                <Box sx={{ height: 600, width: '100%' }}>
+                    <DataGrid
+                        rows={detailedListWithIds}
+                        columns={projectListColumns}
+                        pageSizeOptions={[5, 10, 25]}
+                        disableRowSelectionOnClick
+                        initialState={{
+                            pagination: {
+                                paginationModel: {
+                                    pageSize: 10,
+                                },
+                            },
+                        }}
+                    />
+                </Box>
+            </Box>
         </Box>
-    </Box>
-);
+    );
 };
 
 export default ProjectSummaryReport;

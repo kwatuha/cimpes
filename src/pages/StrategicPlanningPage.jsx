@@ -1,15 +1,16 @@
-// src/pages/StrategicPlanningPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box, Typography, Button, Paper, CircularProgress, Alert,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Snackbar
+  IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Snackbar, useTheme, Tooltip, Stack
 } from '@mui/material';
+import { DataGrid } from '@mui/x-data-grid';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Visibility as ViewIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import apiService from '../api'; // Your consolidated API service
-import strategicPlanningLabels from '../configs/strategicPlanningLabels'; // Import labels
-import { useAuth } from '../context/AuthContext.jsx'; // Import useAuth
+import apiService from '../api';
+import strategicPlanningLabels from '../configs/strategicPlanningLabels';
+import { useAuth } from '../context/AuthContext.jsx';
+import { tokens } from "./dashboard/theme";
+import Header from "./dashboard/Header";
 
 /**
  * Helper function to check if the user has a specific privilege.
@@ -29,7 +30,9 @@ const formatDate = (dateString) => {
 };
 
 function StrategicPlanningPage() {
-  const { user, loading: authLoading } = useAuth(); // Get user and auth loading state
+  const theme = useTheme();
+  const colors = tokens(theme.palette.mode);
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   const [strategicPlans, setStrategicPlans] = useState([]);
@@ -38,14 +41,12 @@ function StrategicPlanningPage() {
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   const [openFormDialog, setOpenFormDialog] = useState(false);
-  const [currentPlan, setCurrentPlan] = useState(null); // For edit/create
+  const [currentPlan, setCurrentPlan] = useState(null);
   const [formValues, setFormValues] = useState({
     cidpid: '',
     cidpName: '',
     startDate: '',
     endDate: '',
-    // Add other fields from kemri_strategicPlans table as needed
-    // e.g., strategicGoal, objectives, kpis, etc.
   });
 
   const fetchStrategicPlans = useCallback(async () => {
@@ -80,7 +81,7 @@ function StrategicPlanningPage() {
     } finally {
       setLoading(false);
     }
-  }, [user, authLoading]); // Depend on user and authLoading
+  }, [user, authLoading]);
 
   useEffect(() => {
     fetchStrategicPlans();
@@ -144,7 +145,7 @@ function StrategicPlanningPage() {
       }
       setOpenFormDialog(false);
       setSnackbar({ open: true, message: `${strategicPlanningLabels.strategicPlan.singular} saved successfully!`, severity: 'success' });
-      fetchStrategicPlans(); // Refresh the list
+      fetchStrategicPlans();
     } catch (err) {
       console.error('Error saving strategic plan:', err);
       setSnackbar({ open: true, message: err.message || `Failed to save ${strategicPlanningLabels.strategicPlan.singular.toLowerCase()}.`, severity: 'error' });
@@ -166,7 +167,7 @@ function StrategicPlanningPage() {
     try {
       await apiService.strategy.deleteStrategicPlan(planId);
       setSnackbar({ open: true, message: `${strategicPlanningLabels.strategicPlan.singular} deleted successfully!`, severity: 'success' });
-      fetchStrategicPlans(); // Refresh the list
+      fetchStrategicPlans();
     } catch (err) {
       console.error('Error deleting strategic plan:', err);
       setSnackbar({ open: true, message: err.message || `Failed to delete ${strategicPlanningLabels.strategicPlan.singular.toLowerCase()}.`, severity: 'error' });
@@ -185,6 +186,43 @@ function StrategicPlanningPage() {
     setSnackbar({ ...snackbar, open: false });
   };
 
+  const columns = [
+    { field: 'cidpName', headerName: strategicPlanningLabels.strategicPlan.fields.cidpName, flex: 1.5, minWidth: 250 },
+    { field: 'startDate', headerName: strategicPlanningLabels.strategicPlan.fields.startDate, flex: 1, minWidth: 150, valueGetter: (params) => formatDate(params.row?.startDate) },
+    { field: 'endDate', headerName: strategicPlanningLabels.strategicPlan.fields.endDate, flex: 1, minWidth: 150, valueGetter: (params) => formatDate(params.row?.endDate) },
+    {
+      field: 'actions',
+      headerName: 'Actions',
+      flex: 1,
+      minWidth: 150,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => (
+        <Stack direction="row" spacing={1}>
+          <Tooltip title="View Details">
+            <IconButton color="info" onClick={() => handleViewPlanDetails(params.row.id)}>
+              <ViewIcon />
+            </IconButton>
+          </Tooltip>
+          {checkUserPrivilege(user, 'strategic_plan.update') && (
+            <Tooltip title="Edit">
+              <IconButton color="primary" onClick={() => handleOpenEditDialog(params.row)}>
+                <EditIcon />
+              </IconButton>
+            </Tooltip>
+          )}
+          {checkUserPrivilege(user, 'strategic_plan.delete') && (
+            <Tooltip title="Delete">
+              <IconButton color="error" onClick={() => handleDeletePlan(params.row.id)}>
+                <DeleteIcon />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Stack>
+      ),
+    },
+  ];
+
   if (authLoading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="80vh">
@@ -195,68 +233,64 @@ function StrategicPlanningPage() {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>
-        {strategicPlanningLabels.strategicPlan.plural} Module
-      </Typography>
-
+    <Box m="20px">
+      <Header title={strategicPlanningLabels.strategicPlan.plural.toUpperCase()} subtitle="List of strategic plans" />
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
         {checkUserPrivilege(user, 'strategic_plan.create') && (
           <Button
             variant="contained"
             startIcon={<AddIcon />}
             onClick={handleOpenCreateDialog}
-            sx={{ backgroundColor: '#0A2342', '&:hover': { backgroundColor: '#071a33' } }}
+            sx={{ backgroundColor: colors.greenAccent[600], '&:hover': { backgroundColor: colors.greenAccent[700] }, color: colors.white }}
           >
             Add New {strategicPlanningLabels.strategicPlan.singular}
           </Button>
         )}
       </Box>
 
-      {loading && <CircularProgress />}
-      {error && <Alert severity="error">{error}</Alert>}
-
-      {!loading && !error && strategicPlans.length === 0 && checkUserPrivilege(user, 'strategic_plan.read_all') ? (
+      {loading ? (
+        <Box display="flex" justifyContent="center" alignItems="center" height="60vh">
+          <CircularProgress />
+        </Box>
+      ) : error ? (
+        <Alert severity="error">{error}</Alert>
+      ) : strategicPlans.length === 0 && checkUserPrivilege(user, 'strategic_plan.read_all') ? (
         <Alert severity="info">No {strategicPlanningLabels.strategicPlan.plural.toLowerCase()} found. Click "Add New {strategicPlanningLabels.strategicPlan.singular}" to get started.</Alert>
-      ) : !loading && !error && strategicPlans.length === 0 && !checkUserPrivilege(user, 'strategic_plan.read_all') ? (
+      ) : strategicPlans.length === 0 && !checkUserPrivilege(user, 'strategic_plan.read_all') ? (
         <Alert severity="warning">You do not have the necessary permissions to view any {strategicPlanningLabels.strategicPlan.plural.toLowerCase()}.</Alert>
       ) : (
-        <TableContainer component={Paper} elevation={3} sx={{ borderRadius: '8px' }}>
-          <Table>
-            <TableHead sx={{ backgroundColor: '#ADD8E6' }}>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 'bold', color: '#0A2342' }}>{strategicPlanningLabels.strategicPlan.fields.cidpName}</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', color: '#0A2342' }}>{strategicPlanningLabels.strategicPlan.fields.startDate}</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', color: '#0A2342' }}>{strategicPlanningLabels.strategicPlan.fields.endDate}</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', color: '#0A2342' }}>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {strategicPlans.map((plan) => (
-                <TableRow key={plan.id}>
-                  <TableCell>{plan.cidpName}</TableCell>
-                  <TableCell>{formatDate(plan.startDate)}</TableCell>
-                  <TableCell>{formatDate(plan.endDate)}</TableCell>
-                  <TableCell>
-                    <IconButton color="primary" onClick={() => handleViewPlanDetails(plan.id)}>
-                      <ViewIcon />
-                    </IconButton>
-                    {checkUserPrivilege(user, 'strategic_plan.update') && (
-                      <IconButton color="secondary" onClick={() => handleOpenEditDialog(plan)}>
-                        <EditIcon />
-                      </IconButton>
-                    )}
-                    {checkUserPrivilege(user, 'strategic_plan.delete') && (
-                      <IconButton color="error" onClick={() => handleDeletePlan(plan.id)}>
-                        <DeleteIcon />
-                      </IconButton>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <Box
+          m="40px 0 0 0"
+          height="75vh"
+          sx={{
+            "& .MuiDataGrid-root": {
+              border: "none",
+            },
+            "& .MuiDataGrid-cell": {
+              borderBottom: "none",
+            },
+            "& .MuiDataGrid-columnHeaders": {
+              backgroundColor: colors.blueAccent[700],
+              borderBottom: "none",
+            },
+            "& .MuiDataGrid-virtualScroller": {
+              backgroundColor: colors.primary[400],
+            },
+            "& .MuiDataGrid-footerContainer": {
+              borderTop: "none",
+              backgroundColor: colors.blueAccent[700],
+            },
+            "& .MuiCheckbox-root": {
+              color: `${colors.greenAccent[200]} !important`,
+            },
+          }}
+        >
+          <DataGrid
+            rows={strategicPlans}
+            columns={columns}
+            getRowId={(row) => row.id}
+          />
+        </Box>
       )}
 
       {/* Strategic Plan Form Dialog */}
@@ -310,11 +344,14 @@ function StrategicPlanningPage() {
             required
             sx={{ mb: 2 }}
           />
-          {/* Add more fields here as per your kemri_strategicPlans table schema */}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseFormDialog}>Cancel</Button>
-          <Button onClick={handleSubmitForm} variant="contained" color="primary" disabled={loading}>
+          <Button onClick={handleCloseFormDialog} sx={{ color: colors.grey[400] }}>Cancel</Button>
+          <Button onClick={handleSubmitForm} variant="contained" color="primary" disabled={loading}
+            sx={{
+              backgroundColor: colors.blueAccent[600], '&:hover': { backgroundColor: colors.blueAccent[700] }
+            }}
+          >
             {currentPlan ? `Update ${strategicPlanningLabels.strategicPlan.singular}` : `Create ${strategicPlanningLabels.strategicPlan.singular}`}
           </Button>
         </DialogActions>

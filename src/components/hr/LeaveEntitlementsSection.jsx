@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import {
-    Box, Typography, Button, Table, TableBody, TableCell,
-    TableContainer, TableHead, TableRow, Paper, Stack, IconButton,
-    Autocomplete, TextField, Grid
+    Box, Typography, Button, Stack, IconButton, CircularProgress, Tooltip, Paper,Grid,Autocomplete,TextField,
 } from '@mui/material';
+import { DataGrid } from '@mui/x-data-grid';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../api';
 import AddEditLeaveEntitlementModal from './modals/AddEditLeaveEntitlementModal';
+import { useTheme } from '@mui/material';
+import { tokens } from "../../pages/dashboard/theme";
 
-// CHANGED: Added handleOpenDeleteConfirmModal to the props
 export default function LeaveEntitlementsSection({ employees, leaveTypes, showNotification, handleOpenDeleteConfirmModal }) {
+    const theme = useTheme();
+    const colors = tokens(theme.palette.mode);
     const { hasPrivilege } = useAuth();
 
     const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -52,12 +54,38 @@ export default function LeaveEntitlementsSection({ employees, leaveTypes, showNo
         setEditedItem(null);
     };
 
+    const columns = [
+        { field: 'leaveTypeName', headerName: 'Leave Type', flex: 1, minWidth: 200 },
+        { field: 'year', headerName: 'Year', flex: 1, minWidth: 150 },
+        { field: 'allocatedDays', headerName: 'Allocated Days', flex: 1, minWidth: 150 },
+        {
+            field: 'actions',
+            headerName: 'Actions',
+            sortable: false,
+            filterable: false,
+            align: 'center',
+            headerAlign: 'center',
+            flex: 1,
+            minWidth: 150,
+            renderCell: (params) => (
+                <Stack direction="row" spacing={1} justifyContent="center">
+                    {hasPrivilege('leave.entitlement.update') && (
+                        <Tooltip title="Edit"><IconButton color="primary" onClick={() => handleOpenEditModal(params.row)}><EditIcon /></IconButton></Tooltip>
+                    )}
+                    {hasPrivilege('leave.entitlement.delete') && (
+                        <Tooltip title="Delete"><IconButton color="error" onClick={() => handleOpenDeleteConfirmModal(params.row.id, `Entitlement for ${params.row.leaveTypeName}`, 'leave.entitlement')}><DeleteIcon /></IconButton></Tooltip>
+                    )}
+                </Stack>
+            ),
+        },
+    ];
+
     return (
         <Box>
-            <Typography variant="h5" component="h2" sx={{ mb: 2 }}>Leave Entitlements</Typography>
+            <Typography variant="h5" component="h2" sx={{ fontWeight: 'bold', mb: 2 }}>Leave Entitlements</Typography>
             <Paper elevation={2} sx={{ p: 2, mb: 3 }}>
                 <Grid container spacing={2} alignItems="center">
-                    <Grid xs={12} md={6}>
+                    <Grid item xs={12} md={6}>
                         <Autocomplete
                             options={employees}
                             getOptionLabel={(option) => `${option.firstName} ${option.lastName} (${option.staffId})`}
@@ -67,7 +95,7 @@ export default function LeaveEntitlementsSection({ employees, leaveTypes, showNo
                             sx={{ minWidth: 300 }}
                         />
                     </Grid>
-                    <Grid xs={12} md={6}>
+                    <Grid item xs={12} md={6}>
                         {selectedEmployee && hasPrivilege('leave.entitlement.create') && (
                             <Button
                                 variant="contained"
@@ -80,51 +108,41 @@ export default function LeaveEntitlementsSection({ employees, leaveTypes, showNo
                     </Grid>
                 </Grid>
             </Paper>
-            
-            <TableContainer component={Paper} elevation={3}>
-                <Table>
-                    <TableHead>
-                        <TableRow sx={{ backgroundColor: 'primary.main' }}>
-                            <TableCell sx={{ color: 'white' }}>Leave Type</TableCell>
-                            <TableCell sx={{ color: 'white' }}>Year</TableCell>
-                            <TableCell sx={{ color: 'white' }}>Allocated Days</TableCell>
-                            <TableCell sx={{ color: 'white' }}>Actions</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {loading ? (
-                            <TableRow><TableCell colSpan={4} align="center">Loading...</TableCell></TableRow>
-                        ) : entitlements.length > 0 ? (
-                            entitlements.map((item) => (
-                                <TableRow key={item.id}>
-                                    <TableCell>{item.leaveTypeName}</TableCell>
-                                    <TableCell>{item.year}</TableCell>
-                                    <TableCell>{item.allocatedDays}</TableCell>
-                                    <TableCell>
-                                        <Stack direction="row" spacing={1}>
-                                            {hasPrivilege('leave.entitlement.update') && (
-                                                <IconButton color="primary" onClick={() => handleOpenEditModal(item)}>
-                                                    <EditIcon />
-                                                </IconButton>
-                                            )}
-                                            {hasPrivilege('leave.entitlement.delete') && (
-                                                // CHANGED: onClick handler is now active
-                                                <IconButton color="error" onClick={() => handleOpenDeleteConfirmModal(item.id, `Entitlement for ${item.leaveTypeName}`, 'leave.entitlement')}>
-                                                    <DeleteIcon />
-                                                </IconButton>
-                                            )}
-                                        </Stack>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        ) : (
-                            <TableRow><TableCell colSpan={4} align="center">
-                                {selectedEmployee ? 'No leave entitlements found for this employee.' : 'Please select an employee to view their entitlements.'}
-                            </TableCell></TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </TableContainer>
+
+            <Box
+                m="20px 0 0 0"
+                height="75vh"
+                sx={{
+                    "& .MuiDataGrid-root": {
+                        border: "none",
+                    },
+                    "& .MuiDataGrid-cell": {
+                        borderBottom: "none",
+                    },
+                    "& .MuiDataGrid-columnHeaders": {
+                        backgroundColor: colors.blueAccent[700],
+                        borderBottom: "none",
+                    },
+                    "& .MuiDataGrid-virtualScroller": {
+                        backgroundColor: colors.primary[400],
+                    },
+                    "& .MuiDataGrid-footerContainer": {
+                        borderTop: "none",
+                        backgroundColor: colors.blueAccent[700],
+                    },
+                    "& .MuiCheckbox-root": {
+                        color: `${colors.greenAccent[200]} !important`,
+                    },
+                }}
+            >
+                <DataGrid
+                    rows={entitlements}
+                    columns={columns}
+                    getRowId={(row) => row.id}
+                    loading={loading}
+                    autoPageSize
+                />
+            </Box>
 
             {isModalOpen && (
                 <AddEditLeaveEntitlementModal

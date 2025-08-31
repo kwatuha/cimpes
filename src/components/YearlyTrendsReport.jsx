@@ -2,16 +2,40 @@
 
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, Grid, CircularProgress, Alert } from '@mui/material';
+import { DataGrid } from '@mui/x-data-grid';
 
 import BarLineChart from './charts/BarLineChart';
-import ReportDataTable from './tables/ReportDataTable';
 import apiService from '../api';
 
 const yearlyTrendsTableColumns = [
-    { id: 'name', label: 'Financial Year', minWidth: 150 },
-    { id: 'projectCount', label: 'Total Projects', minWidth: 100 },
-    { id: 'totalBudget', label: 'Total Budget', minWidth: 150 },
-    { id: 'totalPaid', label: 'Total Paid', minWidth: 150 },
+    { field: 'name', headerName: 'Financial Year', minWidth: 150, flex: 1.2 },
+    { field: 'projectCount', headerName: 'Total Projects', minWidth: 100, type: 'number', flex: 0.8 },
+    {
+        field: 'totalBudget',
+        headerName: 'Total Budget',
+        minWidth: 150,
+        type: 'number',
+        flex: 1,
+        valueFormatter: (params) => {
+            if (params.value == null) {
+                return '';
+            }
+            return `KES ${parseFloat(params.value).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+    },
+    {
+        field: 'totalPaid',
+        headerName: 'Total Paid',
+        minWidth: 150,
+        type: 'number',
+        flex: 1,
+        valueFormatter: (params) => {
+            if (params.value == null) {
+                return '';
+            }
+            return `KES ${parseFloat(params.value).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+    },
 ];
 
 const YearlyTrendsReport = ({ filters }) => {
@@ -60,6 +84,12 @@ const YearlyTrendsReport = ({ filters }) => {
         paid: parseFloat(item.totalPaid),
     }));
 
+    // DataGrid requires a unique 'id' field for each row.
+    const reportDataWithIds = reportData.map((row, index) => ({
+        ...row,
+        id: row.financialYearId || index,
+    }));
+
     return (
         <Box>
             <Box sx={{ mb: 4 }}>
@@ -67,8 +97,20 @@ const YearlyTrendsReport = ({ filters }) => {
                 <BarLineChart data={chartData} />
             </Box>
 
-            <Box>
-                <ReportDataTable data={reportData} columns={yearlyTrendsTableColumns} />
+            <Box sx={{ height: 600, width: '100%', mt: 4 }}>
+                <DataGrid
+                    rows={reportDataWithIds}
+                    columns={yearlyTrendsTableColumns}
+                    pageSizeOptions={[5, 10, 25]}
+                    disableRowSelectionOnClick
+                    initialState={{
+                        pagination: {
+                            paginationModel: {
+                                pageSize: 10,
+                            },
+                        },
+                    }}
+                />
             </Box>
         </Box>
     );

@@ -1,5 +1,7 @@
+// src/pages/HrModule.jsx
+
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, CircularProgress, Stack, Button, Snackbar, Alert, Tabs, Tab } from '@mui/material';
+import { Box, Typography, CircularProgress, Stack, Button, Snackbar, Alert, Tabs, Tab, useTheme, FormControl } from '@mui/material';
 import { People as PeopleIcon, WorkHistory as WorkHistoryIcon, Settings as SettingsIcon } from '@mui/icons-material';
 import apiService from '../api';
 import { useAuth } from '../context/AuthContext';
@@ -18,8 +20,12 @@ import AddEditEmployeeModal from '../components/hr/modals/AddEditEmployeeModal';
 import AddEditLeaveTypeModal from '../components/hr/modals/AddEditLeaveTypeModal';
 import AddEditLeaveApplicationModal from '../components/hr/modals/AddEditLeaveApplicationModal';
 import AddEditJobGroupModal from '../components/hr/modals/AddEditJobGroupModal';
+import Header from "./dashboard/Header";
+import { tokens } from "./dashboard/theme";
 
 export default function HrModule() {
+  const theme = useTheme();
+  const colors = tokens(theme.palette.mode);
   const { hasPrivilege } = useAuth();
   const CURRENT_USER_ID = 1;
 
@@ -260,11 +266,11 @@ export default function HrModule() {
         const handleAdminSubTabChange = (event, newValue) => { setAdminSubTab(newValue); };
         return (
             <Box>
-                <Tabs value={adminSubTab} onChange={handleAdminSubTabChange} sx={{ borderBottom: 1, borderColor: 'divider' }}>
-                    <Tab label="Job Groups" />
-                    <Tab label="Leave Types" />
-                    <Tab label="Leave Entitlements" />
-                    <Tab label="Public Holidays" />
+                <Tabs value={adminSubTab} onChange={handleAdminSubTabChange} sx={{ borderBottom: 1, borderColor: 'divider', "& .MuiTabs-indicator": { backgroundColor: colors.blueAccent[500] } }}>
+                    <Tab label="Job Groups" sx={{ color: adminSubTab === 0 ? colors.blueAccent[500] : colors.grey[100] }} />
+                    <Tab label="Leave Types" sx={{ color: adminSubTab === 1 ? colors.blueAccent[500] : colors.grey[100] }} />
+                    <Tab label="Leave Entitlements" sx={{ color: adminSubTab === 2 ? colors.blueAccent[500] : colors.grey[100] }} />
+                    <Tab label="Public Holidays" sx={{ color: adminSubTab === 3 ? colors.blueAccent[500] : colors.grey[100] }} />
                 </Tabs>
                 <Box sx={{ pt: 3 }}>
                     {adminSubTab === 0 && (
@@ -288,20 +294,79 @@ export default function HrModule() {
   };
 
   return (
-    <Box sx={{ p: 3, background: 'background.default', minHeight: '100vh' }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1" sx={{ color: 'primary.main', fontWeight: 'bold' }}>H</Typography>
-      </Box>
+    <Box sx={{ p: 3, background: colors.primary[400], minHeight: '100vh' }}>
+      <Header title="HR MODULE" subtitle="Manage employees, leave, and administration" />
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 4 }}>
         <Stack direction="row" spacing={2} role="tablist">
-          <Button variant={currentPage === 'employees' || currentPage === 'employee360' ? 'contained' : 'text'} onClick={() => setCurrentPage('employees')} startIcon={<PeopleIcon />}>Employees</Button>
-          <Button variant={currentPage === 'leaveApplications' || currentPage === 'attendance' ? 'contained' : 'text'} onClick={() => setCurrentPage('leaveApplications')} startIcon={<WorkHistoryIcon />}>Personnel Actions</Button>
-          <Button variant={currentPage === 'administration' ? 'contained' : 'text'} onClick={() => setCurrentPage('administration')} startIcon={<SettingsIcon />}>Administration</Button>
+          <Button variant={currentPage === 'employees' || currentPage === 'employee360' ? 'contained' : 'text'} onClick={() => setCurrentPage('employees')} startIcon={<PeopleIcon />}
+            sx={{
+              backgroundColor: currentPage === 'employees' || currentPage === 'employee360' ? colors.blueAccent[700] : 'transparent',
+              color: currentPage === 'employees' || currentPage === 'employee360' ? colors.white : colors.grey[100],
+              '&:hover': {
+                backgroundColor: colors.blueAccent[600],
+              }
+            }}
+          >Employees</Button>
+          <Button variant={currentPage === 'leaveApplications' || currentPage === 'attendance' ? 'contained' : 'text'} onClick={() => setCurrentPage('leaveApplications')} startIcon={<WorkHistoryIcon />}
+            sx={{
+              backgroundColor: currentPage === 'leaveApplications' || currentPage === 'attendance' ? colors.blueAccent[700] : 'transparent',
+              color: currentPage === 'leaveApplications' || currentPage === 'attendance' ? colors.white : colors.grey[100],
+              '&:hover': {
+                backgroundColor: colors.blueAccent[600],
+              }
+            }}
+          >Personnel Actions</Button>
+          <Button variant={currentPage === 'administration' ? 'contained' : 'text'} onClick={() => setCurrentPage('administration')} startIcon={<SettingsIcon />}
+            sx={{
+              backgroundColor: currentPage === 'administration' ? colors.blueAccent[700] : 'transparent',
+              color: currentPage === 'administration' ? colors.white : colors.grey[100],
+              '&:hover': {
+                backgroundColor: colors.blueAccent[600],
+              }
+            }}
+          >Administration</Button>
         </Stack>
       </Box>
 
-      {renderContent()}
-
+      {/* Main container for all grid content with consistent styling and overflow fix */}
+      <Box
+        m="40px 0 0 0"
+        height="75vh"
+        sx={{
+          "& .MuiPaper-root": {
+            border: "none",
+          },
+          "& .MuiTableContainer-root": {
+            borderRadius: "8px",
+            maxHeight: "calc(100vh - 300px)",
+            boxShadow: theme.palette.mode === 'dark' ? '0px 4px 20px rgba(0, 0, 0, 0.5)' : '0px 4px 20px rgba(0, 0, 0, 0.1)',
+            overflow: "hidden",
+            overflowY: 'auto' // Fix for scrollbar
+          },
+          "& .MuiTable-root": {
+            backgroundColor: colors.primary[400],
+          },
+          "& .MuiTableCell-root": {
+            borderBottom: "none",
+          },
+          "& .MuiTableHead-root .MuiTableCell-root": {
+            backgroundColor: colors.blueAccent[700],
+            color: colors.white,
+          },
+          "& .MuiTableBody-root .MuiTableRow-root": {
+              "&:hover": {
+                  backgroundColor: colors.primary[500],
+              }
+          },
+          // Dropdown fix
+          "& .MuiFormControl-root": {
+            minWidth: '200px', // Ensures labels are always visible
+          }
+        }}
+      >
+        {renderContent()}
+      </Box>
+      
       <ConfirmDeleteModal isOpen={isDeleteConfirmModalOpen} onClose={() => setIsDeleteConfirmModalOpen(false)} itemToDelete={itemToDelete} onConfirm={handleDelete} />
       <ApproveLeaveModal isOpen={isApprovalModalOpen} onClose={() => setIsApprovalModalOpen(false)} selectedApplication={selectedApplication} approvedDates={approvedDates} setApprovedDates={setApprovedDates} onApprove={handleUpdateLeaveStatus} leaveBalances={leaveBalances} />
       <RecordReturnModal isOpen={isReturnModalOpen} onClose={() => setIsReturnModalOpen(false)} selectedApplication={selectedApplication} actualReturnDate={actualReturnDate} setActualReturnDate={setActualReturnDate} onRecordReturn={handleRecordReturn} />

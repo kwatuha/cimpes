@@ -25,6 +25,64 @@ const getWarningColor = (level) => {
   }
 };
 
+// NEW: Separate component for each monitoring record list item
+const RecordListItem = ({ record, index, totalRecords, onEdit, onDelete, hasPrivilege, formattedDate }) => (
+  <ListItem
+    key={record.recordId}
+    divider={index < totalRecords - 1}
+    secondaryAction={
+      <Stack direction="row" spacing={1}>
+        {hasPrivilege('project_monitoring.update') && (
+          <Tooltip title="Edit Record">
+            <IconButton edge="end" aria-label="edit" onClick={() => onEdit(record)}>
+              <EditIcon />
+            </IconButton>
+          </Tooltip>
+        )}
+        {hasPrivilege('project_monitoring.delete') && (
+          <Tooltip title="Delete Record">
+            <IconButton edge="end" aria-label="delete" onClick={() => onDelete(record.recordId)}>
+              <DeleteIcon color="error" />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Stack>
+    }
+  >
+    <ListItemText
+      primary={
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+            {record.warningLevel === 'None' ? 'Routine Observation' : `Warning: ${record.warningLevel}`}
+          </Typography>
+          {record.warningLevel !== 'None' && <WarningIcon color={getWarningColor(record.warningLevel)} />}
+        </Stack>
+      }
+      secondary={
+        <Stack spacing={1} sx={{ mt: 1 }}>
+          <Typography variant="body2" color="text.secondary">
+            <Box component="span" fontWeight="bold">Observation:</Box> {record.comment}
+          </Typography>
+          {record.recommendations && (
+            <Typography variant="body2" color="text.primary">
+              <Box component="span" fontWeight="bold">Recommendations:</Box> {record.recommendations}
+            </Typography>
+          )}
+          {record.challenges && (
+            <Typography variant="body2" color="text.error">
+              <Box component="span" fontWeight="bold">Challenges:</Box> {record.challenges}
+            </Typography>
+          )}
+          <Typography variant="caption" color="text.disabled">
+            Recorded on: {formattedDate(record.createdAt)}
+          </Typography>
+        </Stack>
+      }
+    />
+  </ListItem>
+);
+
+
 const ProjectMonitoringComponent = ({ open, onClose, projectId }) => {
   const { user, hasPrivilege } = useAuth();
   
@@ -84,37 +142,37 @@ const ProjectMonitoringComponent = ({ open, onClose, projectId }) => {
   };
 
   const handleFormSubmit = async (e) => {
-    e.preventDefault();
-    if (!hasPrivilege('project_monitoring.create')) {
-      setError("You don't have permission to perform this action.");
-      return;
-    }
-    setSubmitting(true);
-    setError(null);
-
-    const dataToSubmit = {
-      ...formState,
-      isRoutineObservation: formState.isRoutineObservation ? 1 : 0
-    };
-
-    try {
-      if (currentRecord) {
-        if (!hasPrivilege('project_monitoring.update')) {
-           setError("You don't have permission to update records.");
-           return;
-        }
-        await apiService.projectMonitoring.updateRecord(projectId, currentRecord.recordId, dataToSubmit);
-      } else {
-        await apiService.projectMonitoring.createRecord(projectId, dataToSubmit);
+      e.preventDefault();
+      if (!hasPrivilege('project_monitoring.create')) {
+        setError("You don't have permission to perform this action.");
+        return;
       }
-      handleClearForm();
-      fetchRecords();
-    } catch (err) {
-      console.error('Submission Error:', err);
-      setError(err.response?.data?.message || 'Failed to save record.');
-    } finally {
-      setSubmitting(false);
-    }
+      setSubmitting(true);
+      setError(null);
+
+      const dataToSubmit = {
+        ...formState,
+        isRoutineObservation: formState.isRoutineObservation ? 1 : 0
+      };
+
+      try {
+        if (currentRecord) {
+          if (!hasPrivilege('project_monitoring.update')) {
+             setError("You don't have permission to update records.");
+             return;
+          }
+          await apiService.projectMonitoring.updateRecord(projectId, currentRecord.recordId, dataToSubmit);
+        } else {
+          await apiService.projectMonitoring.createRecord(projectId, dataToSubmit);
+        }
+        handleClearForm();
+        fetchRecords();
+      } catch (err) {
+        console.error('Submission Error:', err);
+        setError(err.response?.data?.message || 'Failed to save record.');
+      } finally {
+        setSubmitting(false);
+      }
   };
 
   const handleEditRecord = (record) => {
@@ -234,59 +292,16 @@ const ProjectMonitoringComponent = ({ open, onClose, projectId }) => {
           <List sx={{ bgcolor: 'background.paper', border: '1px solid #e0e0e0', borderRadius: 1 }}>
             {records.length > 0 ? (
               records.map((record, index) => (
-                <ListItem
+                <RecordListItem
                   key={record.recordId}
-                  divider={index < records.length - 1}
-                  secondaryAction={
-                    <Stack direction="row" spacing={1}>
-                      {hasPrivilege('project_monitoring.update') && (
-                        <Tooltip title="Edit Record">
-                          <IconButton edge="end" aria-label="edit" onClick={() => handleEditRecord(record)}>
-                            <EditIcon />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                      {hasPrivilege('project_monitoring.delete') && (
-                        <Tooltip title="Delete Record">
-                          <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteRecord(record.recordId)}>
-                            <DeleteIcon color="error" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                    </Stack>
-                  }
-                >
-                  <ListItemText
-                    primary={
-                      <Stack direction="row" alignItems="center" spacing={1}>
-                        <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-                          {record.warningLevel === 'None' ? 'Routine Observation' : `Warning: ${record.warningLevel}`}
-                        </Typography>
-                        {record.warningLevel !== 'None' && <WarningIcon color={getWarningColor(record.warningLevel)} />}
-                      </Stack>
-                    }
-                    secondary={
-                      <Stack spacing={1} sx={{ mt: 1 }}>
-                        <Typography variant="body2" color="text.secondary">
-                          <Box component="span" fontWeight="bold">Observation:</Box> {record.comment}
-                        </Typography>
-                        {record.recommendations && (
-                          <Typography variant="body2" color="text.primary">
-                            <Box component="span" fontWeight="bold">Recommendations:</Box> {record.recommendations}
-                          </Typography>
-                        )}
-                        {record.challenges && (
-                          <Typography variant="body2" color="text.error">
-                            <Box component="span" fontWeight="bold">Challenges:</Box> {record.challenges}
-                          </Typography>
-                        )}
-                        <Typography variant="caption" color="text.disabled">
-                          Recorded on: {formattedDate(record.createdAt)}
-                        </Typography>
-                      </Stack>
-                    }
-                  />
-                </ListItem>
+                  record={record}
+                  index={index}
+                  totalRecords={records.length}
+                  onEdit={handleEditRecord}
+                  onDelete={handleDeleteRecord}
+                  hasPrivilege={hasPrivilege}
+                  formattedDate={formattedDate}
+                />
               ))
             ) : (
               <Alert severity="info">No monitoring records found for this project.</Alert>

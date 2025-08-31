@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import {
-    Box, Typography, Button, Table, TableBody, TableCell,
-    TableContainer, TableHead, TableRow, Paper, Stack, IconButton, CircularProgress
+    Box, Typography, Button, Stack, IconButton, CircularProgress, Tooltip
 } from '@mui/material';
+import { DataGrid } from '@mui/x-data-grid';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Visibility as VisibilityIcon, FileDownload as FileDownloadIcon, PictureAsPdf as PictureAsPdfIcon } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
-import AddEditEmployeeModal from './modals/AddEditEmployeeModal';
-import apiService from '../../api'; // Assuming a similar apiService structure
+import apiService from '../../api';
+import { useTheme } from '@mui/material';
+import { tokens } from "../../pages/dashboard/theme";
 
 export default function EmployeeSection({
     employees,
@@ -17,33 +18,61 @@ export default function EmployeeSection({
     handleOpenAddEmployeeModal,
     handleOpenEditEmployeeModal
 }) {
+    const theme = useTheme();
+    const colors = tokens(theme.palette.mode);
     const { hasPrivilege } = useAuth();
     
     // Export loading states
     const [exportingExcel, setExportingExcel] = useState(false);
     const [exportingPdf, setExportingPdf] = useState(false);
 
-    // Define columns for the employee table, including new fields.
-    const employeeTableColumns = [
-        { id: 'firstName', label: 'First Name' },
-        { id: 'lastName', label: 'Last Name' },
-        { id: 'email', label: 'Email' },
-        { id: 'phoneNumber', label: 'Phone' },
-        { id: 'department', label: 'Department' },
-        { id: 'title', label: 'Job Title' },
-        { id: 'employmentType', label: 'Employment Type' },
-        { id: 'startDate', label: 'Start Date' },
-        { id: 'employmentStatus', label: 'Status' },
-        { id: 'manager', label: 'Manager' },
-        { id: 'nationalId', label: 'National ID' },
-        { id: 'kraPin', label: 'KRA PIN' },
+    // Define columns for the DataGrid
+    const columns = [
+        { field: 'firstName', headerName: 'First Name', flex: 1, minWidth: 150 },
+        { field: 'lastName', headerName: 'Last Name', flex: 1, minWidth: 150 },
+        { field: 'email', headerName: 'Email', flex: 1, minWidth: 200 },
+        { field: 'phoneNumber', headerName: 'Phone', flex: 1, minWidth: 150 },
+        { field: 'department', headerName: 'Department', flex: 1, minWidth: 150, valueGetter: (params) => params?.row?.department?.name || 'N/A' },
+        { field: 'jobTitle', headerName: 'Job Title', flex: 1, minWidth: 150, valueGetter: (params) => params?.row?.jobGroup?.jobTitle || 'N/A' },
+        { field: 'employmentType', headerName: 'Employment Type', flex: 1, minWidth: 150 },
+        { field: 'startDate', headerName: 'Start Date', flex: 1, minWidth: 150 },
+        { field: 'employmentStatus', headerName: 'Status', flex: 1, minWidth: 120 },
+        { field: 'manager', headerName: 'Manager', flex: 1, minWidth: 150, valueGetter: (params) => params?.row?.manager?.firstName ? `${params.row.manager.firstName} ${params.row.manager.lastName}` : 'N/A' },
+        { field: 'nationalId', headerName: 'National ID', flex: 1, minWidth: 150 },
+        { field: 'kraPin', headerName: 'KRA PIN', flex: 1, minWidth: 150 },
+        {
+            field: 'actions',
+            headerName: 'Actions',
+            sortable: false,
+            filterable: false,
+            align: 'center',
+            headerAlign: 'center',
+            flex: 1,
+            minWidth: 150,
+            renderCell: (params) => (
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%' }}>
+                    {hasPrivilege('employee.update') && (
+                        <Tooltip title="Edit"><IconButton color="primary" onClick={() => handleOpenEditEmployeeModal(params.row)}><EditIcon /></IconButton></Tooltip>
+                    )}
+                    {hasPrivilege('employee.delete') && (
+                        <Tooltip title="Delete"><IconButton color="error" onClick={() => handleOpenDeleteConfirmModal(params.row.staffId, `${params.row.firstName} ${params.row.lastName}`, 'employee')}><DeleteIcon /></IconButton></Tooltip>
+                    )}
+                    {hasPrivilege('employee.read_360') && (
+                        <Tooltip title="View Details"><IconButton color="info" onClick={() => fetchEmployee360View(params.row.staffId)}><VisibilityIcon /></IconButton></Tooltip>
+                    )}
+                </Box>
+            ),
+        },
     ];
 
     const handleExportExcel = async () => {
         setExportingExcel(true);
         try {
-            const excelHeadersMapping = employeeTableColumns.reduce((acc, col) => {
-                acc[col.id] = col.label;
+            const excelHeadersMapping = columns.reduce((acc, col) => {
+                // Map DataGrid fields to their header labels for Excel export
+                if (col.field !== 'actions' && col.field !== 'jobTitle' && col.field !== 'manager') {
+                    acc[col.field] = col.headerName;
+                }
                 return acc;
             }, {});
 
@@ -72,6 +101,8 @@ export default function EmployeeSection({
             const allEmployeesResponse = await apiService.hr.getEmployees();
             const allEmployees = allEmployeesResponse;
 
+            const tableColumnsForPdf = columns.filter(col => col.field !== 'actions');
+
             let tableHtml = `
               <style>
                 table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 9pt; }
@@ -82,13 +113,25 @@ export default function EmployeeSection({
               <table>
                 <thead>
                   <tr>
-                    ${employeeTableColumns.map(col => `<th>${col.label}</th>`).join('')}
+                    ${tableColumnsForPdf.map(col => `<th>${col.headerName}</th>`).join('')}
                   </tr>
                 </thead>
                 <tbody>
                   ${allEmployees.map(employee => `
                     <tr>
-                      ${employeeTableColumns.map(col => `<td>${employee[col.id] !== null && employee[col.id] !== undefined ? String(employee[col.id]) : 'N/A'}</td>`).join('')}
+                      ${tableColumnsForPdf.map(col => {
+                          let value;
+                          if (col.field === 'jobTitle') {
+                              value = employee.jobGroup?.jobTitle || 'N/A';
+                          } else if (col.field === 'department') {
+                              value = employee.department?.name || 'N/A';
+                          } else if (col.field === 'manager') {
+                              value = employee.manager?.firstName ? `${employee.manager.firstName} ${employee.manager.lastName}` : 'N/A';
+                          } else {
+                              value = employee[col.field] !== null && employee[col.field] !== undefined ? String(employee[col.field]) : 'N/A';
+                          }
+                          return `<td>${value}</td>`;
+                      }).join('')}
                     </tr>
                   `).join('')}
                 </tbody>
@@ -151,60 +194,42 @@ export default function EmployeeSection({
                 </Box>
             </Stack>
 
-            <TableContainer component={Paper} sx={{ borderRadius: '8px', overflow: 'hidden' }}>
-                <Table aria-label="employees table">
-                    <TableHead>
-                        <TableRow sx={{ backgroundColor: 'primary.main' }}>
-                            {employeeTableColumns.map((column) => (
-                                <TableCell key={column.id} sx={{ color: 'white', fontWeight: 'bold' }}>
-                                    {column.label}
-                                </TableCell>
-                            ))}
-                            {(hasPrivilege('employee.update') || hasPrivilege('employee.delete') || hasPrivilege('employee.read_360')) && (
-                                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Actions</TableCell>
-                            )}
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {employees && employees.length > 0 ? (
-                            employees.map((employee) => (
-                                <TableRow hover key={employee.staffId} sx={{ '&:nth-of-type(odd)': { backgroundColor: 'action.hover' } }}>
-                                    {employeeTableColumns.map((column) => (
-                                        <TableCell key={column.id}>
-                                            {employee[column.id] !== null && employee[column.id] !== undefined
-                                                ? String(employee[column.id])
-                                                : 'N/A'}
-                                        </TableCell>
-                                    ))}
-                                    {(hasPrivilege('employee.update') || hasPrivilege('employee.delete') || hasPrivilege('employee.read_360')) && (
-                                        <TableCell>
-                                            <Stack direction="row" spacing={1}>
-                                                {hasPrivilege('employee.update') && (
-                                                    <IconButton color="primary" onClick={() => handleOpenEditEmployeeModal(employee)}>
-                                                        <EditIcon />
-                                                    </IconButton>
-                                                )}
-                                                {hasPrivilege('employee.delete') && (
-                                                    <IconButton color="error" onClick={() => handleOpenDeleteConfirmModal(employee.staffId, `${employee.firstName} ${employee.lastName}`, 'employee')}>
-                                                        <DeleteIcon />
-                                                    </IconButton>
-                                                )}
-                                                {hasPrivilege('employee.read_360') && (
-                                                    <IconButton color="info" onClick={() => fetchEmployee360View(employee.staffId)}>
-                                                        <VisibilityIcon />
-                                                    </IconButton>
-                                                )}
-                                            </Stack>
-                                        </TableCell>
-                                    )}
-                                </TableRow>
-                            ))
-                        ) : (
-                            <TableRow><TableCell colSpan={employeeTableColumns.length + 1} align="center">No employees found.</TableCell></TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </TableContainer>
+            <Box
+                m="20px 0 0 0"
+                height="75vh"
+                sx={{
+                    "& .MuiDataGrid-root": {
+                        border: "none",
+                    },
+                    "& .MuiDataGrid-cell": {
+                        borderBottom: "none",
+                    },
+                    "& .MuiDataGrid-columnHeaders": {
+                        backgroundColor: colors.blueAccent[700],
+                        borderBottom: "none",
+                    },
+                    "& .MuiDataGrid-virtualScroller": {
+                        backgroundColor: colors.primary[400],
+                    },
+                    "& .MuiDataGrid-footerContainer": {
+                        borderTop: "none",
+                        backgroundColor: colors.blueAccent[700],
+                    },
+                    "& .MuiCheckbox-root": {
+                        color: `${colors.greenAccent[200]} !important`,
+                    },
+                    "& .name-column--cell": {
+                        color: colors.greenAccent[300],
+                    },
+                }}
+            >
+                <DataGrid
+                    rows={employees}
+                    columns={columns}
+                    getRowId={(row) => row.staffId}
+                    loading={!employees.length}
+                />
+            </Box>
         </Box>
     );
 }
