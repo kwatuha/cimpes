@@ -143,7 +143,7 @@ const Sidebar = () => {
             <Box mb="25px">
               <Box display="flex" justifyContent="center" alignItems="center">
                 <img
-                  alt="IPMES logo"
+                  alt="Profile Picture"
                   width="100px"
                   height="100px"
                   src={userProfilePicture}

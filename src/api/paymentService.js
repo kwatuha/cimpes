@@ -14,7 +14,7 @@ const paymentService = {
    * @returns {Promise<Array>} A promise that resolves to an array of payment requests.
    */
   getRequestsForProject: async (projectId) => {
-    const response = await axiosInstance.get(`/payment-requests/project/${projectId}`);
+    const response = await axiosInstance.get(`/projects/${projectId}/payment-requests`);
     return response.data;
   },
 
@@ -36,6 +36,17 @@ const paymentService = {
    */
   recordApprovalAction: async (requestId, actionData) => {
     const response = await axiosInstance.put(`/payment-requests/${requestId}/action`, actionData);
+    return response.data;
+  },
+
+  /**
+   * Updates the status of a payment request.
+   * @param {number} requestId - The ID of the request to update.
+   * @param {object} statusData - An object with the new status.
+   * @returns {Promise<object>} A promise that resolves to a success message.
+   */
+  updateStatus: async (requestId, statusData) => {
+    const response = await axiosInstance.put(`/payment-requests/${requestId}/status`, statusData);
     return response.data;
   },
 

@@ -7,8 +7,9 @@ import {
   ListItemIcon,
   Menu, MenuItem,
   Snackbar,
-  Tabs, Tab,Tooltip,
+  Tabs, Tab, Tooltip, useTheme,
 } from '@mui/material';
+import { tokens } from '../pages/dashboard/theme';
 import {
   Close as CloseIcon, Check as CheckIcon, Clear as ClearIcon,
   ExpandMore as ExpandMoreIcon,
@@ -31,6 +32,8 @@ import PaymentApprovalModal from './modals/PaymentApprovalModal';
 
 const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paymentJustification, handleOpenDocumentUploader }) => {
   const { user, hasPrivilege } = useAuth();
+  const theme = useTheme();
+  const colors = tokens(theme.palette.mode);
   const serverUrl = import.meta.env.VITE_FILE_SERVER_BASE_URL || 'http://localhost:3000';
 
   const numericProjectId = parseInt(projectId, 10);
@@ -97,8 +100,12 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
 
       try {
         fetchedRequests = await apiService.paymentRequests.getRequestsForProject(numericProjectId);
+        console.log('🔍 Payment Requests fetched:', fetchedRequests);
+        console.log('🔍 Project ID:', numericProjectId);
+        console.log('🔍 Number of requests:', fetchedRequests?.length || 0);
       } catch (err) {
         console.error('Error fetching payment requests:', err);
+        fetchedRequests = [];
       }
       
       const initialTabValues = {};
@@ -133,6 +140,9 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
       setPaymentRequests(fetchedRequests);
       setContractors(fetchedContractors);
       setUsers(fetchedUsers);
+      
+      console.log('🔍 State set - paymentRequests:', fetchedRequests);
+      console.log('🔍 State set - paymentRequests length:', fetchedRequests?.length || 0);
 
     } catch (err) {
       console.error('Outer catch block - Error fetching review data:', err);
@@ -321,84 +331,583 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
 
   if (loading) {
     return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <CircularProgress />
-      </Box>
-    </Dialog>
+      <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: 'column',
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          height: '100vh',
+          gap: 3,
+          backgroundColor: theme.palette.mode === 'dark' ? colors.primary[600] : colors.grey[50]
+        }}>
+          <CircularProgress 
+            size={60}
+            sx={{ color: colors.blueAccent[500] }}
+          />
+          <Typography variant="h6" sx={{ color: colors.grey[600] }}>
+            Loading project review data...
+          </Typography>
+        </Box>
+      </Dialog>
     );
   }
 
   if (error) {
     return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
-      <Box sx={{ p: 3 }}>
-        <Alert severity="error">{error}</Alert>
-      </Box>
-    </Dialog>
+      <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
+        <Box sx={{ 
+          p: 4,
+          backgroundColor: theme.palette.mode === 'dark' ? colors.primary[600] : colors.grey[50],
+          textAlign: 'center'
+        }}>
+          <Alert 
+            severity="error" 
+            sx={{ 
+              borderRadius: 3,
+              backgroundColor: theme.palette.mode === 'dark' ? colors.redAccent[900] : colors.redAccent[50],
+              border: `1px solid ${theme.palette.mode === 'dark' ? colors.redAccent[700] : colors.redAccent[200]}`,
+              '& .MuiAlert-icon': {
+                color: colors.redAccent[500]
+              }
+            }}
+          >
+            {error}
+          </Alert>
+        </Box>
+      </Dialog>
     );
   }
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg" sx={{ '& .MuiDialogContent-root': { overflow: 'visible' } }}>
-      <DialogTitle sx={{ backgroundColor: '#0A2342', color: 'white' }}>
-        Review Submissions for: {projectName}
-        <IconButton
-          aria-label="close"
-          onClick={onClose}
-          sx={{ position: 'absolute', right: 8, top: 8, color: 'white' }}
-        >
-          <CloseIcon />
-        </IconButton>
+    <Dialog 
+      open={open} 
+      onClose={onClose} 
+      fullWidth 
+      maxWidth="lg" 
+      sx={{ 
+        '& .MuiDialog-paper': {
+          borderRadius: 3,
+          boxShadow: theme.palette.mode === 'dark' 
+            ? '0 20px 40px rgba(0,0,0,0.8)' 
+            : '0 20px 40px rgba(0,0,0,0.15)',
+          overflow: 'visible',
+          // Custom scrollbar for the entire dialog
+          '&::-webkit-scrollbar': {
+            width: '12px'
+          },
+          '&::-webkit-scrollbar-track': {
+            backgroundColor: theme.palette.mode === 'dark' ? colors.primary[600] : colors.grey[100],
+            borderRadius: '6px'
+          },
+          '&::-webkit-scrollbar-thumb': {
+            backgroundColor: theme.palette.mode === 'dark' ? colors.primary[500] : colors.grey[300],
+            borderRadius: '6px',
+            border: `2px solid ${theme.palette.mode === 'dark' ? colors.primary[600] : colors.grey[100]}`,
+            '&:hover': {
+              backgroundColor: theme.palette.mode === 'dark' ? colors.primary[400] : colors.grey[400]
+            }
+          },
+          '&::-webkit-scrollbar-corner': {
+            backgroundColor: theme.palette.mode === 'dark' ? colors.primary[600] : colors.grey[100]
+          }
+        }
+      }}
+    >
+      <DialogTitle 
+        sx={{ 
+          background: theme.palette.mode === 'dark' 
+            ? `linear-gradient(135deg, ${colors.primary[500]} 0%, ${colors.primary[600]} 100%)`
+            : `linear-gradient(135deg, ${colors.primary[400]} 0%, ${colors.primary[500]} 100%)`,
+          color: 'white',
+          py: 3,
+          px: 4,
+          position: 'relative',
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: '3px',
+            background: `linear-gradient(90deg, ${colors.blueAccent[400]}, ${colors.greenAccent[400]})`
+          }
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box>
+            <Typography variant="h5" sx={{ fontWeight: 600, mb: 0.5 }}>
+              Review Submissions
+            </Typography>
+            <Typography variant="body1" sx={{ opacity: 0.9, fontWeight: 300 }}>
+              Project: {projectName}
+            </Typography>
+          </Box>
+          <IconButton
+            aria-label="close"
+            onClick={onClose}
+            sx={{ 
+              color: 'white',
+              backgroundColor: 'rgba(255,255,255,0.1)',
+              '&:hover': {
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                transform: 'scale(1.1)'
+              },
+              transition: 'all 0.2s ease-in-out'
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </Box>
       </DialogTitle>
-      <DialogContent dividers>
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      <DialogContent 
+        dividers 
+        sx={{ 
+          p: 2,
+          maxHeight: '75vh',
+          overflow: 'auto',
+          backgroundColor: theme.palette.mode === 'dark' ? colors.primary[600] : colors.grey[50],
+          '& .MuiDivider-root': {
+            borderColor: theme.palette.mode === 'dark' ? colors.primary[500] : colors.grey[200]
+          },
+          // Custom scrollbar styling
+          '&::-webkit-scrollbar': {
+            width: '12px'
+          },
+          '&::-webkit-scrollbar-track': {
+            backgroundColor: theme.palette.mode === 'dark' ? colors.primary[500] : colors.grey[100],
+            borderRadius: '6px'
+          },
+          '&::-webkit-scrollbar-thumb': {
+            backgroundColor: theme.palette.mode === 'dark' ? colors.primary[400] : colors.grey[300],
+            borderRadius: '6px',
+            border: `2px solid ${theme.palette.mode === 'dark' ? colors.primary[500] : colors.grey[100]}`,
+            '&:hover': {
+              backgroundColor: theme.palette.mode === 'dark' ? colors.primary[300] : colors.grey[400]
+            }
+          },
+          '&::-webkit-scrollbar-corner': {
+            backgroundColor: theme.palette.mode === 'dark' ? colors.primary[500] : colors.grey[100]
+          },
+          // Force scrollbar to show
+          overflowY: 'scroll',
+          // Force scrollbars to show
+          scrollbarWidth: 'thin',
+          scrollbarColor: `${theme.palette.mode === 'dark' ? colors.primary[400] : colors.grey[300]} ${theme.palette.mode === 'dark' ? colors.primary[500] : colors.grey[100]}`,
+          // Ensure content can scroll
+          '& > *': {
+            minHeight: 'fit-content'
+          },
+          // Force scrollbars to always be visible
+          '&::-webkit-scrollbar': {
+            width: '12px',
+            display: 'block'
+          },
+          // Ensure scrollbar is visible even when not scrolling
+          '&::-webkit-scrollbar-thumb': {
+            backgroundColor: theme.palette.mode === 'dark' ? colors.primary[400] : colors.grey[300],
+            borderRadius: '6px',
+            border: `2px solid ${theme.palette.mode === 'dark' ? colors.primary[500] : colors.grey[100]}`,
+            minHeight: '50px',
+            '&:hover': {
+              backgroundColor: theme.palette.mode === 'dark' ? colors.primary[300] : colors.grey[400]
+            }
+          },
+          // Additional CSS to force scrollbar visibility
+          '&::-webkit-scrollbar-track': {
+            backgroundColor: theme.palette.mode === 'dark' ? colors.primary[500] : colors.grey[100],
+            borderRadius: '6px',
+            display: 'block'
+          },
+          // Force scrollbar to show
+          overflowY: 'scroll',
+          // Ensure scrollbar is always visible
+          '&::-webkit-scrollbar-thumb:vertical': {
+            backgroundColor: theme.palette.mode === 'dark' ? colors.primary[400] : colors.grey[300],
+            borderRadius: '6px',
+            border: `2px solid ${theme.palette.mode === 'dark' ? colors.primary[500] : colors.grey[100]}`,
+            minHeight: '50px'
+          }
+        }}
+      >
+        {error && <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>{error}</Alert>}
 
         {paymentJustification && (
-          <Box sx={{ mb: 4 }}>
-            <Typography variant="h6" gutterBottom>Payment Justification</Typography>
-            <Paper variant="outlined" sx={{ p: 2 }}>
-              <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                Total Accomplished Budget: <Chip label={`KES ${paymentJustification.totalBudget.toFixed(2)}`} color="success" />
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
+          <Box sx={{ mb: 3 }}>
+            <Typography 
+              variant="h6" 
+              sx={{ 
+                fontWeight: 600, 
+                mb: 1.5,
+                color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[800],
+                borderBottom: `2px solid ${colors.blueAccent[400]}`,
+                pb: 0.5,
+                display: 'inline-block'
+              }}
+            >
+              Payment Justification
+            </Typography>
+            <Paper 
+              variant="outlined" 
+              sx={{ 
+                p: 2,
+                borderRadius: 2,
+                backgroundColor: theme.palette.mode === 'dark' ? colors.primary[500] : 'white',
+                border: `1px solid ${theme.palette.mode === 'dark' ? colors.primary[400] : colors.grey[200]}`,
+                boxShadow: theme.palette.mode === 'dark' 
+                  ? `0 2px 8px ${colors.primary[400]}20`
+                  : `0 2px 8px ${colors.grey[200]}30`
+              }}
+            >
+              {/* Progress Header */}
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 2, 
+                mb: 2,
+                p: 1.5,
+                borderRadius: 1,
+                background: `linear-gradient(135deg, ${colors.blueAccent[50]}, ${colors.greenAccent[50]})`,
+                border: `1px solid ${colors.blueAccent[200]}`
+              }}>
+                <Box sx={{ 
+                  width: 40, 
+                  height: 40, 
+                  borderRadius: '50%', 
+                  backgroundColor: colors.greenAccent[400],
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  fontWeight: 'bold',
+                  fontSize: '1.2rem'
+                }}>
+                  ✓
+                </Box>
+                <Box>
+                  <Typography variant="body1" sx={{ fontWeight: 700, color: colors.grey[900], mb: 0.5 }}>
+                    Payment Justification Ready
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: colors.grey[700], fontWeight: 500 }}>
+                    All activities have been completed and are ready for payment review
+                  </Typography>
+                </Box>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Typography variant="body1" sx={{ fontWeight: 700, color: colors.grey[800] }}>
+                    Total Budget:
+                  </Typography>
+                  <Chip 
+                    label={`KES ${paymentJustification.totalBudget.toFixed(2)}`} 
+                    color="success" 
+                    size="small"
+                    sx={{ 
+                      fontWeight: 600,
+                      px: 1.5
+                    }}
+                  />
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Typography variant="body2" sx={{ color: colors.grey[700], fontWeight: 600 }}>
+                    Milestones:
+                  </Typography>
+                  <Chip 
+                    label={paymentJustification.accomplishedMilestones?.length || 0} 
+                    color="primary" 
+                    size="small"
+                    sx={{ 
+                      fontWeight: 600,
+                      px: 1.5
+                    }}
+                  />
+                </Box>
+              </Box>
+              <Typography 
+                variant="body2" 
+                sx={{ 
+                  color: theme.palette.mode === 'dark' ? colors.grey[200] : colors.grey[700],
+                  mb: 2,
+                  lineHeight: 1.5,
+                  fontWeight: 500
+                }}
+              >
                 The amount requested for payment should be justified by the following completed activities.
               </Typography>
+              
+              {/* Progress Summary */}
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 2, 
+                mb: 2,
+                p: 1.5,
+                borderRadius: 1,
+                backgroundColor: theme.palette.mode === 'dark' ? colors.primary[400] : colors.grey[50],
+                border: `1px solid ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.grey[200]}`
+              }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="body2" sx={{ color: colors.grey[700], fontWeight: 600 }}>
+                    Activities:
+                  </Typography>
+                  <Chip 
+                    label={paymentJustification.accomplishedActivities?.length || 0} 
+                    color="info" 
+                    size="small"
+                    sx={{ fontWeight: 600 }}
+                  />
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="body2" sx={{ color: colors.grey[700], fontWeight: 600 }}>
+                    Avg. Budget:
+                  </Typography>
+                  <Chip 
+                    label={`KES ${((paymentJustification.totalBudget / (paymentJustification.accomplishedActivities?.length || 1)) || 0).toFixed(2)}`} 
+                    color="warning" 
+                    size="small"
+                    sx={{ fontWeight: 600 }}
+                  />
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="body2" sx={{ color: colors.grey[700], fontWeight: 600 }}>
+                    Completion:
+                  </Typography>
+                  <Box sx={{ 
+                    width: 60, 
+                    height: 24, 
+                    borderRadius: 12, 
+                    backgroundColor: colors.grey[200],
+                    position: 'relative',
+                    overflow: 'hidden'
+                  }}>
+                    <Box sx={{ 
+                      width: '100%', 
+                      height: '100%', 
+                      backgroundColor: colors.greenAccent[400],
+                      borderRadius: 12,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <Typography variant="caption" sx={{ color: 'white', fontWeight: 600, fontSize: '0.7rem' }}>
+                        100%
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              </Box>
 
               {paymentJustification.accomplishedMilestones && paymentJustification.accomplishedMilestones.length > 0 ? (
-                  <List dense>
-                      {paymentJustification.accomplishedMilestones.map(milestone => (
-                          <Accordion key={milestone.milestoneId} disableGutters>
-                              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                                  <Typography sx={{ fontWeight: 'bold' }}>Milestone: {milestone.milestoneName}</Typography>
+                  <Box sx={{ mt: 2 }}>
+                      {paymentJustification.accomplishedMilestones.map((milestone, index) => (
+                          <Accordion 
+                            key={milestone.milestoneId} 
+                            disableGutters
+                            sx={{ 
+                              mb: 1.5,
+                              borderRadius: 1,
+                              backgroundColor: theme.palette.mode === 'dark' ? colors.primary[400] : colors.grey[100],
+                              border: `1px solid ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.grey[200]}`,
+                              '&:before': { display: 'none' },
+                              '&.Mui-expanded': {
+                                margin: 0,
+                                mb: 1.5
+                              }
+                            }}
+                          >
+                              <AccordionSummary 
+                                expandIcon={<ExpandMoreIcon sx={{ color: colors.blueAccent[400] }} />}
+                                sx={{
+                                  px: 2,
+                                  py: 1.5,
+                                  '&:hover': {
+                                    backgroundColor: theme.palette.mode === 'dark' ? colors.primary[300] : colors.grey[200]
+                                  }
+                                }}
+                              >
+                                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', mr: 2 }}>
+                                    <Typography 
+                                      variant="body1"
+                                      sx={{ 
+                                        fontWeight: 700,
+                                        color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[900],
+                                        fontSize: '1.05rem'
+                                      }}
+                                    >
+                                      🎯 {milestone.milestoneName}
+                                    </Typography>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                      <Chip 
+                                        label={`${paymentJustification.accomplishedActivities.filter(a => a.milestoneId === milestone.milestoneId).length} activities`}
+                                        size="small"
+                                        color="secondary"
+                                        sx={{ fontSize: '0.75rem', height: '20px' }}
+                                      />
+                                      <Chip 
+                                        label={`KES ${paymentJustification.accomplishedActivities
+                                          .filter(a => a.milestoneId === milestone.milestoneId)
+                                          .reduce((sum, a) => sum + parseFloat(a.budgetAllocated), 0)
+                                          .toFixed(2)}`}
+                                        size="small"
+                                        color="success"
+                                        sx={{ fontSize: '0.75rem', height: '20px' }}
+                                      />
+                                    </Box>
+                                  </Box>
                               </AccordionSummary>
-                              <AccordionDetails>
+                              <AccordionDetails sx={{ 
+                                px: 2, 
+                                pb: 2
+                              }}>
                                   <List dense disablePadding>
                                       {paymentJustification.accomplishedActivities
                                           .filter(a => a.milestoneId === milestone.milestoneId)
-                                          .map(activity => (
-                                              <ListItem key={activity.activityId} disablePadding>
-                                                  <ListItemText
-                                                      primary={activity.activityName}
-                                                      secondary={`Budget: KES ${parseFloat(activity.budgetAllocated).toFixed(2)}`}
-                                                  />
+                                          .map((activity, actIndex) => (
+                                              <ListItem 
+                                                key={activity.activityId} 
+                                                disablePadding
+                                                sx={{ 
+                                                  mb: 0.5,
+                                                  p: 1.5,
+                                                  borderRadius: 0.5,
+                                                  backgroundColor: theme.palette.mode === 'dark' ? colors.primary[300] : 'white',
+                                                  border: `1px solid ${theme.palette.mode === 'dark' ? colors.primary[200] : colors.grey[100]}`
+                                                }}
+                                              >
+                                                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                                                    <Box sx={{ flex: 1 }}>
+                                                      <Typography sx={{ fontWeight: 600, color: colors.grey[800], mb: 0.5, fontSize: '1rem' }}>
+                                                        ✅ {activity.activityName}
+                                                      </Typography>
+                                                      <Typography sx={{ color: colors.grey[600], fontSize: '0.85rem', fontWeight: 500 }}>
+                                                        Activity ID: {activity.activityId}
+                                                      </Typography>
+                                                    </Box>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                      <Chip 
+                                                        label={`KES ${parseFloat(activity.budgetAllocated).toFixed(2)}`}
+                                                        size="small"
+                                                        color="success"
+                                                        sx={{ 
+                                                          fontWeight: 600,
+                                                          fontSize: '0.8rem',
+                                                          height: '24px'
+                                                        }}
+                                                      />
+                                                    </Box>
+                                                  </Box>
                                               </ListItem>
                                           ))}
                                   </List>
                               </AccordionDetails>
                           </Accordion>
                       ))}
-                  </List>
+                  </Box>
               ) : (
-                  <Alert severity="info">No completed milestones with activities found yet.</Alert>
+                  <Alert 
+                    severity="info" 
+                    sx={{ 
+                      borderRadius: 2,
+                      backgroundColor: theme.palette.mode === 'dark' ? colors.primary[400] : colors.blueAccent[50],
+                      border: `1px solid ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.blueAccent[200]}`,
+                      '& .MuiAlert-message': {
+                        fontWeight: 600,
+                        color: colors.grey[700],
+                        fontSize: '0.95rem'
+                      }
+                    }}
+                  >
+                    No completed milestones with activities found yet.
+                  </Alert>
               )}
+              
+              {/* Summary Footer */}
+              <Box sx={{ 
+                mt: 2,
+                p: 1.5,
+                borderRadius: 1,
+                backgroundColor: theme.palette.mode === 'dark' ? colors.primary[400] : colors.greenAccent[50],
+                border: `1px solid ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.greenAccent[200]}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <Typography variant="body2" sx={{ color: colors.grey[700], fontWeight: 600, fontSize: '0.95rem' }}>
+                  📊 Payment Justification Summary
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="body2" sx={{ color: colors.grey[700], fontWeight: 500 }}>
+                    Total Activities:
+                  </Typography>
+                  <Chip 
+                    label={paymentJustification.accomplishedActivities?.length || 0} 
+                    color="info" 
+                    size="small"
+                    sx={{ fontWeight: 600 }}
+                  />
+                  <Typography variant="body2" sx={{ color: colors.grey[700], fontWeight: 500, ml: 1 }}>
+                    Total Budget:
+                  </Typography>
+                  <Chip 
+                    label={`KES ${paymentJustification.totalBudget.toFixed(2)}`} 
+                    color="success" 
+                    size="small"
+                    sx={{ fontWeight: 600 }}
+                  />
+                </Box>
+              </Box>
             </Paper>
           </Box>
         )}
-        <hr />
+        <Box sx={{ 
+          my: 3, 
+          height: '1px', 
+          background: `linear-gradient(90deg, transparent, ${colors.grey[300]}, transparent)` 
+        }} />
 
-        <Typography variant="h6" color="primary.main" gutterBottom>Payment Requests</Typography>
-        <Paper variant="outlined" sx={{ p: 2, mb: 4 }}>
+        <Typography 
+          variant="h6" 
+          sx={{ 
+            fontWeight: 700, 
+            mb: 2,
+            color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[900],
+            borderBottom: `2px solid ${colors.blueAccent[400]}`,
+            pb: 0.5,
+            display: 'inline-block',
+            fontSize: '1.1rem'
+          }}
+        >
+          💳 Payment Requests
+        </Typography>
+        <Paper 
+          variant="outlined" 
+          sx={{ 
+            p: 2, 
+            mb: 3,
+            borderRadius: 2,
+            backgroundColor: theme.palette.mode === 'dark' ? colors.primary[500] : 'white',
+            border: `1px solid ${theme.palette.mode === 'dark' ? colors.primary[400] : colors.grey[200]}`,
+            boxShadow: theme.palette.mode === 'dark' 
+              ? `0 2px 8px ${colors.primary[400]}20`
+              : `0 2px 8px ${colors.grey[200]}30`,
+            // Custom scrollbar for payment requests list
+            '& .MuiList-root::-webkit-scrollbar': {
+              width: '8px'
+            },
+            '& .MuiList-root::-webkit-scrollbar-track': {
+              backgroundColor: theme.palette.mode === 'dark' ? colors.primary[400] : colors.grey[50],
+              borderRadius: '4px'
+            },
+            '& .MuiList-root::-webkit-scrollbar-thumb': {
+              backgroundColor: theme.palette.mode === 'dark' ? colors.primary[300] : colors.grey[200],
+              borderRadius: '4px',
+              '&:hover': {
+                backgroundColor: theme.palette.mode === 'dark' ? colors.primary[200] : colors.grey[300]
+              }
+            }
+          }}
+        >
+          {console.log('🔍 Render - paymentRequests:', paymentRequests, 'length:', paymentRequests?.length)}
           {paymentRequests.length > 0 ? (
             <List>
               {paymentRequests.map((req) => {
@@ -410,46 +919,215 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
                 return (
                   <ListItem 
                     key={req.requestId} 
-                    sx={{ my: 2, p: 2, border: `1px solid ${isDateValid ? '#e0e0e0' : 'red'}`, borderRadius: '8px' }}
+                    sx={{ 
+                      my: 1.5, 
+                      p: 2, 
+                      border: `1px solid ${isDateValid ? (theme.palette.mode === 'dark' ? colors.primary[400] : colors.grey[200]) : colors.redAccent[400]}`,
+                      borderRadius: 2,
+                      backgroundColor: theme.palette.mode === 'dark' ? colors.primary[400] : 'white',
+                      '&:hover': {
+                        borderColor: colors.blueAccent[400]
+                      }
+                    }}
                   >
                     <Box sx={{ width: '100%' }}>
-                      <Stack direction="row" alignItems="center" spacing={2}>
-                        <ListItemText
-                          primary={`KES ${parseFloat(req.amount).toFixed(2)}`}
-                          secondary={`${req.description} | Requested: ${formattedDate}`}
+                      <Stack direction="row" alignItems="center" spacing={3}>
+                        <Box sx={{ flex: 1 }}>
+                          <Typography 
+                            variant="h6" 
+                            sx={{ 
+                              fontWeight: 800,
+                              color: colors.greenAccent[600],
+                              mb: 0.5,
+                              fontSize: '1.2rem'
+                            }}
+                          >
+                            💰 KES {parseFloat(req.amount).toFixed(2)}
+                          </Typography>
+                          <Typography 
+                            variant="body1" 
+                            sx={{ 
+                              fontWeight: 600,
+                              color: theme.palette.mode === 'dark' ? colors.grey[200] : colors.grey[800],
+                              mb: 0.5,
+                              fontSize: '1rem'
+                            }}
+                          >
+                            {req.description}
+                          </Typography>
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              color: theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[600],
+                              fontWeight: 500
+                            }}
+                          >
+                            📅 Requested: {req.createdAt ? new Date(req.createdAt).toLocaleDateString('en-US', { 
+                              year: 'numeric', 
+                              month: 'short', 
+                              day: 'numeric' 
+                            }) : 'Date N/A'}
+                          </Typography>
+                        </Box>
+                        <Chip 
+                          label={req.status} 
+                          color={req.status === 'Approved' ? 'success' : (req.status === 'Rejected' ? 'error' : 'default')} 
+                          sx={{ 
+                            fontWeight: 600,
+                            px: 2,
+                            py: 1,
+                            fontSize: '0.9rem'
+                          }}
                         />
-                        <Chip label={req.status} color={req.status === 'Approved' ? 'success' : (req.status === 'Rejected' ? 'error' : 'default')} />
-                        {hasPrivilege('payment_requests.upload_document') && (
-                          <IconButton onClick={(e) => { e.stopPropagation(); handleOpenDocumentUploader(req.requestId); }}>
-                            <AttachFileIcon color="primary" />
-                          </IconButton>
-                        )}
-                        {req.status === 'Pending Review' && hasPrivilege('project_payments.update') && (
-                          <>
-                            <IconButton onClick={(e) => { e.stopPropagation(); handleUpdatePaymentStatus(req.requestId, 'Approved'); }} disabled={submitting}>
-                              <CheckIcon color="success" />
+                        <Stack direction="row" spacing={1}>
+                          {hasPrivilege('payment_requests.upload_document') && (
+                            <Tooltip title="Upload Document">
+                              <IconButton 
+                                onClick={(e) => { e.stopPropagation(); handleOpenDocumentUploader(req.requestId); }}
+                                sx={{
+                                  backgroundColor: colors.blueAccent[50],
+                                  color: colors.blueAccent[500],
+                                  '&:hover': {
+                                    backgroundColor: colors.blueAccent[100],
+                                    transform: 'scale(1.1)'
+                                  },
+                                  transition: 'all 0.2s ease-in-out'
+                                }}
+                              >
+                                <AttachFileIcon />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                          {req.status === 'Pending Review' && hasPrivilege('project_payments.update') && (
+                            <>
+                              <Tooltip title="Approve Request">
+                                <IconButton 
+                                  onClick={(e) => { e.stopPropagation(); handleUpdatePaymentStatus(req.requestId, 'Approved'); }} 
+                                  disabled={submitting}
+                                  sx={{
+                                    backgroundColor: colors.greenAccent[50],
+                                    color: colors.greenAccent[500],
+                                    '&:hover': {
+                                      backgroundColor: colors.greenAccent[100],
+                                      transform: 'scale(1.1)'
+                                    },
+                                    transition: 'all 0.2s ease-in-out'
+                                  }}
+                                >
+                                  <CheckIcon />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Reject Request">
+                                <IconButton 
+                                  onClick={(e) => { e.stopPropagation(); handleUpdatePaymentStatus(req.requestId, 'Rejected'); }} 
+                                  disabled={submitting}
+                                  sx={{
+                                    backgroundColor: colors.redAccent[50],
+                                    color: colors.redAccent[500],
+                                    '&:hover': {
+                                      backgroundColor: colors.redAccent[100],
+                                      transform: 'scale(1.1)'
+                                    },
+                                    transition: 'all 0.2s ease-in-out'
+                                  }}
+                                >
+                                  <ClearIcon />
+                                </IconButton>
+                              </Tooltip>
+                            </>
+                          )}
+                          <Tooltip title="Review Request">
+                            <IconButton 
+                              onClick={(e) => { e.stopPropagation(); handleOpenApprovalModal(req.requestId); }}
+                              sx={{
+                                backgroundColor: colors.primary[50],
+                                color: colors.primary[500],
+                                '&:hover': {
+                                  backgroundColor: colors.primary[100],
+                                  transform: 'scale(1.1)'
+                                },
+                                transition: 'all 0.2s ease-in-out'
+                              }}
+                            >
+                              <LaunchIcon />
                             </IconButton>
-                            <IconButton onClick={(e) => { e.stopPropagation(); handleUpdatePaymentStatus(req.requestId, 'Rejected'); }} disabled={submitting}>
-                              <ClearIcon color="error" />
-                            </IconButton>
-                          </>
-                        )}
-                        <Tooltip title="Review Request">
-                            <IconButton onClick={(e) => { e.stopPropagation(); handleOpenApprovalModal(req.requestId); }}>
-                                <LaunchIcon color="primary" />
-                            </IconButton>
-                        </Tooltip>
+                          </Tooltip>
+                        </Stack>
                       </Stack>
                       
-                      <Box sx={{ borderBottom: 1, borderColor: 'divider', mt: 2 }}>
-                          <Tabs value={tabValues[req.requestId]} onChange={(event, newValue) => handleTabChange(req.requestId, newValue)} aria-label="request tabs">
-                              <Tab label={`Documents (${documentsCount})`} sx={{ fontWeight: 'bold' }} />
-                              <Tab label={`Supporting Photos (${photosCount})`} sx={{ fontWeight: 'bold' }} />
+                      <Box sx={{ 
+                        borderBottom: 2, 
+                        borderColor: theme.palette.mode === 'dark' ? colors.primary[300] : colors.grey[200], 
+                        mt: 2,
+                        borderRadius: 1
+                      }}>
+                          <Tabs 
+                            value={tabValues[req.requestId]} 
+                            onChange={(event, newValue) => handleTabChange(req.requestId, newValue)} 
+                            aria-label="request tabs"
+                            sx={{
+                              '& .MuiTab-root': {
+                                fontWeight: 600,
+                                fontSize: '1rem',
+                                textTransform: 'none',
+                                minHeight: 48,
+                                color: theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[700],
+                                '&.Mui-selected': {
+                                  color: colors.blueAccent[600],
+                                  fontWeight: 700
+                                }
+                              },
+                              '& .MuiTabs-indicator': {
+                                backgroundColor: colors.blueAccent[500],
+                                height: 3
+                              }
+                            }}
+                          >
+                              <Tab label={`📄 Documents (${documentsCount})`} />
+                              <Tab label={`📸 Supporting Photos (${photosCount})`} />
                           </Tabs>
                       </Box>
-                      <Box sx={{ mt: 2, pl: 2, borderLeft: '2px solid', borderColor: 'divider' }}>
-                          {tabValues[req.requestId] === 0 && (
-                              <Box>
+                      <Box sx={{ 
+                        mt: 2, 
+                        pl: 2, 
+                        borderLeft: `2px solid ${colors.blueAccent[400]}`,
+                        backgroundColor: theme.palette.mode === 'dark' ? colors.primary[300] : colors.grey[50],
+                        borderRadius: '0 6px 6px 0',
+                        py: 1.5,
+                        // Custom scrollbar for document/photo lists
+                        '& .MuiList-root::-webkit-scrollbar': {
+                          width: '6px'
+                        },
+                        '& .MuiList-root::-webkit-scrollbar-track': {
+                          backgroundColor: theme.palette.mode === 'dark' ? colors.primary[200] : colors.grey[100],
+                          borderRadius: '3px'
+                        },
+                        '& .MuiList-root::-webkit-scrollbar-thumb': {
+                          backgroundColor: theme.palette.mode === 'dark' ? colors.primary[100] : colors.grey[300],
+                          borderRadius: '3px',
+                          '&:hover': {
+                            backgroundColor: theme.palette.mode === 'dark' ? colors.primary[50] : colors.grey[400]
+                          }
+                        }
+                      }}>
+                                                      {tabValues[req.requestId] === 0 && (
+                                <Box sx={{
+                                  // Custom scrollbar for tab content
+                                  '&::-webkit-scrollbar': {
+                                    width: '6px'
+                                  },
+                                  '&::-webkit-scrollbar-track': {
+                                    backgroundColor: theme.palette.mode === 'dark' ? colors.primary[200] : colors.grey[100],
+                                    borderRadius: '3px'
+                                  },
+                                  '&::-webkit-scrollbar-thumb': {
+                                    backgroundColor: theme.palette.mode === 'dark' ? colors.primary[100] : colors.grey[300],
+                                    borderRadius: '3px',
+                                    '&:hover': {
+                                      backgroundColor: theme.palette.mode === 'dark' ? colors.primary[50] : colors.grey[400]
+                                    }
+                                  }
+                                }}>
                                   {paymentRequestDetails[req.requestId]?.documents
                                       ?.filter(doc => doc.documentType !== 'photo_payment')
                                       .length > 0 ? (
@@ -457,11 +1135,39 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
                                           {paymentRequestDetails[req.requestId].documents
                                               .filter(doc => doc.documentType !== 'photo_payment')
                                               .map((doc) => (
-                                                  <ListItem key={doc.id} disablePadding sx={{ py: 0.5 }}>
-                                                      <ListItemIcon sx={{ minWidth: 32 }}><DocumentIcon fontSize="small" /></ListItemIcon>
+                                                  <ListItem 
+                                                    key={doc.id} 
+                                                    disablePadding 
+                                                    sx={{ 
+                                                      py: 1,
+                                                      px: 1.5,
+                                                      mb: 0.5,
+                                                      borderRadius: 1,
+                                                      backgroundColor: theme.palette.mode === 'dark' ? colors.primary[200] : 'white',
+                                                      border: `1px solid ${theme.palette.mode === 'dark' ? colors.primary[100] : colors.grey[100]}`
+                                                    }}
+                                                  >
+                                                      <ListItemIcon sx={{ minWidth: 40 }}>
+                                                        <DocumentIcon 
+                                                          fontSize="small" 
+                                                          sx={{ color: colors.blueAccent[500] }}
+                                                        />
+                                                      </ListItemIcon>
                                                       <ListItemText
-                                                          primary={doc.documentType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                                                          secondary={`Uploaded by: ${users[doc.userId] || `User ID: ${doc.userId}`} on ${new Date(doc.createdAt).toLocaleDateString()}`}
+                                                          primary={
+                                                            <Typography sx={{ fontWeight: 700, color: colors.grey[800], fontSize: '1rem' }}>
+                                                              {doc.documentType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                                                            </Typography>
+                                                          }
+                                                          secondary={
+                                                            <Typography sx={{ color: colors.grey[600], fontSize: '0.9rem', fontWeight: 500 }}>
+                                                              👤 Uploaded by: {users[doc.userId] || `User ID: ${doc.userId}`} on {new Date(doc.createdAt).toLocaleDateString('en-US', { 
+                                                                year: 'numeric', 
+                                                                month: 'short', 
+                                                                day: 'numeric' 
+                                                              })}
+                                                            </Typography>
+                                                          }
                                                       />
                                                       <Stack direction="row" spacing={1} alignItems="center" sx={{ ml: 'auto' }}>
                                                           <Button
@@ -470,31 +1176,89 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
                                                               href={`${serverUrl}/${doc.documentPath}`}
                                                               target="_blank"
                                                               rel="noopener noreferrer"
+                                                              sx={{
+                                                                borderColor: colors.blueAccent[400],
+                                                                color: colors.blueAccent[500],
+                                                                fontWeight: 600,
+                                                                '&:hover': {
+                                                                  borderColor: colors.blueAccent[500],
+                                                                  backgroundColor: colors.blueAccent[50]
+                                                                }
+                                                              }}
                                                           >
-                                                              View
+                                                              👁️ View
                                                           </Button>
                                                           {hasPrivilege('document.update') && (
-                                                              <IconButton onClick={() => setEditDocumentModal({ open: true, document: doc, newDescription: doc.description || '' })}>
-                                                                  <EditIcon color="action" fontSize="small" />
-                                                              </IconButton>
+                                                              <Tooltip title="Edit Document">
+                                                                <IconButton 
+                                                                  onClick={() => setEditDocumentModal({ open: true, document: doc, newDescription: doc.description || '' })}
+                                                                  sx={{
+                                                                    backgroundColor: colors.blueAccent[50],
+                                                                    color: colors.blueAccent[500],
+                                                                    '&:hover': {
+                                                                      backgroundColor: colors.blueAccent[100],
+                                                                      transform: 'scale(1.1)'
+                                                                    },
+                                                                    transition: 'all 0.2s ease-in-out'
+                                                                  }}
+                                                                >
+                                                                    <EditIcon fontSize="small" />
+                                                                </IconButton>
+                                                              </Tooltip>
                                                           )}
                                                           {hasPrivilege('document.delete') && (
-                                                              <IconButton onClick={() => setDeleteConfirmationModal({ open: true, documentId: doc.id })}>
-                                                                  <DeleteIcon color="error" fontSize="small" />
-                                                              </IconButton>
-                           
+                                                              <Tooltip title="Delete Document">
+                                                                <IconButton 
+                                                                  onClick={() => setDeleteConfirmationModal({ open: true, documentId: doc.id })}
+                                                                  sx={{
+                                                                    backgroundColor: colors.redAccent[50],
+                                                                    color: colors.redAccent[500],
+                                                                    '&:hover': {
+                                                                      backgroundColor: colors.redAccent[100],
+                                                                      transform: 'scale(1.1)'
+                                                                    },
+                                                                    transition: 'all 0.2s ease-in-out'
+                                                                  }}
+                                                                >
+                                                                    <DeleteIcon fontSize="small" />
+                                                                </IconButton>
+                                                              </Tooltip>
                                                           )}
                                                       </Stack>
                                                   </ListItem>
                                               ))}
                                       </List>
                                   ) : (
-                                      <Typography variant="body2" color="text.secondary">No documents attached.</Typography>
+                                      <Box sx={{ 
+                                        textAlign: 'center', 
+                                        py: 3,
+                                        color: theme.palette.mode === 'dark' ? colors.grey[400] : colors.grey[500]
+                                      }}>
+                                        <Typography variant="body1" sx={{ fontStyle: 'italic' }}>
+                                          📄 No documents attached to this payment request.
+                                        </Typography>
+                                      </Box>
                                   )}
                               </Box>
                           )}
-                          {tabValues[req.requestId] === 1 && (
-                              <Box>
+                                                      {tabValues[req.requestId] === 1 && (
+                                <Box sx={{
+                                  // Custom scrollbar for photos tab content
+                                  '&::-webkit-scrollbar': {
+                                    width: '6px'
+                                  },
+                                  '&::-webkit-scrollbar-track': {
+                                    backgroundColor: theme.palette.mode === 'dark' ? colors.primary[200] : colors.grey[100],
+                                    borderRadius: '3px'
+                                  },
+                                  '&::-webkit-scrollbar-thumb': {
+                                    backgroundColor: theme.palette.mode === 'dark' ? colors.primary[100] : colors.grey[300],
+                                    borderRadius: '3px',
+                                    '&:hover': {
+                                      backgroundColor: theme.palette.mode === 'dark' ? colors.primary[50] : colors.grey[400]
+                                    }
+                                  }
+                                }}>
                                   {paymentRequestDetails[req.requestId]?.documents
                                       .filter(doc => doc.documentType === 'photo_payment').length > 0 ? (
                                           <DragDropContext onDragEnd={handlePhotoReorder}>
@@ -564,7 +1328,30 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
               })}
             </List>
           ) : (
-            <Alert severity="info">No payment requests for this project.</Alert>
+            <Box sx={{ 
+              textAlign: 'center', 
+              py: 4,
+              px: 3
+            }}>
+              <Alert 
+                severity="info" 
+                sx={{ 
+                  borderRadius: 3,
+                  backgroundColor: theme.palette.mode === 'dark' ? colors.primary[400] : colors.blueAccent[50],
+                  border: `1px solid ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.blueAccent[200]}`,
+                  '& .MuiAlert-icon': {
+                    color: colors.blueAccent[500]
+                  },
+                  '& .MuiAlert-message': {
+                    fontWeight: 600,
+                    color: colors.grey[700],
+                    fontSize: '0.95rem'
+                  }
+                }}
+              >
+                💳 No payment requests for this project yet.
+              </Alert>
+            </Box>
           )}
         </Paper>
         <hr />
@@ -645,6 +1432,9 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
                 <Alert severity="info">No photos submitted for this project.</Alert>
             )}
         </Paper>
+        
+        {/* Add bottom padding to ensure scrollable content */}
+        <Box sx={{ height: '50px', width: '100%' }} />
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} variant="contained">Close</Button>
@@ -769,9 +1559,20 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
         open={snackbar.open}
         autoHideDuration={6000}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
-        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%' }}>
+        <Alert 
+          onClose={() => setSnackbar({ ...snackbar, open: false })} 
+          severity={snackbar.severity} 
+          sx={{ 
+            width: '100%',
+            borderRadius: 2,
+            fontWeight: 500,
+            boxShadow: theme.palette.mode === 'dark' 
+              ? '0 8px 24px rgba(0,0,0,0.4)' 
+              : '0 8px 24px rgba(0,0,0,0.15)'
+          }}
+        >
           {snackbar.message}
         </Alert>
       </Snackbar>
