@@ -1689,19 +1689,19 @@ function ProjectDetailsPage() {
                         p: 4, 
                         textAlign: 'center',
                         borderRadius: '12px',
-                        backgroundColor: theme.palette.mode === 'dark' ? colors.primary[600] : colors.grey[50],
-                        border: `2px dashed ${theme.palette.mode === 'dark' ? colors.grey[600] : colors.grey[300]}`,
-                        color: theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[600]
+                        backgroundColor: theme.palette.mode === 'dark' ? '#1F2A40' : colors.grey[50],
+                        border: `2px dashed ${theme.palette.mode === 'dark' ? '#141b2d' : colors.grey[300]}`,
+                        color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[600]
                     }}>
                         <Typography variant="h6" sx={{ 
                             fontWeight: 'bold',
                             mb: 1,
-                            color: theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[600]
+                            color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[600]
                         }}>
                             No Monitoring Records Yet
                         </Typography>
                         <Typography variant="body2" sx={{ 
-                            color: theme.palette.mode === 'dark' ? colors.grey[400] : colors.grey[500],
+                            color: theme.palette.mode === 'dark' ? colors.grey[200] : colors.grey[500],
                             mb: 2
                         }}>
                             Start monitoring this project by adding your first observation.
@@ -1723,16 +1723,16 @@ function ProjectDetailsPage() {
                 ) : (
                     <Paper sx={{ 
                         borderRadius: '16px',
-                        backgroundColor: theme.palette.mode === 'dark' ? 'background.paper' : colors.grey[50],
-                        border: `1px solid ${theme.palette.mode === 'dark' ? theme.palette.divider : colors.grey[200]}`,
-                        boxShadow: theme.palette.mode === 'light' ? `0 4px 16px ${colors.grey[200]}30` : 'none',
+                        backgroundColor: theme.palette.mode === 'dark' ? '#1F2A40' : colors.grey[50],
+                        border: `1px solid ${theme.palette.mode === 'dark' ? '#141b2d' : colors.grey[200]}`,
+                        boxShadow: theme.palette.mode === 'light' ? `0 4px 16px ${colors.grey[200]}30` : `0 4px 16px #141b2d30`,
                         overflow: 'hidden'
                     }}>
                         {/* Enhanced Header */}
                         <Box sx={{ 
                             p: 3, 
                             borderBottom: `2px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[600] : colors.blueAccent[200]}`,
-                            backgroundColor: theme.palette.mode === 'dark' ? colors.blueAccent[900] : colors.blueAccent[50],
+                            backgroundColor: theme.palette.mode === 'dark' ? '#141b2d' : colors.blueAccent[50],
                             position: 'relative',
                             '&::before': {
                                 content: '""',
@@ -1760,13 +1760,13 @@ function ProjectDetailsPage() {
                                 <Box>
                                     <Typography variant="h6" sx={{ 
                                         fontWeight: 'bold',
-                                        color: theme.palette.mode === 'dark' ? colors.blueAccent[400] : colors.blueAccent[700],
+                                        color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.blueAccent[700],
                                         mb: 0.5
                                     }}>
                                         Recent Observations
                                     </Typography>
                                     <Typography variant="body2" sx={{ 
-                                        color: theme.palette.mode === 'dark' ? colors.grey[400] : colors.grey[600],
+                                        color: theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[600],
                                         fontSize: '0.875rem'
                                     }}>
                                         Latest monitoring records and project insights
@@ -1780,13 +1780,13 @@ function ProjectDetailsPage() {
                                     key={record.recordId}
                                     sx={{
                                         p: 3,
-                                        backgroundColor: theme.palette.mode === 'dark' ? 'transparent' : colors.grey[50],
+                                        backgroundColor: theme.palette.mode === 'dark' ? '#141414' : colors.grey[50],
                                         borderBottom: index < Math.min(5, monitoringRecords.length) - 1 ? 
-                                            `1px solid ${theme.palette.mode === 'dark' ? colors.grey[700] : colors.grey[200]}` : 'none',
+                                            `1px solid ${theme.palette.mode === 'dark' ? '#141b2d' : colors.grey[200]}` : 'none',
                                         '&:hover': {
-                                            backgroundColor: theme.palette.mode === 'dark' ? colors.grey[800] : colors.grey[100],
+                                            backgroundColor: theme.palette.mode === 'dark' ? '#292929' : colors.grey[100],
                                             transform: 'translateY(-1px)',
-                                            boxShadow: theme.palette.mode === 'light' ? `0 4px 12px ${colors.grey[200]}30` : 'none',
+                                            boxShadow: theme.palette.mode === 'light' ? `0 4px 12px ${colors.grey[200]}30` : `0 4px 12px #141b2d30`,
                                             transition: 'all 0.2s ease-in-out'
                                         },
                                         transition: 'all 0.2s ease-in-out'
@@ -1805,7 +1805,7 @@ function ProjectDetailsPage() {
                                             }} />
                                             <Typography variant="subtitle1" sx={{ 
                                                 fontWeight: 'bold',
-                                                color: theme.palette.mode === 'dark' ? 'text.primary' : colors.grey[800],
+                                                color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[800],
                                                 fontSize: '1.1rem'
                                             }}>
                                                 {record.warningLevel === 'None' ? 'Routine Observation' : `Warning: ${record.warningLevel}`}
@@ -1826,7 +1826,7 @@ function ProjectDetailsPage() {
                                         {/* Enhanced Content */}
                                         <Box sx={{ pl: 2 }}>
                                             <Typography variant="body2" sx={{ 
-                                                color: theme.palette.mode === 'dark' ? 'text.secondary' : colors.grey[700],
+                                                color: theme.palette.mode === 'dark' ? colors.grey[200] : colors.grey[700],
                                                 mb: 2,
                                                 lineHeight: 1.6,
                                                 fontSize: '0.9rem'
@@ -1843,7 +1843,7 @@ function ProjectDetailsPage() {
 
                                             {record.recommendations && (
                                                 <Typography variant="body2" sx={{ 
-                                                    color: theme.palette.mode === 'dark' ? 'text.primary' : colors.grey[700],
+                                                    color: theme.palette.mode === 'dark' ? colors.grey[200] : colors.grey[700],
                                                     mb: 2,
                                                     lineHeight: 1.6,
                                                     fontSize: '0.9rem'
@@ -1887,7 +1887,7 @@ function ProjectDetailsPage() {
                                                 borderTop: `1px solid ${theme.palette.mode === 'dark' ? colors.grey[700] : colors.grey[200]}`
                                             }}>
                                                 <Typography variant="caption" sx={{ 
-                                                    color: theme.palette.mode === 'dark' ? colors.grey[400] : colors.grey[500],
+                                                    color: theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[500],
                                                     fontSize: '0.75rem',
                                                     fontWeight: 500,
                                                     display: 'flex',
@@ -1952,8 +1952,8 @@ function ProjectDetailsPage() {
                             <Box sx={{ 
                                 p: 3, 
                                 textAlign: 'center',
-                                borderTop: `1px solid ${theme.palette.mode === 'dark' ? theme.palette.divider : colors.grey[200]}`,
-                                backgroundColor: theme.palette.mode === 'dark' ? colors.grey[800] : colors.grey[100]
+                                borderTop: `1px solid ${theme.palette.mode === 'dark' ? '#141b2d' : colors.grey[200]}`,
+                                backgroundColor: theme.palette.mode === 'dark' ? '#141b2d' : colors.grey[100]
                             }}>
                                 <Button
                                     variant="outlined"
