@@ -90,6 +90,40 @@ const formatDate = (dateString) => {
     }
 };
 
+// NEW: Helper function for monitoring data formatting
+const formatMonitoringDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric',
+            hour: '2-digit', 
+            minute: '2-digit'
+        });
+    } catch (e) {
+        console.error('Invalid date string:', dateString);
+        return 'Invalid Date';
+    }
+};
+
+// NEW: Helper function for warning level colors
+const getWarningColor = (level) => {
+    switch (level) {
+        case 'High':
+            return 'error';
+        case 'Medium':
+            return 'warning';
+        case 'Low':
+            return 'info';
+        default:
+            return 'success';
+    }
+};
+
+
+
 function ProjectDetailsPage() {
     const { projectId } = useParams();
     const navigate = useNavigate();
@@ -152,6 +186,38 @@ function ProjectDetailsPage() {
     const [isAccessAllowed, setIsAccessAllowed] = useState(false);
     const [accessLoading, setAccessLoading] = useState(true);
     const [accessError, setAccessError] = useState(null);
+
+    // NEW: State for Project Monitoring
+    const [monitoringRecords, setMonitoringRecords] = useState([]);
+    const [loadingMonitoring, setLoadingMonitoring] = useState(false);
+    const [monitoringError, setMonitoringError] = useState(null);
+    const [editingMonitoringRecord, setEditingMonitoringRecord] = useState(null);
+
+    // NEW: Helper function to get warning level colors from theme
+    const getWarningLevelColors = (level) => {
+        switch (level) {
+            case 'High':
+                return {
+                    backgroundColor: colors.redAccent[500],
+                    textColor: colors.grey[100]
+                };
+            case 'Medium':
+                return {
+                    backgroundColor: colors.redAccent[400],
+                    textColor: colors.grey[100]
+                };
+            case 'Low':
+                return {
+                    backgroundColor: colors.blueAccent[500],
+                    textColor: colors.grey[100]
+                };
+            default:
+                return {
+                    backgroundColor: colors.greenAccent[500],
+                    textColor: colors.grey[100]
+                };
+        }
+    };
 
     const handleAccordionChange = (panel) => (event, isExpanded) => {
         setExpandedWorkPlan(isExpanded ? panel : false);
@@ -241,6 +307,9 @@ function ProjectDetailsPage() {
             const camelCaseStaffData = rawStaffData.map(s => snakeToCamelCase(s));
             setStaff(camelCaseStaffData);
 
+            // NEW: Fetch monitoring records
+            await fetchMonitoringRecords();
+
         } catch (err) {
             console.error('ProjectDetailsPage: Error fetching project details:', err);
             setError(err.message || 'Failed to load project details.');
@@ -251,6 +320,24 @@ function ProjectDetailsPage() {
             setLoading(false);
         }
     }, [projectId, logout, user]);
+
+    // NEW: Function to fetch monitoring records
+    const fetchMonitoringRecords = useCallback(async () => {
+        if (!checkUserPrivilege(user, 'project_monitoring.read')) return;
+        
+        setLoadingMonitoring(true);
+        setMonitoringError(null);
+        
+        try {
+            const response = await apiService.projectMonitoring.getRecordsByProject(projectId);
+            setMonitoringRecords(response);
+        } catch (err) {
+            console.error('Error fetching monitoring records:', err);
+            setMonitoringError('Failed to load monitoring records.');
+        } finally {
+            setLoadingMonitoring(false);
+        }
+    }, [projectId, user]);
 
     // This effect now conditionally fetches data based on the access check
     useEffect(() => {
@@ -375,6 +462,19 @@ function ProjectDetailsPage() {
     };
     const handleCloseMonitoringModal = () => {
         setOpenMonitoringModal(false);
+        setEditingMonitoringRecord(null);
+        // Refresh monitoring data when modal is closed
+        fetchMonitoringRecords();
+    };
+
+    const handleEditMonitoringRecord = (record) => {
+        setEditingMonitoringRecord(record);
+        setOpenMonitoringModal(true);
+    };
+
+    const handleMonitoringEditComplete = () => {
+        setEditingMonitoringRecord(null);
+        fetchMonitoringRecords();
     };
 
     const handleOpenReviewPanel = () => {
@@ -1431,6 +1531,458 @@ function ProjectDetailsPage() {
                 )}
             </Box>
 
+            {/* NEW: Project Monitoring & Observations Section */}
+            <Box sx={{ mt: 3 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h5" sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        fontWeight: 'bold',
+                        color: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[500],
+                        textShadow: theme.palette.mode === 'dark' ? '1px 1px 2px rgba(0, 0, 0, 0.2)' : 'none',
+                        borderBottom: `2px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[400]}`,
+                        pb: 1
+                    }}>
+                        <AssessmentIcon sx={{ mr: 1, color: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[500] }} />
+                        Project Monitoring & Observations
+                    </Typography>
+                    <Stack direction="row" spacing={1}>
+                        {checkUserPrivilege(user, 'project_monitoring.create') && (
+                            <Button
+                                variant="contained"
+                                startIcon={<AddIcon />}
+                                onClick={() => setOpenMonitoringModal(true)}
+                                sx={{ 
+                                    backgroundColor: colors.greenAccent[600],
+                                    color: colors.grey[100],
+                                    fontWeight: 'bold',
+                                    borderRadius: '8px',
+                                    px: 2,
+                                    py: 0.75,
+                                    boxShadow: theme.palette.mode === 'light' ? `0 2px 8px ${colors.greenAccent[100]}40` : 'none',
+                                    '&:hover': { 
+                                        backgroundColor: colors.greenAccent[700],
+                                        transform: 'translateY(-1px)',
+                                        boxShadow: theme.palette.mode === 'light' ? `0 4px 12px ${colors.greenAccent[100]}50` : 'none'
+                                    },
+                                    transition: 'all 0.2s ease-in-out'
+                                }}
+                            >
+                                Add Observation
+                            </Button>
+                        )}
+                    </Stack>
+                </Box>
+
+                {/* Monitoring Summary Cards */}
+                <Grid container spacing={3} sx={{ mb: 3 }}>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Paper sx={{ 
+                            p: 2, 
+                            textAlign: 'center',
+                            borderRadius: '12px',
+                            backgroundColor: theme.palette.mode === 'dark' ? colors.primary[600] : colors.grey[50],
+                            border: `1px solid ${theme.palette.mode === 'dark' ? colors.grey[600] : colors.grey[200]}`,
+                            boxShadow: theme.palette.mode === 'light' ? `0 2px 8px ${colors.grey[200]}40` : 'none'
+                        }}>
+                            <Typography variant="h4" sx={{ 
+                                fontWeight: 'bold',
+                                color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[600]
+                            }}>
+                                {monitoringRecords.length}
+                            </Typography>
+                            <Typography variant="body2" sx={{ 
+                                color: theme.palette.mode === 'dark' ? 'text.secondary' : colors.grey[600],
+                                fontWeight: 500
+                            }}>
+                                Total Observations
+                            </Typography>
+                        </Paper>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Paper sx={{ 
+                            p: 2, 
+                            textAlign: 'center',
+                            borderRadius: '12px',
+                            backgroundColor: theme.palette.mode === 'dark' ? colors.primary[600] : colors.grey[50],
+                            border: `1px solid ${theme.palette.mode === 'dark' ? colors.grey[600] : colors.grey[200]}`,
+                            boxShadow: theme.palette.mode === 'light' ? `0 2px 8px ${colors.grey[200]}40` : 'none'
+                        }}>
+                            <Typography variant="h4" sx={{ 
+                                fontWeight: 'bold',
+                                color: theme.palette.mode === 'dark' ? colors.redAccent[500] : colors.redAccent[600]
+                            }}>
+                                {monitoringRecords.filter(r => r.warningLevel === 'High').length}
+                            </Typography>
+                            <Typography variant="body2" sx={{ 
+                                color: theme.palette.mode === 'dark' ? 'text.secondary' : colors.grey[600],
+                                fontWeight: 500
+                            }}>
+                                High Priority
+                            </Typography>
+                        </Paper>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Paper sx={{ 
+                            p: 2, 
+                            textAlign: 'center',
+                            borderRadius: '12px',
+                            backgroundColor: theme.palette.mode === 'dark' ? colors.primary[600] : colors.grey[50],
+                            border: `1px solid ${theme.palette.mode === 'dark' ? colors.grey[600] : colors.grey[200]}`,
+                            boxShadow: theme.palette.mode === 'light' ? `0 2px 8px ${colors.grey[200]}40` : 'none'
+                        }}>
+                            <Typography variant="h4" sx={{ 
+                                fontWeight: 'bold',
+                                color: theme.palette.mode === 'dark' ? colors.redAccent[400] : colors.redAccent[500]
+                            }}>
+                                {monitoringRecords.filter(r => r.warningLevel === 'Medium').length}
+                            </Typography>
+                            <Typography variant="body2" sx={{ 
+                                color: theme.palette.mode === 'dark' ? 'text.secondary' : colors.grey[600],
+                                fontWeight: 500
+                            }}>
+                                Medium Priority
+                            </Typography>
+                        </Paper>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Paper sx={{ 
+                            p: 2, 
+                            textAlign: 'center',
+                            borderRadius: '12px',
+                            backgroundColor: theme.palette.mode === 'dark' ? colors.primary[600] : colors.grey[50],
+                            border: `1px solid ${theme.palette.mode === 'dark' ? colors.grey[600] : colors.grey[200]}`,
+                            boxShadow: theme.palette.mode === 'light' ? `0 2px 8px ${colors.grey[200]}40` : 'none'
+                        }}>
+                            <Typography variant="h4" sx={{ 
+                                fontWeight: 'bold',
+                                color: theme.palette.mode === 'dark' ? colors.greenAccent[500] : colors.greenAccent[600]
+                            }}>
+                                {monitoringRecords.filter(r => r.warningLevel === 'None').length}
+                            </Typography>
+                            <Typography variant="body2" sx={{ 
+                                color: theme.palette.mode === 'dark' ? 'text.secondary' : colors.grey[600],
+                                fontWeight: 500
+                            }}>
+                                Routine
+                            </Typography>
+                        </Paper>
+                    </Grid>
+                </Grid>
+
+                {/* Recent Observations List */}
+                {loadingMonitoring ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                        <CircularProgress size={40} />
+                    </Box>
+                ) : monitoringError ? (
+                    <Alert severity="error" sx={{ 
+                        borderRadius: '8px',
+                        '& .MuiAlert-icon': {
+                            color: theme.palette.mode === 'dark' ? undefined : colors.redAccent[600]
+                        }
+                    }}>
+                        {monitoringError}
+                    </Alert>
+                ) : monitoringRecords.length === 0 ? (
+                    <Paper sx={{ 
+                        p: 4, 
+                        textAlign: 'center',
+                        borderRadius: '12px',
+                        backgroundColor: theme.palette.mode === 'dark' ? colors.primary[600] : colors.grey[50],
+                        border: `2px dashed ${theme.palette.mode === 'dark' ? colors.grey[600] : colors.grey[300]}`,
+                        color: theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[600]
+                    }}>
+                        <Typography variant="h6" sx={{ 
+                            fontWeight: 'bold',
+                            mb: 1,
+                            color: theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[600]
+                        }}>
+                            No Monitoring Records Yet
+                        </Typography>
+                        <Typography variant="body2" sx={{ 
+                            color: theme.palette.mode === 'dark' ? colors.grey[400] : colors.grey[500],
+                            mb: 2
+                        }}>
+                            Start monitoring this project by adding your first observation.
+                        </Typography>
+                        {checkUserPrivilege(user, 'project_monitoring.create') && (
+                            <Button
+                                variant="contained"
+                                startIcon={<AddIcon />}
+                                onClick={() => setOpenMonitoringModal(true)}
+                                sx={{ 
+                                    backgroundColor: colors.greenAccent[600],
+                                    '&:hover': { backgroundColor: colors.greenAccent[700] }
+                                }}
+                            >
+                                Add First Observation
+                            </Button>
+                        )}
+                    </Paper>
+                ) : (
+                    <Paper sx={{ 
+                        borderRadius: '16px',
+                        backgroundColor: theme.palette.mode === 'dark' ? 'background.paper' : colors.grey[50],
+                        border: `1px solid ${theme.palette.mode === 'dark' ? theme.palette.divider : colors.grey[200]}`,
+                        boxShadow: theme.palette.mode === 'light' ? `0 4px 16px ${colors.grey[200]}30` : 'none',
+                        overflow: 'hidden'
+                    }}>
+                        {/* Enhanced Header */}
+                        <Box sx={{ 
+                            p: 3, 
+                            borderBottom: `2px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[600] : colors.blueAccent[200]}`,
+                            backgroundColor: theme.palette.mode === 'dark' ? colors.blueAccent[900] : colors.blueAccent[50],
+                            position: 'relative',
+                            '&::before': {
+                                content: '""',
+                                position: 'absolute',
+                                left: 0,
+                                top: 0,
+                                bottom: 0,
+                                width: '4px',
+                                backgroundColor: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400]
+                            }
+                        }}>
+                            <Stack direction="row" alignItems="center" spacing={2}>
+                                <Box sx={{
+                                    width: 40,
+                                    height: 40,
+                                    borderRadius: '50%',
+                                    backgroundColor: theme.palette.mode === 'dark' ? colors.blueAccent[600] : colors.blueAccent[400],
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    boxShadow: theme.palette.mode === 'light' ? `0 2px 8px ${colors.blueAccent[100]}40` : 'none'
+                                }}>
+                                    <AssessmentIcon sx={{ color: 'white', fontSize: '1.2rem' }} />
+                                </Box>
+                                <Box>
+                                    <Typography variant="h6" sx={{ 
+                                        fontWeight: 'bold',
+                                        color: theme.palette.mode === 'dark' ? colors.blueAccent[400] : colors.blueAccent[700],
+                                        mb: 0.5
+                                    }}>
+                                        Recent Observations
+                                    </Typography>
+                                    <Typography variant="body2" sx={{ 
+                                        color: theme.palette.mode === 'dark' ? colors.grey[400] : colors.grey[600],
+                                        fontSize: '0.875rem'
+                                    }}>
+                                        Latest monitoring records and project insights
+                                    </Typography>
+                                </Box>
+                            </Stack>
+                        </Box>
+                        <List sx={{ p: 0 }}>
+                            {monitoringRecords.slice(0, 5).map((record, index) => (
+                                <ListItem
+                                    key={record.recordId}
+                                    sx={{
+                                        p: 3,
+                                        backgroundColor: theme.palette.mode === 'dark' ? 'transparent' : colors.grey[50],
+                                        borderBottom: index < Math.min(5, monitoringRecords.length) - 1 ? 
+                                            `1px solid ${theme.palette.mode === 'dark' ? colors.grey[700] : colors.grey[200]}` : 'none',
+                                        '&:hover': {
+                                            backgroundColor: theme.palette.mode === 'dark' ? colors.grey[800] : colors.grey[100],
+                                            transform: 'translateY(-1px)',
+                                            boxShadow: theme.palette.mode === 'light' ? `0 4px 12px ${colors.grey[200]}30` : 'none',
+                                            transition: 'all 0.2s ease-in-out'
+                                        },
+                                        transition: 'all 0.2s ease-in-out'
+                                    }}
+                                >
+                                    <Box sx={{ flex: 1, mr: 2 }}>
+                                        {/* Enhanced Header Row */}
+                                        <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
+                                            <Box sx={{
+                                                width: 12,
+                                                height: 12,
+                                                borderRadius: '50%',
+                                                backgroundColor: getWarningLevelColors(record.warningLevel).backgroundColor,
+                                                border: `2px solid ${theme.palette.mode === 'dark' ? colors.grey[800] : colors.grey[100]}`,
+                                                boxShadow: theme.palette.mode === 'light' ? `0 2px 4px ${getWarningLevelColors(record.warningLevel).backgroundColor}40` : 'none'
+                                            }} />
+                                            <Typography variant="subtitle1" sx={{ 
+                                                fontWeight: 'bold',
+                                                color: theme.palette.mode === 'dark' ? 'text.primary' : colors.grey[800],
+                                                fontSize: '1.1rem'
+                                            }}>
+                                                {record.warningLevel === 'None' ? 'Routine Observation' : `Warning: ${record.warningLevel}`}
+                                            </Typography>
+                                            <Chip 
+                                                label={record.warningLevel === 'None' ? 'Routine' : record.warningLevel}
+                                                size="small"
+                                                sx={{
+                                                    backgroundColor: getWarningLevelColors(record.warningLevel).backgroundColor,
+                                                    color: getWarningLevelColors(record.warningLevel).textColor,
+                                                    fontWeight: 'bold',
+                                                    fontSize: '0.7rem',
+                                                    height: '20px'
+                                                }}
+                                            />
+                                        </Stack>
+
+                                        {/* Enhanced Content */}
+                                        <Box sx={{ pl: 2 }}>
+                                            <Typography variant="body2" sx={{ 
+                                                color: theme.palette.mode === 'dark' ? 'text.secondary' : colors.grey[700],
+                                                mb: 2,
+                                                lineHeight: 1.6,
+                                                fontSize: '0.9rem'
+                                            }}>
+                                                <Box component="span" sx={{ 
+                                                    fontWeight: 'bold',
+                                                    color: theme.palette.mode === 'dark' ? colors.blueAccent[400] : colors.blueAccent[600],
+                                                    mr: 1
+                                                }}>
+                                                    Observation:
+                                                </Box>
+                                                {record.comment}
+                                            </Typography>
+
+                                            {record.recommendations && (
+                                                <Typography variant="body2" sx={{ 
+                                                    color: theme.palette.mode === 'dark' ? 'text.primary' : colors.grey[700],
+                                                    mb: 2,
+                                                    lineHeight: 1.6,
+                                                    fontSize: '0.9rem'
+                                                }}>
+                                                    <Box component="span" sx={{ 
+                                                        fontWeight: 'bold',
+                                                        color: theme.palette.mode === 'dark' ? colors.greenAccent[500] : colors.greenAccent[600],
+                                                        mr: 1
+                                                    }}>
+                                                        Recommendations:
+                                                    </Box>
+                                                    {record.recommendations}
+                                                </Typography>
+                                            )}
+
+                                            {record.challenges && (
+                                                <Typography variant="body2" sx={{ 
+                                                    color: theme.palette.mode === 'dark' ? 'text.error' : colors.redAccent[600],
+                                                    mb: 2,
+                                                    lineHeight: 1.6,
+                                                    fontSize: '0.9rem'
+                                                }}>
+                                                    <Box component="span" sx={{ 
+                                                        fontWeight: 'bold',
+                                                        color: theme.palette.mode === 'dark' ? colors.redAccent[400] : colors.redAccent[500],
+                                                        mr: 1
+                                                    }}>
+                                                        Challenges:
+                                                    </Box>
+                                                    {record.challenges}
+                                                </Typography>
+                                            )}
+
+                                            {/* Enhanced Timestamp */}
+                                            <Box sx={{ 
+                                                display: 'flex', 
+                                                alignItems: 'center', 
+                                                gap: 1,
+                                                mt: 2,
+                                                pt: 2,
+                                                borderTop: `1px solid ${theme.palette.mode === 'dark' ? colors.grey[700] : colors.grey[200]}`
+                                            }}>
+                                                <Typography variant="caption" sx={{ 
+                                                    color: theme.palette.mode === 'dark' ? colors.grey[400] : colors.grey[500],
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: 500,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: 0.5
+                                                }}>
+                                                    📅 Recorded on: {formatMonitoringDate(record.createdAt)}
+                                                </Typography>
+                                            </Box>
+                                        </Box>
+                                    </Box>
+                                    {/* Enhanced Action Buttons */}
+                                    <Stack direction="row" spacing={1} sx={{ ml: 'auto' }}>
+                                        {checkUserPrivilege(user, 'project_monitoring.update') && (
+                                            <Tooltip title="Edit Record">
+                                                <IconButton 
+                                                    size="small"
+                                                    onClick={() => handleEditMonitoringRecord(record)}
+                                                    sx={{
+                                                        color: theme.palette.mode === 'dark' ? colors.blueAccent[400] : colors.blueAccent[600],
+                                                        backgroundColor: theme.palette.mode === 'dark' ? colors.blueAccent[900] : colors.blueAccent[50],
+                                                        border: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[600] : colors.blueAccent[200]}`,
+                                                        '&:hover': {
+                                                            backgroundColor: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[100],
+                                                            transform: 'scale(1.05)',
+                                                            boxShadow: theme.palette.mode === 'light' ? `0 2px 8px ${colors.blueAccent[100]}40` : 'none'
+                                                        },
+                                                        transition: 'all 0.2s ease-in-out'
+                                                    }}
+                                                >
+                                                    <EditIcon fontSize="small" />
+                                                </IconButton>
+                                            </Tooltip>
+                                        )}
+                                        {checkUserPrivilege(user, 'project_monitoring.delete') && (
+                                            <Tooltip title="Delete Record">
+                                                <IconButton 
+                                                    size="small"
+                                                    sx={{
+                                                        color: theme.palette.mode === 'dark' ? colors.redAccent[400] : colors.redAccent[600],
+                                                        backgroundColor: theme.palette.mode === 'dark' ? colors.redAccent[900] : colors.redAccent[50],
+                                                        border: `1px solid ${theme.palette.mode === 'dark' ? colors.redAccent[600] : colors.redAccent[200]}`,
+                                                        '&:hover': {
+                                                            backgroundColor: theme.palette.mode === 'dark' ? colors.redAccent[700] : colors.redAccent[100],
+                                                            transform: 'scale(1.05)',
+                                                            boxShadow: theme.palette.mode === 'light' ? `0 2px 8px ${colors.redAccent[100]}40` : 'none'
+                                                        },
+                                                        transition: 'all 0.2s ease-in-out'
+                                                    }}
+                                                >
+                                                    <DeleteIcon fontSize="small" />
+                                                </IconButton>
+                                            </Tooltip>
+                                        )}
+                                    </Stack>
+                                </ListItem>
+                            ))}
+                        </List>
+
+                        {/* Enhanced Footer */}
+                        {monitoringRecords.length > 5 && (
+                            <Box sx={{ 
+                                p: 3, 
+                                textAlign: 'center',
+                                borderTop: `1px solid ${theme.palette.mode === 'dark' ? theme.palette.divider : colors.grey[200]}`,
+                                backgroundColor: theme.palette.mode === 'dark' ? colors.grey[800] : colors.grey[100]
+                            }}>
+                                <Button
+                                    variant="outlined"
+                                    onClick={() => setOpenMonitoringModal(true)}
+                                    startIcon={<AssessmentIcon />}
+                                    sx={{
+                                        borderColor: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400],
+                                        color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[600],
+                                        fontWeight: 'bold',
+                                        borderRadius: '8px',
+                                        px: 3,
+                                        py: 1,
+                                        '&:hover': {
+                                            borderColor: theme.palette.mode === 'dark' ? colors.blueAccent[600] : colors.blueAccent[500],
+                                            backgroundColor: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[100],
+                                            transform: 'translateY(-1px)',
+                                            boxShadow: theme.palette.mode === 'light' ? `0 4px 12px ${colors.blueAccent[100]}50` : 'none'
+                                        },
+                                        transition: 'all 0.2s ease-in-out'
+                                    }}
+                                >
+                                    View All Observations ({monitoringRecords.length})
+                                </Button>
+                            </Box>
+                        )}
+                    </Paper>
+                )}
+            </Box>
+
             {/* Modals for Milestones and Monitoring */}
             <MilestoneAttachments
                 open={openAttachmentsModal}
@@ -1444,6 +1996,8 @@ function ProjectDetailsPage() {
                 open={openMonitoringModal}
                 onClose={handleCloseMonitoringModal}
                 projectId={projectId}
+                editRecord={editingMonitoringRecord}
+                onEditComplete={handleMonitoringEditComplete}
             />
             <ProjectManagerReviewPanel
                 open={openReviewPanel}

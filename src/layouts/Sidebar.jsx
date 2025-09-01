@@ -23,6 +23,7 @@ import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import { useAuth } from '../context/AuthContext.jsx';
 import { ROUTES } from '../configs/appConfig.js';
 import logo from '../assets/logo.png';
+import userProfilePicture from '../assets/user.png';
 
 const Item = ({ title, to, icon, selected, setSelected, isCollapsed, privilegeCheck }) => {
   const theme = useTheme();
@@ -145,7 +146,7 @@ const Sidebar = () => {
                   alt="IPMES logo"
                   width="100px"
                   height="100px"
-                  src={logo}
+                  src={userProfilePicture}
                   style={{ cursor: "pointer", borderRadius: "50%" }}
                 />
               </Box>

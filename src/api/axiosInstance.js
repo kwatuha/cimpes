@@ -40,6 +40,18 @@ axiosInstance.interceptors.response.use(
     (response) => response, // If response is successful, just return it
     (error) => {
         console.error('API Response Error:', error.response || error.message);
+        
+        // Handle 401 Unauthorized errors (token expired or invalid)
+        if (error.response && error.response.status === 401) {
+            console.warn('Token expired or invalid. Clearing local storage...');
+            localStorage.removeItem('jwtToken');
+            
+            // If we're not already on the login page, redirect to login
+            if (window.location.pathname !== '/login') {
+                window.location.href = '/login';
+            }
+        }
+        
         // If there's a response object (e.g., 4xx, 5xx errors), reject with its data
         // Otherwise, reject with a generic Error object
         return Promise.reject(error.response ? error.response.data : new Error(error.message));
