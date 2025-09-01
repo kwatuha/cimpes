@@ -3,12 +3,15 @@ import {
     Box, Button, TextField, Dialog, DialogTitle, DialogContent,
     DialogActions, Select, MenuItem, FormControl, InputLabel,
     Stack, Chip, Tooltip, OutlinedInput, Checkbox, ListItemText, FormHelperText,
-    Typography // Fix: Added missing import
+    Typography, IconButton
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import { tokens } from '../../pages/dashboard/theme';
+import { Close as CloseIcon, Add as AddIcon, Edit as EditIcon } from '@mui/icons-material';
 
 const AddEditActivityForm = ({ open, onClose, onSubmit, initialData, milestones, staff, isEditing }) => {
     const theme = useTheme();
+    const colors = tokens(theme.palette.mode);
 
     const [formData, setFormData] = useState(initialData);
     const [formErrors, setFormErrors] = useState({});
@@ -70,16 +73,71 @@ const AddEditActivityForm = ({ open, onClose, onSubmit, initialData, milestones,
     const workplanName = initialData.selectedWorkplanName;
 
     return (
-        <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-            <DialogTitle sx={{ backgroundColor: theme.palette.primary.main, color: 'white' }}>
-                {isEditing ? 'Edit Activity' : 'Add New Activity'}
+        <Dialog 
+            open={open} 
+            onClose={onClose} 
+            fullWidth 
+            maxWidth="sm"
+            PaperProps={{
+                sx: {
+                    borderRadius: '16px',
+                    boxShadow: theme.palette.mode === 'light' 
+                        ? `0 8px 32px ${colors.blueAccent[100]}40, 0 4px 16px ${colors.blueAccent[100]}20`
+                        : undefined,
+                    border: theme.palette.mode === 'light' ? `1px solid ${colors.blueAccent[100]}` : 'none'
+                }
+            }}
+        >
+            <DialogTitle sx={{ 
+                backgroundColor: theme.palette.mode === 'dark' ? theme.palette.primary.main : colors.blueAccent[600],
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                pr: 1,
+                boxShadow: theme.palette.mode === 'light' ? `0 2px 8px ${colors.blueAccent[100]}40` : 'none'
+            }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {isEditing ? (
+                        <EditIcon sx={{ fontSize: '1.5rem' }} />
+                    ) : (
+                        <AddIcon sx={{ fontSize: '1.5rem' }} />
+                    )}
+                    <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                        {isEditing ? 'Edit Activity' : 'Add New Activity'}
+                    </Typography>
+                </Box>
+                <IconButton
+                    onClick={onClose}
+                    sx={{
+                        color: 'white',
+                        '&:hover': {
+                            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.2)'
+                        }
+                    }}
+                >
+                    <CloseIcon />
+                </IconButton>
             </DialogTitle>
-            <DialogContent dividers sx={{ backgroundColor: theme.palette.background.default }}>
-                <Stack spacing={2} sx={{ pt: 1 }}>
+            <DialogContent dividers sx={{ 
+                backgroundColor: theme.palette.mode === 'dark' ? theme.palette.background.default : colors.grey[50],
+                p: 3
+            }}>
+                <Stack spacing={3} sx={{ pt: 1 }}>
                     {workplanName && (
-                        <Box sx={{ p: 2, bgcolor: theme.palette.action.hover, borderRadius: '4px' }}>
-                            <Typography variant="body2" color="text.secondary">
-                                This activity will be added to the work plan: **{workplanName}**.
+                        <Box sx={{ 
+                            p: 2.5, 
+                            bgcolor: theme.palette.mode === 'dark' ? theme.palette.action.hover : colors.blueAccent[50],
+                            borderRadius: '8px',
+                            border: theme.palette.mode === 'light' ? `1px solid ${colors.blueAccent[200]}` : 'none',
+                            boxShadow: theme.palette.mode === 'light' ? `0 1px 4px ${colors.blueAccent[100]}30` : 'none'
+                        }}>
+                            <Typography variant="body2" sx={{ 
+                                color: theme.palette.mode === 'dark' ? 'text.secondary' : colors.blueAccent[700],
+                                fontWeight: 500,
+                                textAlign: 'center'
+                            }}>
+                                This activity will be added to the work plan: <strong>{workplanName}</strong>
                             </Typography>
                         </Box>
                     )}
@@ -236,9 +294,54 @@ const AddEditActivityForm = ({ open, onClose, onSubmit, initialData, milestones,
                     </FormControl>
                 </Stack>
             </DialogContent>
-            <DialogActions sx={{ padding: '16px 24px', borderTop: `1px solid ${theme.palette.divider}` }}>
-                <Button onClick={onClose} color="primary" variant="outlined">Cancel</Button>
-                <Button onClick={handleSubmit} color="primary" variant="contained">{isEditing ? 'Update Activity' : 'Create Activity'}</Button>
+            <DialogActions sx={{ 
+                padding: '20px 24px', 
+                borderTop: `1px solid ${theme.palette.mode === 'dark' ? theme.palette.divider : colors.grey[200]}`,
+                backgroundColor: theme.palette.mode === 'dark' ? 'transparent' : colors.grey[50],
+                gap: 2
+            }}>
+                <Button 
+                    onClick={onClose} 
+                    variant="outlined"
+                    sx={{
+                        borderColor: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400],
+                        color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[600],
+                        fontWeight: 'bold',
+                        borderRadius: '8px',
+                        px: 3,
+                        py: 1,
+                        '&:hover': {
+                            borderColor: theme.palette.mode === 'dark' ? colors.blueAccent[600] : colors.blueAccent[500],
+                            backgroundColor: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[100],
+                            color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.blueAccent[700]
+                        },
+                        boxShadow: theme.palette.mode === 'light' ? `0 2px 8px ${colors.blueAccent[100]}30` : 'none',
+                        transition: 'all 0.2s ease-in-out'
+                    }}
+                >
+                    Cancel
+                </Button>
+                <Button 
+                    onClick={handleSubmit} 
+                    variant="contained"
+                    sx={{
+                        backgroundColor: theme.palette.mode === 'dark' ? colors.greenAccent[600] : colors.greenAccent[500],
+                        color: 'white',
+                        fontWeight: 'bold',
+                        borderRadius: '8px',
+                        px: 3,
+                        py: 1,
+                        '&:hover': {
+                            backgroundColor: theme.palette.mode === 'dark' ? colors.greenAccent[700] : colors.greenAccent[600],
+                            transform: 'translateY(-1px)',
+                            boxShadow: theme.palette.mode === 'light' ? `0 4px 12px ${colors.greenAccent[100]}50` : 'none'
+                        },
+                        boxShadow: theme.palette.mode === 'light' ? `0 2px 8px ${colors.greenAccent[100]}40` : 'none',
+                        transition: 'all 0.2s ease-in-out'
+                    }}
+                >
+                    {isEditing ? 'Update Activity' : 'Create Activity'}
+                </Button>
             </DialogActions>
         </Dialog>
     );

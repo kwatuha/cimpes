@@ -3,11 +3,16 @@ import PropTypes from 'prop-types';
 import {
     Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button,
     CircularProgress, Alert, Box, Checkbox, FormControlLabel,
-    Stack, Typography,Grid
+    Stack, Typography, Grid, IconButton
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import { tokens } from '../../pages/dashboard/theme';
+import { Close as CloseIcon, Add as AddIcon, Edit as EditIcon, Flag as FlagIcon } from '@mui/icons-material';
 import apiService from '../../api';
 
 const AddEditMilestoneModal = ({ isOpen, onClose, editedMilestone, projectId, onSave }) => {
+    const theme = useTheme();
+    const colors = tokens(theme.palette.mode);
     const isEditing = !!editedMilestone;
     const [formData, setFormData] = useState({
         milestoneName: '',
@@ -97,42 +102,121 @@ const AddEditMilestoneModal = ({ isOpen, onClose, editedMilestone, projectId, on
     };
 
     return (
-        <Dialog open={isOpen} onClose={onClose} fullWidth maxWidth="sm">
-            <DialogTitle>{isEditing ? 'Edit Milestone' : 'Add New Milestone'}</DialogTitle>
+        <Dialog 
+            open={isOpen} 
+            onClose={onClose} 
+            fullWidth 
+            maxWidth="sm"
+            PaperProps={{
+                sx: {
+                    borderRadius: '16px',
+                    boxShadow: theme.palette.mode === 'light' 
+                        ? `0 8px 32px ${colors.blueAccent[100]}40, 0 4px 16px ${colors.blueAccent[100]}20`
+                        : undefined,
+                    border: theme.palette.mode === 'light' ? `1px solid ${colors.blueAccent[100]}` : 'none'
+                }
+            }}
+        >
+            <DialogTitle sx={{ 
+                backgroundColor: theme.palette.mode === 'dark' ? theme.palette.primary.main : colors.blueAccent[600],
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                pr: 1,
+                boxShadow: theme.palette.mode === 'light' ? `0 2px 8px ${colors.blueAccent[100]}40` : 'none'
+            }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {isEditing ? (
+                        <EditIcon sx={{ fontSize: '1.5rem' }} />
+                    ) : (
+                        <AddIcon sx={{ fontSize: '1.5rem' }} />
+                    )}
+                    <FlagIcon sx={{ fontSize: '1.3rem', color: colors.grey[100] }} />
+                    <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                        {isEditing ? 'Edit Milestone' : 'Add New Milestone'}
+                    </Typography>
+                </Box>
+                <IconButton
+                    onClick={onClose}
+                    sx={{
+                        color: 'white',
+                        '&:hover': {
+                            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.2)'
+                        }
+                    }}
+                >
+                    <CloseIcon />
+                </IconButton>
+            </DialogTitle>
             <form onSubmit={handleSubmit}>
-                <DialogContent dividers>
-                    {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-                    <TextField
-                        label="Milestone Name"
-                        name="milestoneName"
-                        fullWidth
-                        margin="normal"
-                        value={formData.milestoneName}
-                        onChange={handleChange}
-                        required
-                    />
-                    <TextField
-                        label="Description"
-                        name="description"
-                        multiline
-                        rows={3}
-                        fullWidth
-                        margin="normal"
-                        value={formData.description}
-                        onChange={handleChange}
-                    />
-                    <Grid container spacing={2}>
+                <DialogContent dividers sx={{ 
+                    backgroundColor: theme.palette.mode === 'dark' ? theme.palette.background.default : colors.grey[50],
+                    p: 3
+                }}>
+                    {error && <Alert severity="error" sx={{ 
+                        mb: 3, 
+                        borderRadius: '8px',
+                        '& .MuiAlert-icon': {
+                            color: theme.palette.mode === 'dark' ? undefined : colors.redAccent[600]
+                        }
+                    }}>{error}</Alert>}
+                    <Stack spacing={3}>
+                        <TextField
+                            label="Milestone Name"
+                            name="milestoneName"
+                            fullWidth
+                            variant="outlined"
+                            value={formData.milestoneName}
+                            onChange={handleChange}
+                            required
+                            sx={{
+                                '& .MuiOutlinedInput-root': {
+                                    borderRadius: '8px',
+                                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                                        borderColor: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400]
+                                    }
+                                }
+                            }}
+                        />
+                        <TextField
+                            label="Description"
+                            name="description"
+                            multiline
+                            rows={3}
+                            fullWidth
+                            variant="outlined"
+                            value={formData.description}
+                            onChange={handleChange}
+                            sx={{
+                                '& .MuiOutlinedInput-root': {
+                                    borderRadius: '8px',
+                                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                                        borderColor: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400]
+                                    }
+                                }
+                            }}
+                        />
+                        <Grid container spacing={3} sx={{ mt: 1 }}>
                       <Grid item xs={12} sm={6}>
                         <TextField
                           label="Due Date"
                           name="dueDate"
                           type="date"
                           fullWidth
-                          margin="normal"
+                          variant="outlined"
                           value={formData.dueDate}
                           onChange={handleChange}
                           InputLabelProps={{ shrink: true }}
                           required
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: '8px',
+                              '&:hover .MuiOutlinedInput-notchedOutline': {
+                                borderColor: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400]
+                              }
+                            }
+                          }}
                         />
                       </Grid>
                       <Grid item xs={12} sm={6}>
@@ -141,9 +225,17 @@ const AddEditMilestoneModal = ({ isOpen, onClose, editedMilestone, projectId, on
                           name="sequenceOrder"
                           type="number"
                           fullWidth
-                          margin="normal"
+                          variant="outlined"
                           value={formData.sequenceOrder}
                           onChange={handleChange}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: '8px',
+                              '&:hover .MuiOutlinedInput-notchedOutline': {
+                                borderColor: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400]
+                              }
+                            }
+                          }}
                         />
                       </Grid>
                       <Grid item xs={12} sm={6}>
@@ -152,9 +244,17 @@ const AddEditMilestoneModal = ({ isOpen, onClose, editedMilestone, projectId, on
                           name="weight"
                           type="number"
                           fullWidth
-                          margin="normal"
+                          variant="outlined"
                           value={formData.weight}
                           onChange={handleChange}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: '8px',
+                              '&:hover .MuiOutlinedInput-notchedOutline': {
+                                borderColor: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400]
+                              }
+                            }
+                          }}
                         />
                       </Grid>
                       <Grid item xs={12} sm={6}>
@@ -163,23 +263,45 @@ const AddEditMilestoneModal = ({ isOpen, onClose, editedMilestone, projectId, on
                           name="progress"
                           type="number"
                           fullWidth
-                          margin="normal"
+                          variant="outlined"
                           value={formData.progress}
                           onChange={handleChange}
                           inputProps={{ min: 0, max: 100 }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: '8px',
+                              '&:hover .MuiOutlinedInput-notchedOutline': {
+                                borderColor: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400]
+                              }
+                            }
+                          }}
                         />
                       </Grid>
                     </Grid>
-                    <Stack direction="row" alignItems="center" spacing={2} sx={{ mt: 2 }}>
+                    </Stack>
+                    <Stack spacing={3} sx={{ mt: 2 }}>
                       <FormControlLabel
                         control={
                           <Checkbox
                             name="completed"
                             checked={formData.completed}
                             onChange={handleChange}
+                            sx={{
+                              color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[600],
+                              '&.Mui-checked': {
+                                color: theme.palette.mode === 'dark' ? colors.greenAccent[600] : colors.greenAccent[500]
+                              }
+                            }}
                           />
                         }
-                        label="Mark as Completed"
+                        label={
+                          <Typography sx={{ 
+                            color: theme.palette.mode === 'dark' ? 'text.primary' : colors.grey[700],
+                            fontWeight: 500
+                          }}>
+                            Mark as Completed
+                          </Typography>
+                        }
                       />
                       {formData.completed && (
                         <TextField
@@ -187,17 +309,73 @@ const AddEditMilestoneModal = ({ isOpen, onClose, editedMilestone, projectId, on
                           name="completedDate"
                           type="date"
                           fullWidth
-                          margin="normal"
+                          variant="outlined"
                           value={formData.completedDate}
                           onChange={handleChange}
                           InputLabelProps={{ shrink: true }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: '8px',
+                              '&:hover .MuiOutlinedInput-notchedOutline': {
+                                borderColor: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400]
+                              }
+                            }
+                          }}
                         />
                       )}
                     </Stack>
                 </DialogContent>
-                <DialogActions>
-                    <Button onClick={onClose}>Cancel</Button>
-                    <Button type="submit" variant="contained" disabled={loading}>
+                <DialogActions sx={{ 
+                    padding: '20px 24px', 
+                    borderTop: `1px solid ${theme.palette.mode === 'dark' ? theme.palette.divider : colors.grey[200]}`,
+                    backgroundColor: theme.palette.mode === 'dark' ? 'transparent' : colors.grey[50],
+                    gap: 2
+                }}>
+                    <Button 
+                        onClick={onClose} 
+                        variant="outlined"
+                        sx={{
+                            borderColor: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400],
+                            color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[600],
+                            fontWeight: 'bold',
+                            borderRadius: '8px',
+                            px: 3,
+                            py: 1,
+                            '&:hover': {
+                                borderColor: theme.palette.mode === 'dark' ? colors.blueAccent[600] : colors.blueAccent[500],
+                                backgroundColor: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[100],
+                                color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.blueAccent[700]
+                            },
+                            boxShadow: theme.palette.mode === 'light' ? `0 2px 8px ${colors.blueAccent[100]}30` : 'none',
+                            transition: 'all 0.2s ease-in-out'
+                        }}
+                    >
+                        Cancel
+                    </Button>
+                    <Button 
+                        type="submit" 
+                        variant="contained" 
+                        disabled={loading}
+                        sx={{
+                            backgroundColor: theme.palette.mode === 'dark' ? colors.greenAccent[600] : colors.greenAccent[500],
+                            color: 'white',
+                            fontWeight: 'bold',
+                            borderRadius: '8px',
+                            px: 3,
+                            py: 1,
+                            '&:hover': {
+                                backgroundColor: theme.palette.mode === 'dark' ? colors.greenAccent[700] : colors.greenAccent[600],
+                                transform: 'translateY(-1px)',
+                                boxShadow: theme.palette.mode === 'light' ? `0 4px 12px ${colors.greenAccent[100]}50` : 'none'
+                            },
+                            '&:disabled': {
+                                backgroundColor: theme.palette.mode === 'dark' ? colors.grey[600] : colors.grey[400],
+                                color: theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[600]
+                            },
+                            boxShadow: theme.palette.mode === 'light' ? `0 2px 8px ${colors.greenAccent[100]}40` : 'none',
+                            transition: 'all 0.2s ease-in-out'
+                        }}
+                    >
                         {loading ? <CircularProgress size={24} /> : (isEditing ? 'Save Changes' : 'Create Milestone')}
                     </Button>
                 </DialogActions>

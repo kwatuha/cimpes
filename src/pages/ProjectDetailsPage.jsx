@@ -24,6 +24,24 @@ import {
 import apiService from '../api';
 import { useAuth } from '../context/AuthContext.jsx';
 import { getProjectStatusBackgroundColor, getProjectStatusTextColor } from '../utils/projectStatusColors';
+
+// Helper function to map milestone activity status to project status colors
+const getMilestoneStatusColors = (status) => {
+    const statusMapping = {
+        'completed': 'Completed',
+        'in_progress': 'In Progress',
+        'not_started': 'Initiated',
+        'stalled': 'Stalled',
+        'delayed': 'Delayed',
+        'cancelled': 'Cancelled'
+    };
+    
+    const mappedStatus = statusMapping[status] || status;
+    return {
+        backgroundColor: getProjectStatusBackgroundColor(mappedStatus),
+        textColor: getProjectStatusTextColor(mappedStatus)
+    };
+};
 import { tokens } from "./dashboard/theme"; // Import tokens for color styling
 import MilestoneAttachments from '../components/MilestoneAttachments.jsx';
 import ProjectMonitoringComponent from '../components/ProjectMonitoringComponent.jsx';
@@ -1024,15 +1042,44 @@ function ProjectDetailsPage() {
 
                                     {/* Milestones and Activities for this Workplan */}
                                     <Box sx={{ mt: 2 }}>
-                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                                            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Milestones</Typography>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                                            <Typography variant="h6" sx={{ 
+                                                fontWeight: 'bold',
+                                                color: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[600],
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                '&::before': {
+                                                    content: '""',
+                                                    width: '4px',
+                                                    height: '24px',
+                                                    backgroundColor: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[500],
+                                                    borderRadius: '2px',
+                                                    marginRight: '12px'
+                                                }
+                                            }}>
+                                                Milestones
+                                            </Typography>
                                             {checkUserPrivilege(user, 'milestone.create') && !projectCategory && (
                                                 <Button
                                                     variant="contained"
                                                     startIcon={<AddIcon />}
                                                     onClick={handleOpenCreateMilestoneDialog}
                                                     size="small"
-                                                    sx={{ backgroundColor: '#16a34a', '&:hover': { backgroundColor: '#15803d' } }}
+                                                    sx={{ 
+                                                        backgroundColor: colors.greenAccent[600],
+                                                        color: colors.grey[100],
+                                                        fontWeight: 'bold',
+                                                        borderRadius: '8px',
+                                                        px: 2,
+                                                        py: 0.75,
+                                                        boxShadow: theme.palette.mode === 'light' ? `0 2px 8px ${colors.greenAccent[100]}40` : 'none',
+                                                        '&:hover': { 
+                                                            backgroundColor: colors.greenAccent[700],
+                                                            transform: 'translateY(-1px)',
+                                                            boxShadow: theme.palette.mode === 'light' ? `0 4px 12px ${colors.greenAccent[100]}50` : 'none'
+                                                        },
+                                                        transition: 'all 0.2s ease-in-out'
+                                                    }}
                                                 >
                                                     Add Milestone
                                                 </Button>
@@ -1040,7 +1087,28 @@ function ProjectDetailsPage() {
                                         </Box>
 
                                         {milestonesForWorkplan.length === 0 ? (
-                                            <Alert severity="info">No milestones linked to this work plan yet.</Alert>
+                                            <Box sx={{
+                                                p: 3,
+                                                textAlign: 'center',
+                                                backgroundColor: theme.palette.mode === 'dark' ? colors.primary[600] : colors.grey[100],
+                                                borderRadius: '12px',
+                                                border: `2px dashed ${theme.palette.mode === 'dark' ? colors.grey[600] : colors.grey[300]}`,
+                                                color: theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[600]
+                                            }}>
+                                                <Typography variant="h6" sx={{ 
+                                                    fontWeight: 'bold',
+                                                    mb: 1,
+                                                    color: theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[700]
+                                                }}>
+                                                    No Milestones Yet
+                                                </Typography>
+                                                <Typography variant="body2" sx={{ 
+                                                    color: theme.palette.mode === 'dark' ? colors.grey[400] : colors.grey[600],
+                                                    fontStyle: 'italic'
+                                                }}>
+                                                    No milestones have been linked to this work plan yet.
+                                                </Typography>
+                                            </Box>
                                         ) : (
                                             <Grid container spacing={3}>
                                                 {milestonesForWorkplan.map((milestone) => {
@@ -1053,44 +1121,93 @@ function ProjectDetailsPage() {
                                                                 height: '100%', 
                                                                 display: 'flex', 
                                                                 flexDirection: 'column',
-                                                                border: theme.palette.mode === 'light' ? `1px solid ${colors.blueAccent[100]}` : 'none',
-                                                                boxShadow: theme.palette.mode === 'light' ? `0 4px 12px ${colors.blueAccent[100]}30` : undefined
+                                                                border: theme.palette.mode === 'light' ? `1px solid ${colors.blueAccent[200]}` : 'none',
+                                                                boxShadow: theme.palette.mode === 'light' ? `0 4px 16px ${colors.blueAccent[100]}40, 0 2px 8px ${colors.blueAccent[100]}20` : undefined,
+                                                                transition: 'all 0.2s ease-in-out',
+                                                                '&:hover': {
+                                                                    transform: 'translateY(-2px)',
+                                                                    boxShadow: theme.palette.mode === 'light' ? `0 8px 24px ${colors.blueAccent[100]}50, 0 4px 12px ${colors.blueAccent[100]}30` : undefined
+                                                                }
                                                             }}>
                                                                 <Box
                                                                     sx={{
                                                                         p: 2,
                                                                         pb: 1.5,
-                                                                        borderLeft: `5px solid ${theme.palette.primary.main}`,
-                                                                        backgroundColor: theme.palette.mode === 'dark' ? theme.palette.action.hover : colors.blueAccent[50],
+                                                                        borderLeft: `5px solid ${theme.palette.mode === 'dark' ? theme.palette.primary.main : colors.blueAccent[500]}`,
+                                                                        backgroundColor: theme.palette.mode === 'dark' ? theme.palette.action.hover : colors.blueAccent[100],
                                                                         borderTopLeftRadius: '12px',
                                                                         borderTopRightRadius: '12px',
+                                                                        boxShadow: theme.palette.mode === 'light' ? `inset 0 1px 0 ${colors.blueAccent[200]}` : 'none'
                                                                     }}
                                                                 >
                                                                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                                                            <FlagIcon color="primary" sx={{ mr: 1 }} />
+                                                                            <FlagIcon sx={{ 
+                                                                                mr: 1,
+                                                                                color: theme.palette.mode === 'dark' ? theme.palette.primary.main : colors.blueAccent[500],
+                                                                                fontSize: '1.5rem'
+                                                                            }} />
                                                                             <Typography variant="h6" sx={{ 
                                                                                 fontWeight: 'bold', 
-                                                                                color: theme.palette.mode === 'dark' ? theme.palette.primary.main : colors.blueAccent[700]
+                                                                                color: theme.palette.mode === 'dark' ? theme.palette.primary.main : colors.blueAccent[600]
                                                                             }}>
                                                                                 {milestone.milestoneName || 'Unnamed Milestone'}
                                                                             </Typography>
                                                                         </Box>
                                                                         <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
                                                                             <Tooltip title="View Attachments">
-                                                                                <IconButton edge="end" aria-label="attachments" onClick={() => {
-                                                                                    setMilestoneToViewAttachments(milestone);
-                                                                                    setOpenAttachmentsModal(true);
-                                                                                }}><AttachmentIcon /></IconButton>
+                                                                                <IconButton 
+                                                                                    edge="end" 
+                                                                                    aria-label="attachments" 
+                                                                                    onClick={() => {
+                                                                                        setMilestoneToViewAttachments(milestone);
+                                                                                        setOpenAttachmentsModal(true);
+                                                                                    }}
+                                                                                    sx={{
+                                                                                        color: theme.palette.mode === 'dark' ? colors.blueAccent[400] : colors.blueAccent[600],
+                                                                                        '&:hover': {
+                                                                                            backgroundColor: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[100],
+                                                                                            color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.blueAccent[700]
+                                                                                        }
+                                                                                    }}
+                                                                                >
+                                                                                    <AttachmentIcon />
+                                                                                </IconButton>
                                                                             </Tooltip>
                                                                             {checkUserPrivilege(user, 'milestone.update') && (
                                                                                 <Tooltip title="Edit Milestone">
-                                                                                    <IconButton edge="end" aria-label="edit" onClick={() => handleOpenEditMilestoneDialog(milestone)}><EditIcon /></IconButton>
+                                                                                    <IconButton 
+                                                                                        edge="end" 
+                                                                                        aria-label="edit" 
+                                                                                        onClick={() => handleOpenEditMilestoneDialog(milestone)}
+                                                                                        sx={{
+                                                                                            color: theme.palette.mode === 'dark' ? colors.greenAccent[400] : colors.greenAccent[600],
+                                                                                            '&:hover': {
+                                                                                                backgroundColor: theme.palette.mode === 'dark' ? colors.greenAccent[700] : colors.greenAccent[100],
+                                                                                                color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.greenAccent[700]
+                                                                                            }
+                                                                                        }}
+                                                                                    >
+                                                                                        <EditIcon />
+                                                                                    </IconButton>
                                                                                 </Tooltip>
                                                                             )}
                                                                             {checkUserPrivilege(user, 'milestone.delete') && (
                                                                                 <Tooltip title="Delete Milestone">
-                                                                                    <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteMilestone(milestone.milestoneId)}><DeleteIcon /></IconButton>
+                                                                                    <IconButton 
+                                                                                        edge="end" 
+                                                                                        aria-label="delete" 
+                                                                                        onClick={() => handleDeleteMilestone(milestone.milestoneId)}
+                                                                                        sx={{
+                                                                                            color: theme.palette.mode === 'dark' ? colors.redAccent[400] : colors.redAccent[600],
+                                                                                            '&:hover': {
+                                                                                                backgroundColor: theme.palette.mode === 'dark' ? colors.redAccent[700] : colors.redAccent[100],
+                                                                                                color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.redAccent[700]
+                                                                                            }
+                                                                                        }}
+                                                                                    >
+                                                                                        <DeleteIcon />
+                                                                                    </IconButton>
                                                                                 </Tooltip>
                                                                             )}
                                                                         </Stack>
@@ -1098,48 +1215,189 @@ function ProjectDetailsPage() {
                                                                 </Box>
 
                                                                 <Box sx={{ p: 2, flexGrow: 1 }}>
-                                                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                                                                    <Typography variant="body2" sx={{ 
+                                                                        mb: 1,
+                                                                        color: theme.palette.mode === 'dark' ? 'text.secondary' : colors.grey[600],
+                                                                        fontWeight: 500
+                                                                    }}>
                                                                         {milestone.description || 'No description.'}
                                                                     </Typography>
-                                                                    <Typography variant="body2" color="text.secondary">
+                                                                    <Typography variant="body2" sx={{ 
+                                                                        color: theme.palette.mode === 'dark' ? 'text.secondary' : colors.grey[600],
+                                                                        fontWeight: 500
+                                                                    }}>
                                                                         Due Date: {formatDate(milestone.dueDate)}
                                                                     </Typography>
-                                                                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                                                                    <Typography variant="body2" sx={{ 
+                                                                        mt: 1,
+                                                                        color: theme.palette.mode === 'dark' ? 'text.secondary' : colors.grey[600],
+                                                                        fontWeight: 500
+                                                                    }}>
                                                                         Progress: {milestone.progress}% (Weight: {milestone.weight})
                                                                     </Typography>
-                                                                    <LinearProgress variant="determinate" value={milestone.progress || 0} sx={{ height: 6, borderRadius: 3, mt: 0.5 }} />
+                                                                    <LinearProgress variant="determinate" value={milestone.progress || 0} sx={{ 
+                                                                        height: 8, 
+                                                                        borderRadius: 4, 
+                                                                        mt: 1,
+                                                                        bgcolor: theme.palette.mode === 'dark' ? colors.grey[700] : colors.grey[300],
+                                                                        '& .MuiLinearProgress-bar': {
+                                                                            borderRadius: 4,
+                                                                            background: `linear-gradient(90deg, ${colors.blueAccent[500]} 0%, ${colors.blueAccent[600]} 100%)`
+                                                                        }
+                                                                    }} />
 
                                                                     <Box sx={{ 
-                                                                        mt: 2, 
-                                                                        pl: 1, 
-                                                                        borderLeft: '2px solid', 
-                                                                        borderColor: theme.palette.mode === 'dark' ? theme.palette.secondary.main : colors.greenAccent[400],
+                                                                        mt: 2.5, 
+                                                                        pl: 2, 
+                                                                        borderLeft: '4px solid', 
+                                                                        borderColor: theme.palette.mode === 'dark' ? theme.palette.secondary.main : colors.greenAccent[500],
                                                                         backgroundColor: theme.palette.mode === 'light' ? colors.greenAccent[50] : 'transparent',
-                                                                        borderRadius: '0 8px 8px 0',
-                                                                        p: 1
+                                                                        borderRadius: '0 12px 12px 0',
+                                                                        p: 2,
+                                                                        boxShadow: theme.palette.mode === 'light' ? `0 2px 8px ${colors.greenAccent[100]}30` : 'none',
+                                                                        position: 'relative',
+                                                                        '&::before': {
+                                                                            content: '""',
+                                                                            position: 'absolute',
+                                                                            top: '50%',
+                                                                            left: '-8px',
+                                                                            transform: 'translateY(-50%)',
+                                                                            width: '12px',
+                                                                            height: '12px',
+                                                                            backgroundColor: theme.palette.mode === 'dark' ? theme.palette.secondary.main : colors.greenAccent[500],
+                                                                            borderRadius: '50%',
+                                                                            border: `2px solid ${theme.palette.mode === 'light' ? colors.grey[100] : colors.primary[600]}`
+                                                                        }
                                                                     }}>
                                                                         <Typography variant="subtitle2" sx={{ 
                                                                             fontWeight: 'bold', 
-                                                                            mb: 1,
-                                                                            color: theme.palette.mode === 'dark' ? 'inherit' : colors.greenAccent[700]
+                                                                            mb: 2,
+                                                                            color: theme.palette.mode === 'dark' ? 'inherit' : colors.greenAccent[700],
+                                                                            fontSize: '1rem',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            '&::after': {
+                                                                                content: '""',
+                                                                                flex: 1,
+                                                                                height: '1px',
+                                                                                backgroundColor: theme.palette.mode === 'dark' ? colors.grey[600] : colors.greenAccent[200],
+                                                                                ml: 2
+                                                                            }
                                                                         }}>Activities</Typography>
                                                                         {activitiesForMilestone.length > 0 ? (
                                                                             <List dense disablePadding>
                                                                                 {activitiesForMilestone.map(activity => (
-                                                                                    <ListItem key={activity.activityId} disablePadding sx={{ py: 0.5, pr: 1 }}>
+                                                                                    <ListItem key={activity.activityId} disablePadding sx={{ 
+                                                                                        py: 1, 
+                                                                                        pr: 1.5,
+                                                                                        pl: 1.5,
+                                                                                        borderRadius: '8px',
+                                                                                        mb: 0.75,
+                                                                                        backgroundColor: theme.palette.mode === 'light' ? colors.grey[50] : 'transparent',
+                                                                                        border: theme.palette.mode === 'light' ? `1px solid ${colors.grey[200]}` : 'none',
+                                                                                        boxShadow: theme.palette.mode === 'light' ? `0 1px 3px ${colors.grey[200]}40` : 'none',
+                                                                                        '&:hover': {
+                                                                            backgroundColor: theme.palette.mode === 'light' ? colors.grey[100] : colors.grey[800],
+                                                                            borderColor: theme.palette.mode === 'light' ? colors.grey[300] : 'transparent',
+                                                                            boxShadow: theme.palette.mode === 'light' ? `0 2px 6px ${colors.grey[200]}60` : 'none',
+                                                                            transform: 'translateY(-1px)'
+                                                                        },
+                                                                        transition: 'all 0.2s ease-in-out'
+                                                                    }}>
                                                                                         <ListItemText
-                                                                                            primary={activity.activityName}
-                                                                                            secondary={`Budget: ${formatCurrency(activity.budgetAllocated)} | Status: ${activity.activityStatus.replace(/_/g, ' ')}`}
+                                                                                            primary={
+                                                                                                <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                                                                                                    <Typography variant="body2" sx={{ 
+                                                                                                        fontWeight: 700,
+                                                                                                        color: theme.palette.mode === 'dark' ? 'inherit' : colors.grey[800],
+                                                                                                        fontSize: '0.9rem',
+                                                                                                        flex: 1
+                                                                                                    }}>
+                                                                                                        {activity.activityName}
+                                                                                                    </Typography>
+                                                                                                    <Box sx={{
+                                                                                                        width: '8px',
+                                                                                                        height: '8px',
+                                                                                                        borderRadius: '50%',
+                                                                                                        backgroundColor: getMilestoneStatusColors(activity.activityStatus).backgroundColor,
+                                                                                                        border: `2px solid ${theme.palette.mode === 'light' ? colors.grey[100] : colors.primary[600]}`,
+                                                                                                        ml: 1
+                                                                    }} />
+                                                                                                </Box>
+                                                                                            }
+                                                                                            secondary={
+                                                                                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                                                                                    <Typography variant="caption" sx={{ 
+                                                                                                        color: theme.palette.mode === 'dark' ? colors.grey[400] : colors.grey[600],
+                                                                                                        fontWeight: 500,
+                                                                                                        fontSize: '0.75rem'
+                                                                                                    }}>
+                                                                                                        Budget: {formatCurrency(activity.budgetAllocated)}
+                                                                                                    </Typography>
+                                                                                                    <Typography variant="caption" sx={{ 
+                                                                                                        color: theme.palette.mode === 'dark' ? colors.grey[400] : colors.grey[700],
+                                                                                                        fontWeight: 600,
+                                                                                                        fontSize: '0.75rem',
+                                                                                                        textTransform: 'capitalize',
+                                                                                                        display: 'flex',
+                                                                                                        alignItems: 'center',
+                                                                                                        gap: 0.5
+                                                                                                    }}>
+                                                                                                        Status: 
+                                                                                                        <Box component="span" sx={{
+                                                                                                            px: 1,
+                                                                                                            py: 0.25,
+                                                                                                            borderRadius: '4px',
+                                                                                                            fontSize: '0.7rem',
+                                                                                                            fontWeight: 'bold',
+                                                                                                            backgroundColor: getMilestoneStatusColors(activity.activityStatus).backgroundColor,
+                                                                                                            color: getMilestoneStatusColors(activity.activityStatus).textColor,
+                                                                                                            border: `1px solid ${getMilestoneStatusColors(activity.activityStatus).backgroundColor}`,
+                                                                                                            textTransform: 'capitalize'
+                                                                                                        }}>
+                                                                                                            {activity.activityStatus.replace(/_/g, ' ')}
+                                                                                                        </Box>
+                                                                                                    </Typography>
+                                                                                                </Box>
+                                                                                            }
                                                                                         />
                                                                                         <Stack direction="row" spacing={1}>
                                                                                             {checkUserPrivilege(user, 'activity.update') && (
                                                                                                 <Tooltip title="Edit Activity">
-                                                                                                    <IconButton edge="end" aria-label="edit" onClick={(e) => { e.stopPropagation(); handleOpenEditActivityDialog(activity); }} size="small"><EditIcon fontSize="small" /></IconButton>
+                                                                                                    <IconButton 
+                                                                                                        edge="end" 
+                                                                                                        aria-label="edit" 
+                                                                                                        onClick={(e) => { e.stopPropagation(); handleOpenEditActivityDialog(activity); }} 
+                                                                                                        size="small"
+                                                                                                        sx={{
+                                                                                                            color: theme.palette.mode === 'dark' ? colors.greenAccent[400] : colors.greenAccent[600],
+                                                                                                            '&:hover': {
+                                                                                                                backgroundColor: theme.palette.mode === 'dark' ? colors.greenAccent[700] : colors.greenAccent[100],
+                                                                                                                color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.greenAccent[700]
+                                                                                                            }
+                                                                                                        }}
+                                                                                                    >
+                                                                                        <EditIcon fontSize="small" />
+                                                                                                    </IconButton>
                                                                                             </Tooltip>
                                                                                             )}
                                                                                             {checkUserPrivilege(user, 'activity.delete') && (
                                                                                                 <Tooltip title="Delete Activity">
-                                                                                                    <IconButton edge="end" aria-label="delete" onClick={(e) => { e.stopPropagation(); handleDeleteActivity(activity.activityId); }} size="small"><DeleteIcon fontSize="small" /></IconButton>
+                                                                                                    <IconButton 
+                                                                                                        edge="end" 
+                                                                                                        aria-label="delete" 
+                                                                                                        onClick={(e) => { e.stopPropagation(); handleDeleteActivity(activity.activityId); }} 
+                                                                                                        size="small"
+                                                                                                        sx={{
+                                                                                                            color: theme.palette.mode === 'dark' ? colors.redAccent[400] : colors.redAccent[600],
+                                                                                                            '&:hover': {
+                                                                                                backgroundColor: theme.palette.mode === 'dark' ? colors.redAccent[700] : colors.redAccent[100],
+                                                                                                color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.redAccent[700]
+                                                                                            }
+                                                                                        }}
+                                                                                    >
+                                                                                        <DeleteIcon fontSize="small" />
+                                                                                                    </IconButton>
                                                                                             </Tooltip>
                                                                                             )}
                                                                                         </Stack>
@@ -1147,7 +1405,13 @@ function ProjectDetailsPage() {
                                                                                 ))}
                                                                             </List>
                                                                         ) : (
-                                                                            <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', mt: 1 }}>
+                                                                            <Typography variant="body2" sx={{ 
+                                                                                fontStyle: 'italic', 
+                                                                                mt: 1,
+                                                                                color: theme.palette.mode === 'dark' ? 'text.secondary' : colors.grey[500],
+                                                                                textAlign: 'center',
+                                                                                py: 1
+                                                                            }}>
                                                                                 No activities linked to this milestone.
                                                                             </Typography>
                                                                         )}
