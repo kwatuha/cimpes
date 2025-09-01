@@ -49,20 +49,23 @@ function ProjectManagementPage() {
   const { tableContainerRef, showLeftShadow, showRightShadow, handleScrollRight, handleScrollLeft } = useTableScrollShadows(projects || []);
 
   // States for column visibility and menu
-  const [visibleColumnIds, setVisibleColumnIds] = useState(() => {
-    const savedColumns = localStorage.getItem('projectTableVisibleColumns');
-    if (savedColumns) {
+  const [columnVisibilityModel, setColumnVisibilityModel] = useState(() => {
+    const savedVisibility = localStorage.getItem('projectTableColumnVisibility');
+    if (savedVisibility) {
       try {
-        const parsed = JSON.parse(savedColumns);
-        const validSaved = parsed.filter(id => projectTableColumnsConfig.some(col => col.id === id));
-        if (validSaved.length > 0) return validSaved;
+        return JSON.parse(savedVisibility);
       } catch (e) {
-        console.error("Failed to parse saved columns from localStorage", e);
+        console.error("Failed to parse saved column visibility from localStorage", e);
       }
     }
-    return projectTableColumnsConfig.filter(col => col.show).map(col => col.id);
+    
+    // Default visibility - show essential columns, hide others
+    const defaultVisibility = {};
+    projectTableColumnsConfig.forEach(col => {
+      defaultVisibility[col.field || col.id] = col.show;
+    });
+    return defaultVisibility;
   });
-  const [anchorElColumnsMenu, setAnchorElColumnsMenu] = useState(null);
 
   // Dialog state for create/edit
   const [openFormDialog, setOpenFormDialog] = useState(false);
@@ -71,6 +74,23 @@ function ProjectManagementPage() {
   // State for Assign Contractor modal
   const [openAssignModal, setOpenAssignModal] = useState(false);
   const [selectedProjectForAssignment, setSelectedProjectForAssignment] = useState(null);
+  
+  // State for pagination
+  const [paginationModel, setPaginationModel] = useState({
+    pageSize: 25,
+    page: 0,
+  });
+  
+  // Calculate optimal height based on page size
+  const calculateGridHeight = () => {
+    const rowHeight = 52; // Standard DataGrid row height
+    const headerHeight = 56; // Column header height
+    const footerHeight = 52; // Pagination footer height
+    const padding = 32; // Extra padding
+    
+    const totalHeight = headerHeight + (paginationModel.pageSize * rowHeight) + footerHeight + padding;
+    return Math.max(totalHeight, 400); // Minimum height of 400px
+  };
 
   const handleOpenFormDialog = (project = null) => {
     if (project && !checkUserPrivilege(user, 'project.update')) {
@@ -143,35 +163,51 @@ function ProjectManagementPage() {
 
   const handleCloseSnackbar = (event, reason) => { if (reason === 'clickaway') return; setSnackbar({ ...snackbar, open: false }); };
 
-  const handleOpenColumnsMenu = (event) => setAnchorElColumnsMenu(event.currentTarget);
-  const handleCloseColumnsMenu = () => setAnchorElColumnsMenu(null);
-
-  const handleToggleColumn = (columnId, isChecked) => {
-    setVisibleColumnIds(prev => {
-      if (!isChecked && prev.length === 1) {
-        setSnackbar({ open: true, message: 'At least one column must be visible.', severity: 'warning' });
-        return prev;
-      }
-      const newVisible = isChecked ? [...prev, columnId] : prev.filter(id => id !== columnId);
-      localStorage.setItem('projectTableVisibleColumns', JSON.stringify(newVisible));
-      return newVisible;
+  const handleResetColumns = () => {
+    const defaultVisibility = {};
+    projectTableColumnsConfig.forEach(col => {
+      defaultVisibility[col.field || col.id] = col.show;
     });
+    setColumnVisibilityModel(defaultVisibility);
+    localStorage.setItem('projectTableColumnVisibility', JSON.stringify(defaultVisibility));
+    setSnackbar({ open: true, message: 'Columns reset to defaults', severity: 'info' });
   };
 
   if (authLoading) return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}><CircularProgress /><Typography sx={{ ml: 2 }}>Loading authentication data...</Typography></Box>;
 
   // Define columns for DataGrid
-  const columns = projectTableColumnsConfig.map(col => {
+  const columns = projectTableColumnsConfig.map((col, index) => {
     const dataGridColumn = {
-      field: col.id,
+      field: col.id, // Use col.id directly as the field name
       headerName: col.label,
       flex: col.flex,
       width: col.width,
       minWidth: col.minWidth,
       sortable: col.sortable,
+      sticky: col.sticky, // Preserve sticky property
     };
 
     switch (col.id) {
+      case 'rowNumber':
+        dataGridColumn.valueGetter = (params) => {
+          if (!params) return '';
+          // Use the row's position in the data array
+          const rowIndex = projects.findIndex(project => project.id === params.id);
+          return rowIndex !== -1 ? rowIndex + 1 : '';
+        };
+        dataGridColumn.renderCell = (params) => {
+          if (!params) return '';
+          // Use the row's position in the data array
+          const rowIndex = projects.findIndex(project => project.id === params.id);
+          return rowIndex !== -1 ? rowIndex + 1 : '';
+        };
+        dataGridColumn.sortable = false;
+        dataGridColumn.filterable = false;
+        break;
+      
+      case 'projectName':
+        // No special handling needed - DataGrid will use the field mapping automatically
+        break;
       case 'status':
         dataGridColumn.renderCell = (params) => {
           if (!params) return null;
@@ -265,11 +301,11 @@ function ProjectManagementPage() {
         break;
     }
     return dataGridColumn;
-  }).filter(col => visibleColumnIds.includes(col.field));
+  });
 
   return (
     <Box m="20px">
-      <Header title="PROJECTS" subtitle="List of Projects" />
+      <Header title="PROJECTS" subtitle="Registry of Projects" />
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
         <Stack direction="row" spacing={1}>
           {hasPrivilege('projectcategory.read_all') && (
@@ -282,9 +318,9 @@ function ProjectManagementPage() {
                   Manage Categories
               </Button>
           )}
-          <Button variant="outlined" startIcon={<SettingsIcon />} onClick={handleOpenColumnsMenu}
+          <Button variant="outlined" startIcon={<SettingsIcon />} onClick={handleResetColumns}
             sx={{ color: colors.grey[100], borderColor: colors.grey[400], '&:hover': { backgroundColor: colors.primary[500], borderColor: colors.grey[100] } }}
-          >Customize Columns</Button>
+          >Reset to Defaults</Button>
           {checkUserPrivilege(user, 'project.create') && (
             <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenFormDialog()}
               sx={{ backgroundColor: colors.greenAccent[600], '&:hover': { backgroundColor: colors.greenAccent[700] }, color: colors.white }}
@@ -294,22 +330,6 @@ function ProjectManagementPage() {
           )}
         </Stack>
       </Box>
-
-      <Menu anchorEl={anchorElColumnsMenu} open={Boolean(anchorElColumnsMenu)} onClose={handleCloseColumnsMenu} PaperProps={{ style: { maxHeight: 48 * 4.5, width: '25ch', backgroundColor: colors.primary[400], color: colors.grey[100] } }}>
-        {projectTableColumnsConfig.map((column) => (
-          <MenuItem key={column.id} disableRipple onClick={(e) => e.stopPropagation()}>
-            <ListItemIcon>
-              <Checkbox
-                checked={visibleColumnIds.includes(column.id)}
-                onChange={(e) => handleToggleColumn(column.id, e.target.checked)}
-                sx={{ color: `${colors.greenAccent[200]} !important` }}
-                disabled={column.sticky === 'left' && visibleColumnIds.filter(id => projectTableColumnsConfig.find(c => c.id === id)?.sticky === 'left').length === 1}
-              />
-            </ListItemIcon>
-            <ListItemText primary={column.label} />
-          </MenuItem>
-        ))}
-      </Menu>
 
       <ProjectFilters
         filterState={filterState}
@@ -324,37 +344,65 @@ function ProjectManagementPage() {
       {!loading && !error && projects.length === 0 && checkUserPrivilege(user, 'project.read_all') && (<Alert severity="info" sx={{ mt: 2 }}>No projects found. Adjust filters or add a new project.</Alert>)}
       {!loading && !error && projects.length === 0 && !checkUserPrivilege(user, 'project.read_all') && (<Alert severity="warning" sx={{ mt: 2 }}>You do not have the necessary permissions to view any projects.</Alert>)}
 
+      
       {!loading && !error && projects && projects.length > 0 && columns && columns.length > 0 && (
         <Box
-          m="40px 0 0 0"
-          height="75vh"
-          width="100%"
           sx={{
-            overflow: "hidden",
+            mt: 0, // Remove the top margin to eliminate gap
+            backgroundColor: colors.primary[400],
+            borderRadius: '0 0 12px 12px', // Only round bottom corners since it connects to filters above
+            overflow: 'hidden',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15), 0 -2px 10px rgba(0, 0, 0, 0.1)', // Add top shadow to connect with filters
+            border: `1px solid ${colors.blueAccent[700]}`,
+            borderTop: 'none', // Remove top border since it connects to filters above
+            height: `${calculateGridHeight()}px`,
+            width: '100%',
             "& .MuiDataGrid-root": {
               border: "none",
+              width: "100%",
+              "& .MuiDataGrid-columnHeaders": {
+                backgroundColor: `${colors.blueAccent[700]} !important`,
+                borderBottom: "none",
+                minHeight: "56px !important",
+                height: "56px !important",
+                width: "100% !important",
+                "& .MuiDataGrid-columnHeadersInner": {
+                  backgroundColor: `${colors.blueAccent[700]} !important`,
+                  width: "100% !important",
+                },
+                "& .MuiDataGrid-columnHeader": {
+                  backgroundColor: `${colors.blueAccent[700]} !important`,
+                },
+                "& .MuiDataGrid-columnHeaderTitle": {
+                  color: "white !important",
+                  fontWeight: "bold",
+                },
+                "& .MuiDataGrid-columnSeparator": {
+                  color: `${colors.grey[300]} !important`,
+                },
+              },
+              "& .MuiDataGrid-main": {
+                backgroundColor: `${colors.primary[400]} !important`,
+                width: "100%",
+              },
+              "& .MuiDataGrid-container--top [role=row]": {
+                backgroundColor: `${colors.blueAccent[700]} !important`,
+              },
+              "& .MuiDataGrid-scrollArea": {
+                width: "100%",
+              },
             },
             "& .MuiDataGrid-cell": {
               borderBottom: "none",
             },
-            "& .MuiDataGrid-columnHeaders": {
-              backgroundColor: `${colors.blueAccent[700]} !important`,
-              borderBottom: "none",
-              minHeight: "56px",
-            },
-            "& .MuiDataGrid-columnHeader": {
-              backgroundColor: `${colors.blueAccent[700]} !important`,
-            },
-            "& .MuiDataGrid-columnHeaderTitle": {
-              color: "white !important",
-              fontWeight: "bold",
-            },
             "& .MuiDataGrid-virtualScroller": {
               backgroundColor: colors.primary[400],
+              width: "100%",
             },
             "& .MuiDataGrid-footerContainer": {
               borderTop: "none",
               backgroundColor: `${colors.blueAccent[700]} !important`,
+              width: "100%",
             },
             "& .MuiCheckbox-root": {
               color: `${colors.greenAccent[200]} !important`,
@@ -368,12 +416,46 @@ function ProjectManagementPage() {
             rows={projects || []}
             columns={columns}
             getRowId={(row) => row?.id || Math.random()}
+            columnVisibilityModel={columnVisibilityModel}
+            onColumnVisibilityModelChange={(newModel) => {
+              setColumnVisibilityModel(newModel);
+              localStorage.setItem('projectTableColumnVisibility', JSON.stringify(newModel));
+            }}
+            paginationModel={paginationModel}
+            onPaginationModelChange={setPaginationModel}
             initialState={{
               sorting: {
                 sortModel: [{ field: orderBy, sort: order }],
               },
             }}
+            pageSizeOptions={[10, 25, 50, 100]}
             disableRowSelectionOnClick
+            checkboxSelection={false}
+            disableColumnFilter={false}
+            disableColumnSelector={false}
+            disableDensitySelector={false}
+            autoHeight={false}
+            sx={{
+              height: '100%',
+              width: '100%',
+              '& .MuiDataGrid-main': {
+                overflow: 'visible',
+                width: '100%',
+              },
+              '& .MuiDataGrid-virtualScroller': {
+                overflow: 'auto !important',
+                width: '100%',
+              },
+              '& .MuiDataGrid-columnHeaders': {
+                position: 'sticky',
+                top: 0,
+                zIndex: 1,
+                width: '100% !important',
+              },
+              '& .MuiDataGrid-columnHeadersInner': {
+                width: '100% !important',
+              },
+            }}
           />
         </Box>
       )}

@@ -1,5 +1,6 @@
 // src/configs/projectTableConfig.js
 const projectTableColumns = [
+  { id: 'rowNumber', label: '#', minWidth: 30, width: 40, show: true, sortable: false, sticky: 'left' },
   { id: 'id', label: 'ID', minWidth: 20, show: false, sortable: true },
   { id: 'projectName', label: 'Project Name', minWidth: 200, show: true, sticky: 'left', sortable: true },
   { id: 'status', label: 'Status', minWidth: 120, show: true, sortable: true },

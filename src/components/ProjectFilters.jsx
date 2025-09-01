@@ -65,11 +65,12 @@ const ProjectFilters = ({
   return (
     <>
       <Accordion expanded={filtersExpanded} onChange={() => setFiltersExpanded(!filtersExpanded)} sx={{ 
-        mb: 3, 
-        borderRadius: '12px', 
+        mb: 0, // Remove bottom margin to eliminate gap
+        borderRadius: '12px 12px 0 0', // Only round top corners since it will connect to the table below
         boxShadow: theme.shadows[3],
         backgroundColor: colors.primary[400],
         border: `1px solid ${colors.blueAccent[700]}`,
+        borderBottom: 'none', // Remove bottom border since it will connect to the table
       }}>
         <AccordionSummary 
           expandIcon={<ExpandMoreIcon sx={{ color: colors.blueAccent[700] }} />} 
@@ -154,7 +155,7 @@ const ProjectFilters = ({
       </Accordion>
       
       {/* Active Filter Chips */}
-      <Box sx={{ mb: 2 }}>
+      <Box sx={{ mb: 0 }}>
         <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
           {filterState.projectName && (<Chip label={`Project: ${filterState.projectName}`} onDelete={() => handleFilterChange({ target: { name: 'projectName', value: '' } })} color="primary" variant="outlined" />)}
           {filterState.status && (<Chip label={`Status: ${filterState.status}`} onDelete={() => handleFilterChange({ target: { name: 'status', value: '' } })} color="primary" variant="outlined" />)}
@@ -168,6 +169,23 @@ const ProjectFilters = ({
           {filterState.wardId && (<Chip label={`Ward: ${wards.find(w => String(w.wardId) === String(filterState.wardId))?.name || filterState.wardId}`} onDelete={() => handleFilterChange({ target: { name: 'wardId', value: '' } })} color="primary" variant="outlined" />)}
         </Stack>
       </Box>
+      
+      {/* Visual separator connecting to the table below */}
+      <Box sx={{ 
+        height: '2px', 
+        backgroundColor: colors.blueAccent[700], 
+        mx: 2, 
+        opacity: 0.7,
+        borderRadius: '1px'
+      }} />
+      
+      {/* Background transition to connect with table */}
+      <Box sx={{ 
+        height: '8px', 
+        background: `linear-gradient(to bottom, ${colors.primary[400]}, ${colors.primary[500]})`,
+        mx: 0,
+        opacity: 0.8
+      }} />
     </>
   );
 };
