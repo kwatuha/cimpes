@@ -24,6 +24,7 @@ import {
 import apiService from '../api';
 import { useAuth } from '../context/AuthContext.jsx';
 import { getProjectStatusBackgroundColor, getProjectStatusTextColor } from '../utils/projectStatusColors';
+import { tokens } from "./dashboard/theme"; // Import tokens for color styling
 import MilestoneAttachments from '../components/MilestoneAttachments.jsx';
 import ProjectMonitoringComponent from '../components/ProjectMonitoringComponent.jsx';
 import ProjectManagerReviewPanel from '../components/ProjectManagerReviewPanel.jsx';
@@ -76,6 +77,7 @@ function ProjectDetailsPage() {
     const navigate = useNavigate();
     const { user, logout, authLoading } = useAuth();
     const theme = useTheme();
+    const colors = tokens(theme.palette.mode); // Initialize colors
 
     const [project, setProject] = useState(null);
     const [milestones, setMilestones] = useState([]);
@@ -551,31 +553,76 @@ function ProjectDetailsPage() {
     const overallProgress = project?.overallProgress || 0;
 
     return (
-        <Box sx={{ p: 3, backgroundColor: theme.palette.background.default }}>
+                    <Box sx={{ 
+                p: 2, 
+                backgroundColor: colors.primary[400],
+                minHeight: '100vh',
+                background: theme.palette.mode === 'dark' 
+                    ? `linear-gradient(135deg, ${colors.primary[400]} 0%, ${colors.primary[500]} 100%)`
+                    : `linear-gradient(135deg, ${colors.grey[900]} 0%, ${colors.grey[800]} 100%)`,
+                position: 'relative',
+                '&::before': theme.palette.mode === 'light' ? {
+                    content: '""',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: `radial-gradient(circle at 20% 80%, ${colors.blueAccent[100]}15 0%, transparent 50%), radial-gradient(circle at 80% 20%, ${colors.greenAccent[100]}15 0%, transparent 50%)`,
+                    pointerEvents: 'none'
+                } : {}
+            }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Button
                     variant="outlined"
                     startIcon={<ArrowBackIcon />}
                     onClick={() => navigate('/projects')}
+                    sx={{
+                        borderColor: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[500],
+                        color: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[600],
+                        '&:hover': {
+                            borderColor: theme.palette.mode === 'dark' ? colors.blueAccent[600] : colors.blueAccent[600],
+                            backgroundColor: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[500],
+                            color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[100]
+                        },
+                        fontWeight: 'bold',
+                        borderRadius: '8px',
+                        px: 3,
+                        py: 1,
+                        boxShadow: theme.palette.mode === 'light' ? `0 2px 8px ${colors.blueAccent[100]}40` : 'none'
+                    }}
                 >
                     Back to Projects
                 </Button>
             </Box>
 
             {/* Consolidated Top Section */}
-            <Paper elevation={3} sx={{ p: 3, mb: 4, borderRadius: '12px' }}>
+            <Paper elevation={8} sx={{ 
+                p: 2.5, 
+                mb: 3, 
+                borderRadius: '12px',
+                background: theme.palette.mode === 'dark'
+                    ? `linear-gradient(135deg, ${colors.primary[500]} 0%, ${colors.primary[600]} 100%)`
+                    : `linear-gradient(135deg, ${colors.grey[900]} 0%, ${colors.grey[800]} 100%)`,
+                border: `2px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[300]}`,
+                boxShadow: theme.palette.mode === 'dark'
+                    ? `0 6px 24px rgba(0, 0, 0, 0.25), 0 3px 12px rgba(0, 0, 0, 0.15)`
+                    : `0 6px 24px rgba(0, 0, 0, 0.08), 0 3px 12px rgba(0, 0, 0, 0.04), 0 0 0 1px ${colors.blueAccent[100]}`
+            }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', mb: 1 }}>
                     <Stack direction="row" alignItems="center" spacing={1} sx={{ flexGrow: 1, minWidth: 0 }}>
                         <Typography
-                            variant="h6"
+                            variant="h4"
                             component="h1"
                             sx={{
                                 fontWeight: 'bold',
-                                color: theme.palette.primary.main,
+                                color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[300],
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
                                 whiteSpace: 'nowrap',
                                 flexShrink: 1,
+                                textShadow: theme.palette.mode === 'dark' ? '2px 2px 4px rgba(0, 0, 0, 0.3)' : 'none',
+                                letterSpacing: '0.5px'
                             }}
                         >
                             {project?.projectName || 'Project Name Missing'}
@@ -611,84 +658,289 @@ function ProjectDetailsPage() {
                     </Stack>
                 </Box>
                 <Stack direction="row" alignItems="center" spacing={2} sx={{ mt: 2 }}>
-                    <Typography variant="body1" sx={{ fontWeight: 'bold', flexShrink: 0 }}>
+                    <Typography variant="h6" sx={{ 
+                        fontWeight: 'bold', 
+                        flexShrink: 0,
+                        color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[400],
+                        textShadow: theme.palette.mode === 'dark' ? '1px 1px 2px rgba(0, 0, 0, 0.3)' : 'none'
+                    }}>
                         Overall Progress: {overallProgress.toFixed(2)}%
                     </Typography>
                     <LinearProgress
                         variant="determinate"
                         value={overallProgress}
-                        sx={{ flexGrow: 1, height: 10, borderRadius: 5, bgcolor: theme.palette.grey[300] }}
-                        color="primary"
+                        sx={{ 
+                            flexGrow: 1, 
+                            height: 12, 
+                            borderRadius: 6, 
+                            bgcolor: colors.grey[600],
+                            '& .MuiLinearProgress-bar': {
+                                borderRadius: 6,
+                                background: `linear-gradient(90deg, ${colors.greenAccent[500]} 0%, ${colors.greenAccent[600]} 100%)`
+                            }
+                        }}
                     />
                 </Stack>
             </Paper>
 
             {/* Combined Overview and Description Section */}
-            <Paper elevation={3} sx={{ p: 3, mb: 4, borderRadius: '12px' }}>
-                <Typography variant="h6" color="primary" sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <InfoIcon sx={{ mr: 1 }} />
+            <Paper elevation={6} sx={{ 
+                p: 3, 
+                mb: 3, 
+                borderRadius: '12px',
+                background: theme.palette.mode === 'dark'
+                    ? `linear-gradient(135deg, ${colors.primary[400]} 0%, ${colors.primary[500]} 100%)`
+                    : `linear-gradient(135deg, ${colors.grey[900]} 0%, ${colors.grey[800]} 100%)`,
+                border: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[200]}`,
+                boxShadow: theme.palette.mode === 'dark'
+                    ? `0 4px 20px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1)`
+                    : `0 4px 20px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.03), 0 0 0 1px ${colors.blueAccent[50]}`
+            }}>
+                <Typography variant="h5" sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    mb: 2,
+                    color: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[500],
+                    fontWeight: 'bold',
+                    textShadow: theme.palette.mode === 'dark' ? '1px 1px 2px rgba(0, 0, 0, 0.2)' : 'none',
+                    borderBottom: `2px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[400]}`,
+                    pb: 1
+                }}>
+                    <InfoIcon sx={{ mr: 1, color: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[500] }} />
                     Project Overview
                 </Typography>
                 <Grid container spacing={4}>
                     {/* First Column: Key Information */}
                     <Grid item xs={12} md={4}>
-                        <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>Key Information</Typography>
-                        <Stack spacing={1}>
-                            <Typography variant="body1"><strong>Project Category:</strong> {projectCategory?.categoryName || 'N/A'}</Typography>
-                            <Typography variant="body1"><strong>Directorate:</strong> {project?.directorate || 'N/A'}</Typography>
-                            <Typography variant="body1"><strong>Principal Investigator:</strong> {project?.principalInvestigator || 'N/A'}</Typography>
-                        </Stack>
+                        <Box sx={{
+                            p: 1.5,
+                            borderRadius: '8px',
+                            backgroundColor: theme.palette.mode === 'dark' ? colors.primary[600] : colors.grey[900],
+                            border: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[300]}`,
+                            height: '100%',
+                            boxShadow: theme.palette.mode === 'light' ? `0 2px 8px ${colors.blueAccent[100]}40` : 'none'
+                        }}>
+                            <Typography variant="h6" sx={{ 
+                                fontWeight: 'bold', 
+                                mb: 1.5,
+                                color: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[500],
+                                textAlign: 'center',
+                                borderBottom: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[400]}`,
+                                pb: 0.5
+                            }}>
+                                Key Information
+                            </Typography>
+                            <Stack spacing={1}>
+                                <Typography variant="body1" sx={{ 
+                                    color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[400] 
+                                }}>
+                                    <strong style={{ color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400] }}>Project Category:</strong> {projectCategory?.categoryName || 'N/A'}
+                                </Typography>
+                                <Typography variant="body1" sx={{ 
+                                    color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[400] 
+                                }}>
+                                    <strong style={{ color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400] }}>Directorate:</strong> {project?.directorate || 'N/A'}
+                                </Typography>
+                                <Typography variant="body1" sx={{ 
+                                    color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[400] 
+                                }}>
+                                    <strong style={{ color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400] }}>Principal Investigator:</strong> {project?.principalInvestigator || 'N/A'}
+                                </Typography>
+                            </Stack>
+                        </Box>
                     </Grid>
                     {/* Second Column: Financial Details */}
                     <Grid item xs={12} md={4}>
-                        <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>Financial Details</Typography>
-                        <Stack spacing={1}>
-                            <Typography variant="body1"><strong>Start Date:</strong> {formatDate(project?.startDate)}</Typography>
-                            <Typography variant="body1"><strong>End Date:</strong> {formatDate(project?.endDate)}</Typography>
-                            <Typography variant="body1"><strong>Total Cost:</strong> {formatCurrency(project?.costOfProject)}</Typography>
-                            <Typography variant="body1"><strong>Paid Out:</strong> {formatCurrency(project?.paidOut)}</Typography>
-                        </Stack>
+                        <Box sx={{
+                            p: 1.5,
+                            borderRadius: '8px',
+                            backgroundColor: theme.palette.mode === 'dark' ? colors.primary[600] : colors.grey[900],
+                            border: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[300]}`,
+                            height: '100%',
+                            boxShadow: theme.palette.mode === 'light' ? `0 2px 8px ${colors.blueAccent[100]}40` : 'none'
+                        }}>
+                            <Typography variant="h6" sx={{ 
+                                fontWeight: 'bold', 
+                                mb: 1.5,
+                                color: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[500],
+                                textAlign: 'center',
+                                borderBottom: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[400]}`,
+                                pb: 0.5
+                            }}>
+                                Financial Details
+                            </Typography>
+                            <Stack spacing={1}>
+                                <Typography variant="body1" sx={{ 
+                                    color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[400] 
+                                }}>
+                                    <strong style={{ color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400] }}>Start Date:</strong> {formatDate(project?.startDate)}
+                                </Typography>
+                                <Typography variant="body1" sx={{ 
+                                    color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[400] 
+                                }}>
+                                    <strong style={{ color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400] }}>End Date:</strong> {formatDate(project?.endDate)}
+                                </Typography>
+                                <Typography variant="body1" sx={{ 
+                                    color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[400] 
+                                }}>
+                                    <strong style={{ color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400] }}>Total Cost:</strong> {formatCurrency(project?.costOfProject)}
+                                </Typography>
+                                <Typography variant="body1" sx={{ 
+                                    color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[400] 
+                                }}>
+                                    <strong style={{ color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400] }}>Paid Out:</strong> {formatCurrency(project?.paidOut)}
+                                </Typography>
+                            </Stack>
+                        </Box>
                     </Grid>
                     {/* Third Column: Accomplished Work */}
                     <Grid item xs={12} md={4}>
-                        <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>Accomplished Work</Typography>
-                        <Stack spacing={1}>
-                            <Typography variant="h5" sx={{ fontWeight: 'bold', color: theme.palette.success.main }}>
-                                {formatCurrency(paymentJustification.totalBudget)}
+                        <Box sx={{
+                            p: 1.5,
+                            borderRadius: '8px',
+                            backgroundColor: theme.palette.mode === 'dark' ? colors.primary[600] : colors.grey[900],
+                            border: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[300]}`,
+                            height: '100%',
+                            boxShadow: theme.palette.mode === 'light' ? `0 2px 8px ${colors.blueAccent[100]}40` : 'none'
+                        }}>
+                            <Typography variant="h6" sx={{ 
+                                fontWeight: 'bold', 
+                                mb: 1.5,
+                                color: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[500],
+                                textAlign: 'center',
+                                borderBottom: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[400]}`,
+                                pb: 0.5
+                            }}>
+                                Accomplished Work
                             </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                Total Budget from Completed Activities
-                            </Typography>
-                            <Box sx={{ mt: 2 }}>
+                            <Stack spacing={1} alignItems="center">
+                                <Typography variant="h4" sx={{ 
+                                    fontWeight: 'bold', 
+                                    color: colors.greenAccent[500],
+                                    textShadow: theme.palette.mode === 'dark' ? '1px 1px 2px rgba(0, 0, 0, 0.3)' : 'none'
+                                }}>
+                                    {formatCurrency(paymentJustification.totalBudget)}
+                                </Typography>
+                                <Typography variant="body2" sx={{ 
+                                    color: theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[600],
+                                    textAlign: 'center',
+                                    mb: 2
+                                }}>
+                                    Total Budget from Completed Activities
+                                </Typography>
                                 <Button
                                     variant="contained"
                                     startIcon={<PaidIcon />}
                                     onClick={handleOpenPaymentRequest}
                                     disabled={paymentJustification.accomplishedActivities.length === 0}
-                                    size="small"
-                                    color="success"
+                                    size="medium"
+                                    sx={{
+                                        backgroundColor: colors.greenAccent[600],
+                                        color: colors.grey[100],
+                                        fontWeight: 'bold',
+                                        borderRadius: '8px',
+                                        px: 3,
+                                        '&:hover': {
+                                            backgroundColor: colors.greenAccent[700]
+                                        }
+                                    }}
                                 >
                                     Request Payment
                                 </Button>
-                            </Box>
-                        </Stack>
+                            </Stack>
+                        </Box>
                     </Grid>
                     {/* Full-width row for Project Description */}
                     <Grid item xs={12}>
-                        <Divider sx={{ my: 2 }} />
-                        <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>Project Description</Typography>
-                        <Typography variant="body1" sx={{ mb: 1 }}><strong>Objective:</strong> {project?.objective || 'N/A'}</Typography>
-                        <Typography variant="body1" sx={{ mb: 1 }}><strong>Expected Output:</strong> {project?.expectedOutput || 'N/A'}</Typography>
-                        <Typography variant="body1"><strong>Expected Outcome:</strong> {project?.expectedOutcome || 'N/A'}</Typography>
+                        <Box sx={{
+                            p: 2,
+                            borderRadius: '8px',
+                            backgroundColor: theme.palette.mode === 'dark' ? colors.primary[600] : colors.grey[900],
+                            border: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[300]}`,
+                            mt: 2,
+                            boxShadow: theme.palette.mode === 'light' ? `0 2px 8px ${colors.blueAccent[100]}40` : 'none'
+                        }}>
+                            <Typography variant="h6" sx={{ 
+                                fontWeight: 'bold', 
+                                mb: 1.5,
+                                color: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[500],
+                                textAlign: 'center',
+                                borderBottom: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[400]}`,
+                                pb: 0.5
+                            }}>
+                                Project Description
+                            </Typography>
+                            <Stack spacing={1.5}>
+                                <Box>
+                                    <Typography variant="body1" sx={{ 
+                                        mb: 1,
+                                        fontWeight: 'bold',
+                                        color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[600]
+                                    }}>
+                                        Objective:
+                                    </Typography>
+                                    <Typography variant="body1" sx={{ 
+                                        color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[400],
+                                        pl: 2,
+                                        borderLeft: `3px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[400]}`,
+                                        py: 1
+                                    }}>
+                                        {project?.objective || 'N/A'}
+                                    </Typography>
+                                </Box>
+                                <Box>
+                                    <Typography variant="body1" sx={{ 
+                                        mb: 1,
+                                        fontWeight: 'bold',
+                                        color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400]
+                                    }}>
+                                        Expected Output:
+                                    </Typography>
+                                    <Typography variant="body1" sx={{ 
+                                        color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[400],
+                                        pl: 2,
+                                        borderLeft: `3px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[400]}`,
+                                        py: 1
+                                    }}>
+                                        {project?.expectedOutput || 'N/A'}
+                                    </Typography>
+                                </Box>
+                                <Box>
+                                    <Typography variant="body1" sx={{ 
+                                        mb: 1,
+                                        fontWeight: 'bold',
+                                        color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400]
+                                    }}>
+                                        Expected Outcome:
+                                    </Typography>
+                                    <Typography variant="body1" sx={{ 
+                                        color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[400],
+                                        pl: 2,
+                                        borderLeft: `3px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[400]}`,
+                                        py: 1
+                                    }}>
+                                        {project?.expectedOutcome || 'N/A'}
+                                    </Typography>
+                                </Box>
+                            </Stack>
+                        </Box>
                     </Grid>
                 </Grid>
             </Paper>
 
             {/* Work Plans and Milestones Section (Refactored) */}
-            <Box sx={{ mt: 4 }}>
+            <Box sx={{ mt: 3 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h5" color="primary" sx={{ display: 'flex', alignItems: 'center', fontWeight: 'bold' }}>
-                        <AccountTreeIcon sx={{ mr: 1 }} />
+                    <Typography variant="h5" sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        fontWeight: 'bold',
+                        color: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[500],
+                        textShadow: theme.palette.mode === 'dark' ? '1px 1px 2px rgba(0, 0, 0, 0.2)' : 'none',
+                        borderBottom: `2px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[400]}`,
+                        pb: 1
+                    }}>
+                        <AccountTreeIcon sx={{ mr: 1, color: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[500] }} />
                         Work Plans & Milestones
                     </Typography>
                     <Stack direction="row" spacing={1}>
@@ -795,13 +1047,21 @@ function ProjectDetailsPage() {
                                                     const activitiesForMilestone = activitiesForWorkplan.filter(a => a.milestoneId === milestone.milestoneId);
                                                     return (
                                                         <Grid item xs={12} md={6} key={milestone.milestoneId}>
-                                                            <Paper elevation={3} sx={{ p: 0, borderRadius: '12px', height: '100%', display: 'flex', flexDirection: 'column' }}>
+                                                            <Paper elevation={3} sx={{ 
+                                                                p: 0, 
+                                                                borderRadius: '12px', 
+                                                                height: '100%', 
+                                                                display: 'flex', 
+                                                                flexDirection: 'column',
+                                                                border: theme.palette.mode === 'light' ? `1px solid ${colors.blueAccent[100]}` : 'none',
+                                                                boxShadow: theme.palette.mode === 'light' ? `0 4px 12px ${colors.blueAccent[100]}30` : undefined
+                                                            }}>
                                                                 <Box
                                                                     sx={{
                                                                         p: 2,
                                                                         pb: 1.5,
                                                                         borderLeft: `5px solid ${theme.palette.primary.main}`,
-                                                                        backgroundColor: theme.palette.action.hover,
+                                                                        backgroundColor: theme.palette.mode === 'dark' ? theme.palette.action.hover : colors.blueAccent[50],
                                                                         borderTopLeftRadius: '12px',
                                                                         borderTopRightRadius: '12px',
                                                                     }}
@@ -809,7 +1069,10 @@ function ProjectDetailsPage() {
                                                                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                                                             <FlagIcon color="primary" sx={{ mr: 1 }} />
-                                                                            <Typography variant="h6" sx={{ fontWeight: 'bold', color: theme.palette.primary.main }}>
+                                                                            <Typography variant="h6" sx={{ 
+                                                                                fontWeight: 'bold', 
+                                                                                color: theme.palette.mode === 'dark' ? theme.palette.primary.main : colors.blueAccent[700]
+                                                                            }}>
                                                                                 {milestone.milestoneName || 'Unnamed Milestone'}
                                                                             </Typography>
                                                                         </Box>
@@ -846,8 +1109,20 @@ function ProjectDetailsPage() {
                                                                     </Typography>
                                                                     <LinearProgress variant="determinate" value={milestone.progress || 0} sx={{ height: 6, borderRadius: 3, mt: 0.5 }} />
 
-                                                                    <Box sx={{ mt: 2, pl: 1, borderLeft: '2px solid', borderColor: theme.palette.secondary.main }}>
-                                                                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>Activities</Typography>
+                                                                    <Box sx={{ 
+                                                                        mt: 2, 
+                                                                        pl: 1, 
+                                                                        borderLeft: '2px solid', 
+                                                                        borderColor: theme.palette.mode === 'dark' ? theme.palette.secondary.main : colors.greenAccent[400],
+                                                                        backgroundColor: theme.palette.mode === 'light' ? colors.greenAccent[50] : 'transparent',
+                                                                        borderRadius: '0 8px 8px 0',
+                                                                        p: 1
+                                                                    }}>
+                                                                        <Typography variant="subtitle2" sx={{ 
+                                                                            fontWeight: 'bold', 
+                                                                            mb: 1,
+                                                                            color: theme.palette.mode === 'dark' ? 'inherit' : colors.greenAccent[700]
+                                                                        }}>Activities</Typography>
                                                                         {activitiesForMilestone.length > 0 ? (
                                                                             <List dense disablePadding>
                                                                                 {activitiesForMilestone.map(activity => (
