@@ -4,33 +4,89 @@ import GenericFileUploadModal from './GenericFileUploadModal';
 import apiService from '../api';
 
 const documentTypeOptions = [
-    { value: 'invoice', label: 'Invoice' },
-    { value: 'photo_payment', label: 'Payment Photo' }, // ⬅️ NEW: Added a specific type for payment photos
-    { value: 'inspection_report', label: 'Inspection Report' },
-    { value: 'payment_certificate', label: 'Payment Certificate' },
-    { value: 'other', label: 'Other' }
+    { 
+        value: 'invoice', 
+        label: 'Invoice',
+        description: 'Official invoice from vendor or contractor',
+        icon: '🧾'
+    },
+    { 
+        value: 'photo_payment', 
+        label: 'Progress Photo',
+        description: 'Visual evidence of completed work',
+        icon: '📸'
+    },
+    { 
+        value: 'inspection_report', 
+        label: 'Inspection Report',
+        description: 'Quality assurance and compliance documentation',
+        icon: '🔍'
+    },
+    { 
+        value: 'payment_certificate', 
+        label: 'Payment Certificate',
+        description: 'Certification of work completion',
+        icon: '🏆'
+    },
+    { 
+        value: 'receipt', 
+        label: 'Receipt',
+        description: 'Proof of payment or expense',
+        icon: '💰'
+    },
+    { 
+        value: 'contract_agreement', 
+        label: 'Contract Agreement',
+        description: 'Terms and conditions documentation',
+        icon: '📋'
+    },
+    { 
+        value: 'other', 
+        label: 'Other Document',
+        description: 'Additional supporting documentation',
+        icon: '📄'
+    }
 ];
 
-const PaymentRequestDocumentUploader = ({ open, onClose, requestId, projectId }) => {
+const PaymentRequestDocumentUploader = ({ open, onClose, requestId, projectId, onUploadSuccess }) => {
     
     const uploadConfig = {
         options: documentTypeOptions,
         optionsLabel: 'Document Type',
         apiCallKey: 'documentType',
         description: {
-            label: 'Description',
-            placeholder: 'Briefly describe the document or photo...',
+            label: 'Document Description',
+            placeholder: 'Provide a brief description of this document or photo. Include key details like dates, amounts, or specific work completed...',
         }
     };
 
     const submitUpload = async (formData) => {
-        return apiService.documents.uploadDocument(formData);
+        try {
+            const result = await apiService.documents.uploadDocument(formData);
+            
+            // Call the success callback if provided
+            if (onUploadSuccess) {
+                onUploadSuccess(result);
+            }
+            
+            return result;
+        } catch (error) {
+            console.error('Error uploading document:', error);
+            throw error;
+        }
     };
 
     const additionalData = {
-      projectId: projectId,
-      requestId: requestId,
-      documentCategory: 'payment', // The category is 'payment' for all these documents
+        projectId: projectId,
+        requestId: requestId,
+        documentCategory: 'payment', // The category is 'payment' for all these documents
+        status: 'pending_review', // Document status - matches database enum values
+        uploadDate: new Date().toISOString(),
+        uploadSource: 'payment_request_modal',
+        // Additional metadata for better tracking
+        uploadedBy: 'user', // Will be set by backend based on auth
+        isActive: true
+        // Note: documentType is handled by the modal based on user selection
     };
 
     return (
@@ -50,10 +106,12 @@ PaymentRequestDocumentUploader.propTypes = {
     onClose: PropTypes.func.isRequired,
     requestId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     projectId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    onUploadSuccess: PropTypes.func, // Callback function when upload is successful
 };
 
 PaymentRequestDocumentUploader.defaultProps = {
     projectId: null,
+    onUploadSuccess: null,
 };
 
 export default PaymentRequestDocumentUploader;

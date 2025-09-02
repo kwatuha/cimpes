@@ -416,47 +416,89 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
     >
       <DialogTitle 
         sx={{ 
-          background: theme.palette.mode === 'dark' 
-            ? `linear-gradient(135deg, ${colors.primary[500]} 0%, ${colors.primary[600]} 100%)`
-            : `linear-gradient(135deg, ${colors.primary[400]} 0%, ${colors.primary[500]} 100%)`,
+          background: `linear-gradient(135deg, ${colors.blueAccent[400]}, ${colors.primary[500]})`,
           color: 'white',
-          py: 3,
+          py: 2.5,
           px: 4,
           position: 'relative',
-          '&::after': {
+          borderBottom: `3px solid ${colors.blueAccent[300]}`,
+          '&::before': {
             content: '""',
             position: 'absolute',
-            bottom: 0,
+            top: 0,
             left: 0,
             right: 0,
             height: '3px',
-            background: `linear-gradient(90deg, ${colors.blueAccent[400]}, ${colors.greenAccent[400]})`
+            background: `linear-gradient(90deg, ${colors.greenAccent[400]}, ${colors.blueAccent[400]}, ${colors.primary[400]})`
           }
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Box>
-            <Typography variant="h5" sx={{ fontWeight: 600, mb: 0.5 }}>
-              Review Submissions
-            </Typography>
-            <Typography variant="body1" sx={{ opacity: 0.9, fontWeight: 300 }}>
-              Project: {projectName}
-            </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
+            {/* Icon Container */}
+            <Box sx={{ 
+              width: 42, 
+              height: 42, 
+              borderRadius: '50%', 
+              backgroundColor: 'rgba(255,255,255,0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.5rem',
+              border: `2px solid rgba(255,255,255,0.3)`,
+              boxShadow: '0 3px 8px rgba(0,0,0,0.15)'
+            }}>
+              🔍
+            </Box>
+            
+            {/* Title and Project Info */}
+            <Box>
+              <Typography 
+                variant="h5" 
+                sx={{ 
+                  fontWeight: 800, 
+                  mb: 0.5,
+                  textShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                  letterSpacing: '0.5px'
+                }}
+              >
+                Review Submissions
+              </Typography>
+              <Typography 
+                variant="body1" 
+                sx={{ 
+                  opacity: 0.95, 
+                  fontWeight: 500,
+                  color: colors.grey[100],
+                  textShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                  maxWidth: '600px',
+                  lineHeight: 1.2
+                }}
+              >
+                {projectName}
+              </Typography>
+            </Box>
           </Box>
+          
+          {/* Enhanced Close Button */}
           <IconButton
             aria-label="close"
             onClick={onClose}
             sx={{ 
               color: 'white',
-              backgroundColor: 'rgba(255,255,255,0.1)',
+              backgroundColor: 'rgba(255,255,255,0.15)',
+              width: 40,
+              height: 40,
+              border: `2px solid rgba(255,255,255,0.2)`,
               '&:hover': {
-                backgroundColor: 'rgba(255,255,255,0.2)',
-                transform: 'scale(1.1)'
+                backgroundColor: 'rgba(255,255,255,0.25)',
+                transform: 'scale(1.05) rotate(90deg)',
+                borderColor: 'rgba(255,255,255,0.4)'
               },
-              transition: 'all 0.2s ease-in-out'
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
             }}
           >
-            <CloseIcon />
+            <CloseIcon sx={{ fontSize: '1.2rem' }} />
           </IconButton>
         </Box>
       </DialogTitle>
